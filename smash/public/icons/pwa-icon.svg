@@ -1,15 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Smash Matchup Lab icon">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#f4efe4" />
-      <stop offset="100%" stop-color="#d4e6dd" />
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="108" fill="url(#bg)" />
-  <rect x="72" y="84" width="368" height="344" rx="40" fill="#fffef9" stroke="#1e6a4d" stroke-width="18" />
-  <path d="M124 180h264" stroke="#1e6a4d" stroke-width="16" stroke-linecap="round" />
-  <path d="M124 244h170" stroke="#4f5f55" stroke-width="14" stroke-linecap="round" />
-  <path d="M124 300h196" stroke="#4f5f55" stroke-width="14" stroke-linecap="round" />
-  <circle cx="364" cy="294" r="54" fill="#1e6a4d" />
-  <path d="M364 260v68M330 294h68" stroke="#fffef9" stroke-width="12" stroke-linecap="round" />
+<!-- ABOUTME: Defines the primary browser and PWA icon using a Palutena stock-logo silhouette. -->
+<!-- ABOUTME: Keeps the icon vector-only so it remains crisp across favicon and app-launch sizes. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Palutena stock logo icon">
+  <rect width="512" height="512" rx="108" fill="#f7f1e7" />
+  <rect x="28" y="28" width="456" height="456" rx="92" fill="#efe4d2" stroke="#d8c7af" stroke-width="8" />
+  <g transform="translate(256 260)">
+    <path
+      d="M-124 -102c8-44 33-80 77-97-5 34 6 61 33 83-43 10-76 28-110 61z"
+      fill="#d5a414"
+    />
+    <path
+      d="M124 -102c-8-44-33-80-77-97 5 34-6 61-33 83 43 10 76 28 110 61z"
+      fill="#d5a414"
+    />
+    <path
+      d="M-38 -138c13-14 25-21 38-21 13 0 25 7 38 21l-16 34c-8-8-16-12-22-12-6 0-14 4-22 12z"
+      fill="#e3bf47"
+    />
+    <path
+      d="M-126 -68c18-54 66-104 126-104 60 0 108 50 126 104l17 144c-28 44-71 82-143 120C-72 158-115 120-143 76z"
+      fill="#54bb32"
+    />
+    <path
+      d="M-94 -18c18-20 46-31 94-31 48 0 76 11 94 31-8-46-41-88-94-88-53 0-86 42-94 88z"
+      fill="#6fcd41"
+    />
+    <ellipse cx="0" cy="18" rx="69" ry="82" fill="#fff4dc" />
+    <path
+      d="M-79 78c25 23 51 35 79 35 28 0 54-12 79-35l-14 60c-24 18-45 27-65 27-20 0-41-9-65-27z"
+      fill="#54bb32"
+    />
+  </g>
 </svg>
