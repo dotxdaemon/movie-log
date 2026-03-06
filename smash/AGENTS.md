@@ -223,6 +223,21 @@ Clarification policy
 - If you must ask, ask only the minimum required to avoid breaking changes (example: file path, framework, or a required reference image).
 - Do not continue with guesses when the result would likely miss the target.
 
+Reference-first policy
+- For anything based on an external reference, asset, API, design, product, or factual detail:
+- Do not infer from memory.
+- Find and read the exact source first.
+- Before changing anything, show the exact source used, the specific facts or details extracted from it, and one sentence stating the root-cause or implementation hypothesis.
+- If the source cannot be found or is ambiguous, stop and ask.
+- Treat any unsupported assumption as a failure.
+- For icons, UI matching, branding, or design references:
+- Use the exact reference image or page Sean provides, or find the canonical source.
+- Do not approximate from memory.
+- Before implementing, restate the visual markers that must match.
+- After implementing, provide side-by-side reference and result screenshots or before and after screenshots.
+- If the result is only inspired by the reference, that is a failure.
+- If a request depends on a named thing such as a character icon, API behavior, design pattern, file, or schema, you must prove you found the exact thing before editing. If you cannot prove it, stop and ask.
+
 Output policy
 - Do not claim you changed something unless it is in the diff.
 - Do not claim tests passed unless you actually ran them and saw them pass.
