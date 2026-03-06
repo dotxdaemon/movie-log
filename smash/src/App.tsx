@@ -392,78 +392,80 @@ function App({ initialView = 'dashboard' }: AppProps) {
       <p className="sr-only" role="status" aria-live="polite">
         {saveStatus}
       </p>
-      <header className="cover-sheet panel animated-entry">
-        <div className="cover-sheet__meta">
-          <div>
-            <p className="eyebrow">Smash Matchup Lab</p>
-            <p className="cover-sheet__issue">Matchup notes</p>
-          </div>
-          <p className="cover-sheet__stamp">
-            {coverOpponent ? `Focus / ${coverOpponent}` : 'No focus yet'}
-          </p>
-        </div>
-
-        <div className="cover-sheet__grid">
-          <div className="cover-sheet__copy">
-            <h1>Set Notes</h1>
-            <p className="cover-sheet__lede">
-              Log what lost you the set, what worked, and the next rule to test.
+      {activeView === 'dashboard' && (
+        <header className="cover-sheet panel animated-entry">
+          <div className="cover-sheet__meta">
+            <div>
+              <p className="eyebrow">Smash Matchup Lab</p>
+              <p className="cover-sheet__issue">Matchup notes</p>
+            </div>
+            <p className="cover-sheet__stamp">
+              {coverOpponent ? `Focus / ${coverOpponent}` : 'No focus yet'}
             </p>
-            <p className="cover-sheet__rule">{coverRule}</p>
-            <div className="cover-sheet__actions">
-              <button
-                type="button"
-                className="cover-button"
-                onClick={() => {
-                  setActiveView('entry')
-                  focusSoon(opponentInputRef)
-                }}
-              >
-                Quick log a note
-              </button>
-              <button
-                type="button"
-                className="cover-button cover-button--secondary"
-                onClick={() => setActiveView('log')}
-              >
-                Open log
-              </button>
+          </div>
+
+          <div className="cover-sheet__grid">
+            <div className="cover-sheet__copy">
+              <h1>Set Notes</h1>
+              <p className="cover-sheet__lede">
+                Log what lost you the set, what worked, and the next rule to test.
+              </p>
+              <p className="cover-sheet__rule">{coverRule}</p>
+              <div className="cover-sheet__actions">
+                <button
+                  type="button"
+                  className="cover-button"
+                  onClick={() => {
+                    setActiveView('entry')
+                    focusSoon(opponentInputRef)
+                  }}
+                >
+                  Quick log a note
+                </button>
+                <button
+                  type="button"
+                  className="cover-button cover-button--secondary"
+                  onClick={() => setActiveView('log')}
+                >
+                  Open log
+                </button>
+              </div>
+            </div>
+
+            <div className="cover-sheet__stats">
+              <article className="stat-card">
+                <span className="stat-card__label">Entries logged</span>
+                <strong className="stat-card__value">{entries.length}</strong>
+                <p className="stat-card__note">
+                  {entries.length > 0
+                    ? `${trackedMatchups} matchups tracked`
+                    : 'Start with one set and the notebook begins to trend.'}
+                </p>
+              </article>
+
+              <article className="stat-card stat-card--accent">
+                <span className="stat-card__label">Pinned drills</span>
+                <strong className="stat-card__value">{pinnedDrills.length}</strong>
+                <p className="stat-card__note">
+                  {pinnedDrills.length > 0
+                    ? 'Keep your next session visible and concrete.'
+                    : 'Pin the drills you want ready before bracket.'}
+                </p>
+              </article>
             </div>
           </div>
 
-          <div className="cover-sheet__stats">
-            <article className="stat-card">
-              <span className="stat-card__label">Entries logged</span>
-              <strong className="stat-card__value">{entries.length}</strong>
-              <p className="stat-card__note">
-                {entries.length > 0
-                  ? `${trackedMatchups} matchups tracked`
-                  : 'Start with one set and the notebook begins to trend.'}
-              </p>
-            </article>
-
-            <article className="stat-card stat-card--accent">
-              <span className="stat-card__label">Pinned drills</span>
-              <strong className="stat-card__value">{pinnedDrills.length}</strong>
-              <p className="stat-card__note">
-                {pinnedDrills.length > 0
-                  ? 'Keep your next session visible and concrete.'
-                  : 'Pin the drills you want ready before bracket.'}
-              </p>
-            </article>
+          <div className="hotkeys">
+            <span>`N` New</span>
+            <span>`C` Opponent</span>
+            <span>`T` Tags</span>
+            <span>`D` Death</span>
+            <span>`W` Worked</span>
+            <span>`R` Rule</span>
+            <span>`Enter` Save</span>
           </div>
-        </div>
-
-        <div className="hotkeys">
-          <span>`N` New</span>
-          <span>`C` Opponent</span>
-          <span>`T` Tags</span>
-          <span>`D` Death</span>
-          <span>`W` Worked</span>
-          <span>`R` Rule</span>
-          <span>`Enter` Save</span>
-        </div>
-      </header>
+        </header>
+      )}
 
       <NotebookNavigation
         activeView={activeView}

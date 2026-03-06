@@ -50,6 +50,16 @@ describe('App notebook shell', () => {
     expect(markup).toContain('aria-describedby="entry-shortcuts"')
     expect(markup).toContain('aria-label="Situation tags"')
   })
+
+  it('keeps the full notebook cover scoped to the dashboard view', () => {
+    const dashboardMarkup = renderToStaticMarkup(<App />)
+    const entryMarkup = renderToStaticMarkup(<App initialView="entry" />)
+
+    expect(dashboardMarkup).toContain('<header class="cover-sheet panel animated-entry">')
+    expect(entryMarkup).not.toContain('<header class="cover-sheet panel animated-entry">')
+    expect(entryMarkup).not.toContain('<h1>Set Notes</h1>')
+    expect(entryMarkup).not.toContain('Open log')
+  })
 })
 
 function createStorageMock(): Storage {
