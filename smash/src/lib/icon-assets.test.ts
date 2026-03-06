@@ -8,6 +8,25 @@ function readProjectFile(path: string): string {
   return readFileSync(new URL(path, import.meta.url), 'utf8')
 }
 
+function getFillColors(svg: string): string[] {
+  return Array.from(svg.matchAll(/fill="(#[0-9a-f]{6})"/gi), (match) =>
+    match[1].toLowerCase(),
+  )
+}
+
+function isNeutralHaloColor(color: string): boolean {
+  const channels = [
+    Number.parseInt(color.slice(1, 3), 16),
+    Number.parseInt(color.slice(3, 5), 16),
+    Number.parseInt(color.slice(5, 7), 16),
+  ]
+  const spread = Math.max(...channels) - Math.min(...channels)
+  const average =
+    channels.reduce((total, channel) => total + channel, 0) / channels.length
+
+  return spread <= 8 && average >= 32 && average <= 190
+}
+
 describe('icon assets', () => {
   it('uses the Palutena icon artwork for browser and PWA metadata', () => {
     const html = readProjectFile('../../index.html')
@@ -29,5 +48,13 @@ describe('icon assets', () => {
     expect(maskableIcon).not.toContain('stroke=')
     expect(icon).not.toContain('fill-opacity=')
     expect(maskableIcon).not.toContain('fill-opacity=')
+  })
+
+  it('does not keep the gray halo colors from the tiny stock source', () => {
+    const icon = readProjectFile('../../public/icons/pwa-icon.svg')
+    const maskableIcon = readProjectFile('../../public/icons/pwa-maskable.svg')
+
+    expect(getFillColors(icon).filter(isNeutralHaloColor)).toEqual([])
+    expect(getFillColors(maskableIcon).filter(isNeutralHaloColor)).toEqual([])
   })
 })
