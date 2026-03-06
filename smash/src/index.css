@@ -36,6 +36,8 @@
 
 html {
   min-width: 320px;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
 }
 
 body {
@@ -49,6 +51,7 @@ body {
     linear-gradient(180deg, rgba(255, 250, 241, 0.4), rgba(239, 228, 210, 0.15)),
     var(--paper);
   position: relative;
+  touch-action: manipulation;
 }
 
 body::before {
@@ -89,6 +92,7 @@ body::after {
   padding: 1.1rem;
   position: relative;
   z-index: 1;
+  touch-action: manipulation;
 }
 
 a {
