@@ -24,6 +24,12 @@ describe('App notebook shell', () => {
 
     expect(markup).toContain('aria-label="Notebook navigation"')
     expect(markup).toContain('aria-label="Mobile navigation"')
+    expect(markup).toContain('<span class="nav-button__title">Dashboard</span>')
+    expect(markup).toContain('<span class="nav-button__title">New Entry</span>')
+    expect(markup).toContain('<span class="nav-button__title">Entry Log</span>')
+    expect(markup).not.toContain('<span class="nav-button__title">Home</span>')
+    expect(markup).not.toContain('<span class="nav-button__title">Log</span>')
+    expect(markup).not.toContain('<span class="nav-button__title">Ledger</span>')
   })
 
   it('renders a notebook cover and dashboard lead section', () => {
@@ -31,7 +37,18 @@ describe('App notebook shell', () => {
 
     expect(markup).toContain('data-shell="tournament-notebook"')
     expect(markup).toContain('data-section="dashboard-lead"')
-    expect(markup).toContain('Quick log a set')
+    expect(markup).toContain('href="#main-content"')
+    expect(markup).toContain('id="main-content"')
+    expect(markup).toContain('Quick log a note')
+  })
+
+  it('renders the entry form with explicit status and grouped tag semantics', () => {
+    const markup = renderToStaticMarkup(<App initialView="entry" />)
+
+    expect(markup).toContain('aria-live="polite"')
+    expect(markup).toContain('role="status"')
+    expect(markup).toContain('aria-describedby="entry-shortcuts"')
+    expect(markup).toContain('aria-label="Situation tags"')
   })
 })
 

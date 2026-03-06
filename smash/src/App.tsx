@@ -35,9 +35,12 @@ type View = 'dashboard' | 'entry' | 'matchup' | 'log' | 'drills'
 interface ViewItem {
   view: View
   title: string
-  mobileTitle: string
   step: string
   detail: string
+}
+
+interface AppProps {
+  initialView?: View
 }
 
 const DEFAULT_DRAFT: EntryInput = {
@@ -49,47 +52,42 @@ const VIEW_ITEMS: ViewItem[] = [
   {
     view: 'dashboard',
     title: 'Dashboard',
-    mobileTitle: 'Home',
     step: '01',
     detail: 'Session view',
   },
   {
     view: 'entry',
     title: 'New Entry',
-    mobileTitle: 'Log',
     step: '02',
     detail: 'Quick write',
   },
   {
     view: 'matchup',
     title: 'Matchup',
-    mobileTitle: 'Matchup',
     step: '03',
     detail: 'Opponent notes',
   },
   {
     view: 'log',
     title: 'Entry Log',
-    mobileTitle: 'Ledger',
     step: '04',
     detail: 'Search notes',
   },
   {
     view: 'drills',
     title: 'Drill Library',
-    mobileTitle: 'Drills',
     step: '05',
     detail: 'Study board',
   },
 ]
 
-function App() {
+function App({ initialView = 'dashboard' }: AppProps) {
   const [initialState] = useState(loadState)
   const [entries, setEntries] = useState<MatchEntry[]>(initialState.entries)
   const [pinnedDrills, setPinnedDrills] = useState<string[]>(
     initialState.pinnedDrills,
   )
-  const [activeView, setActiveView] = useState<View>('dashboard')
+  const [activeView, setActiveView] = useState<View>(initialView)
   const [selectedOpponent, setSelectedOpponent] = useState<string>('')
   const [draft, setDraft] = useState<EntryInput>(DEFAULT_DRAFT)
   const [filters, setFilters] = useState<EntryFilters>({})
@@ -97,6 +95,7 @@ function App() {
     ReturnType<typeof summarizeMatchup> | undefined
   >()
   const [formError, setFormError] = useState<string>('')
+  const [saveStatus, setSaveStatus] = useState<string>('')
   const [tagCursor, setTagCursor] = useState(0)
   const [currentTime] = useState(() => Date.now())
 
@@ -228,7 +227,7 @@ function App() {
   const coverRule =
     todayFocus?.rule ??
     latestInsight?.focusRule ??
-    'Log one opponent, one failure pattern, and one next rule.'
+    'Opponent required. Add the loss pattern and one next rule.'
 
   const coverOpponent =
     todayFocus?.opponentCharacter ?? latestInsight?.opponentCharacter
@@ -344,6 +343,7 @@ function App() {
   function onSaveEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setFormError('')
+    setSaveStatus('')
 
     try {
       const entry = createEntry(draft)
@@ -359,6 +359,7 @@ function App() {
         yourCharacter: draft.yourCharacter,
       })
       setActiveView('entry')
+      setSaveStatus(`Saved entry for ${entry.opponentCharacter}.`)
 
       focusSoon(opponentInputRef)
     } catch (error) {
@@ -385,22 +386,28 @@ function App() {
 
   return (
     <div className="app-shell" data-shell="tournament-notebook">
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
+      <p className="sr-only" role="status" aria-live="polite">
+        {saveStatus}
+      </p>
       <header className="cover-sheet panel animated-entry">
         <div className="cover-sheet__meta">
           <div>
             <p className="eyebrow">Smash Matchup Lab</p>
-            <p className="cover-sheet__issue">Tournament notebook / matchup prep</p>
+            <p className="cover-sheet__issue">Matchup notes</p>
           </div>
           <p className="cover-sheet__stamp">
-            {coverOpponent ? `Current focus / ${coverOpponent}` : 'Notebook ready / no focus yet'}
+            {coverOpponent ? `Focus / ${coverOpponent}` : 'No focus yet'}
           </p>
         </div>
 
         <div className="cover-sheet__grid">
           <div className="cover-sheet__copy">
-            <h1>Searchable Set Notes</h1>
+            <h1>Set Notes</h1>
             <p className="cover-sheet__lede">
-              A post-set notebook that turns repeated losses into one drillable rule.
+              Log what lost you the set, what worked, and the next rule to test.
             </p>
             <p className="cover-sheet__rule">{coverRule}</p>
             <div className="cover-sheet__actions">
@@ -412,14 +419,14 @@ function App() {
                   focusSoon(opponentInputRef)
                 }}
               >
-                Quick log a set
+                Quick log a note
               </button>
               <button
                 type="button"
                 className="cover-button cover-button--secondary"
-                onClick={() => setActiveView('dashboard')}
+                onClick={() => setActiveView('log')}
               >
-                Review notebook
+                Open log
               </button>
             </div>
           </div>
@@ -465,7 +472,11 @@ function App() {
         onSelect={setActiveView}
       />
 
-      <main className="view-panel notebook-panel panel animated-entry delay-2">
+      <main
+        id="main-content"
+        className="view-panel notebook-panel panel animated-entry delay-2"
+        tabIndex={-1}
+      >
         {activeView === 'dashboard' && (
           <section className="dashboard-view">
             <div className="dashboard-lead" data-section="dashboard-lead">
@@ -474,12 +485,12 @@ function App() {
                 <h2>
                   {todayFocus
                     ? `Carry one clear rule into your next ${todayFocus.opponentCharacter} set.`
-                    : 'Turn post-set frustration into a notebook you can actually use.'}
+                    : 'Turn one bad set into your next drill.'}
                 </h2>
                 <p className="lead-sheet__copy">
                   {todayFocus
                     ? todayFocus.rule
-                    : 'Log one opponent, one failure pattern, and one rule next time. The notebook will translate it into a focused drill.'}
+                    : 'Add one note after a set and the app turns it into one drill and one focus rule.'}
                 </p>
                 <div className="lead-sheet__actions">
                   <button
@@ -490,7 +501,7 @@ function App() {
                       focusSoon(opponentInputRef)
                     }}
                   >
-                    Quick log a set
+                    Quick log a note
                   </button>
                   {todayFocus ? (
                     <button
@@ -583,7 +594,7 @@ function App() {
                 ) : (
                   <NotebookEmptyState
                     title="No entries yet"
-                    body="Hit Quick log a set after your next set and the notebook will start generating patterns."
+                    body="Add one note after your next set and patterns will start to show up here."
                   />
                 )}
               </article>
@@ -621,18 +632,6 @@ function App() {
                     />
                   )}
                 </article>
-
-                <article className="notebook-card notebook-card--accent">
-                  <div className="panel-heading">
-                    <div>
-                      <p className="section-kicker">Notebook logic</p>
-                      <h3>How this stays useful</h3>
-                    </div>
-                  </div>
-                  <p className="callout-text">
-                    The app does not guess matchup theory. It keeps translating your own repeated notes into one drillable next step.
-                  </p>
-                </article>
               </div>
             </div>
           </section>
@@ -644,14 +643,16 @@ function App() {
               <div className="panel-heading panel-heading--split">
                 <div>
                   <p className="section-kicker">Match log</p>
-                  <h2>New Entry</h2>
+                  <h2 id="entry-title">New Entry</h2>
                 </div>
-                <p className="panel-heading__note">
-                  Keyboard-first logging still works. Opponent is the only required field.
-                </p>
+                <p className="panel-heading__note">Opponent is the only required field.</p>
               </div>
 
-              <form className="entry-form" onSubmit={onSaveEntry}>
+              <form
+                className="entry-form"
+                onSubmit={onSaveEntry}
+                aria-describedby="entry-shortcuts"
+              >
                 <section className="form-block">
                   <div className="form-block__heading">
                     <h3>Set context</h3>
@@ -729,6 +730,8 @@ function App() {
                       className="tag-picker"
                       tabIndex={0}
                       onKeyDown={onTagPickerKeyDown}
+                      role="group"
+                      aria-label="Situation tags"
                     >
                       {SITUATION_TAGS.map((tag, index) => {
                         const active = draft.situationTags.includes(tag)
@@ -873,14 +876,18 @@ function App() {
                   </label>
                 </section>
 
-                {formError && <p className="error-text">{formError}</p>}
+                {formError && (
+                  <p className="error-text" role="alert">
+                    {formError}
+                  </p>
+                )}
 
                 <div className="save-bar">
-                  <p className="save-bar__note">
-                    Keep it short. One repeated loss, one next-session rule.
+                  <p id="entry-shortcuts" className="save-bar__note">
+                    Opponent required. Shortcuts: C opponent, T tags, D death cause, R rule, Enter save.
                   </p>
                   <button type="submit" className="save-button">
-                    Save Entry (Enter)
+                    Save note (Enter)
                   </button>
                 </div>
               </form>
@@ -926,7 +933,7 @@ function App() {
                 ) : (
                   <NotebookEmptyState
                     title="No output yet"
-                    body="Save a set note and the notebook will immediately surface one recurring pattern, one drill, and one focus rule."
+                    body="Save a note and the app will surface the main problem, next drill, and focus rule."
                   />
                 )}
               </article>
@@ -934,8 +941,8 @@ function App() {
               <article className="insight-card">
                 <div className="panel-heading">
                   <div>
-                    <p className="section-kicker">Command flow</p>
-                    <h3>Logging rhythm</h3>
+                    <p className="section-kicker">Shortcuts</p>
+                    <h3>Keyboard flow</h3>
                   </div>
                 </div>
                 <ul className="command-legend">
@@ -1128,15 +1135,13 @@ function App() {
 
         {activeView === 'log' && (
           <section className="log-view">
-            <article className="filter-sheet notebook-card">
+            <article className="filter-sheet notebook-card" role="search" aria-labelledby="log-title">
               <div className="panel-heading">
                 <div>
-                  <p className="section-kicker">Search the ledger</p>
-                  <h2>Entry Log</h2>
+                  <p className="section-kicker">Search</p>
+                  <h2 id="log-title">Entry Log</h2>
                 </div>
-                <p className="panel-heading__note">
-                  Filter by opponent, stage, tag, date range, or death cause text.
-                </p>
+                <p className="panel-heading__note">Filter by opponent, tag, stage, date, or death note.</p>
               </div>
 
               <div className="filter-grid">
@@ -1293,14 +1298,8 @@ function App() {
                   <p className="section-kicker">Study board</p>
                   <h2>Drill Library</h2>
                 </div>
-                <p className="panel-heading__note">
-                  Pin the drills you want visible before your next session.
-                </p>
+                <p className="panel-heading__note">Pin drills you want ready before the next session.</p>
               </div>
-
-              <p className="callout-text">
-                Pinned drills stay at the top so your practice set has a visible plan before you queue games.
-              </p>
             </article>
 
             {pinnedDrillCards.length > 0 && (
@@ -1436,7 +1435,7 @@ function NotebookNavigation({
           >
             {mobile ? (
               <>
-                <span className="nav-button__title">{item.mobileTitle}</span>
+                <span className="nav-button__title">{item.title}</span>
                 <span className="nav-button__detail">{item.step}</span>
               </>
             ) : (
