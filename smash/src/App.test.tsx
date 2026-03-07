@@ -36,10 +36,12 @@ describe('App notebook shell', () => {
     const markup = renderToStaticMarkup(<App />)
 
     expect(markup).toContain('data-shell="tournament-notebook"')
-    expect(markup).toContain('data-section="dashboard-lead"')
+    expect(markup).toContain('data-section="masthead"')
+    expect(markup).toContain('data-section="focus-board"')
+    expect(markup).toContain('data-section="session-brief"')
     expect(markup).toContain('href="#main-content"')
     expect(markup).toContain('id="main-content"')
-    expect(markup).toContain('Quick log a note')
+    expect(markup.match(/Quick log a note/g)).toHaveLength(1)
   })
 
   it('renders the entry form with explicit status and grouped tag semantics', () => {
@@ -55,10 +57,11 @@ describe('App notebook shell', () => {
     const dashboardMarkup = renderToStaticMarkup(<App />)
     const entryMarkup = renderToStaticMarkup(<App initialView="entry" />)
 
-    expect(dashboardMarkup).toContain('<header class="cover-sheet panel animated-entry">')
+    expect(dashboardMarkup).not.toContain('<header class="cover-sheet panel animated-entry">')
+    expect(dashboardMarkup).toContain('<header class="masthead panel animated-entry" data-section="masthead">')
     expect(entryMarkup).not.toContain('<header class="cover-sheet panel animated-entry">')
+    expect(entryMarkup).toContain('<header class="masthead panel animated-entry" data-section="masthead">')
     expect(entryMarkup).not.toContain('<h1>Set Notes</h1>')
-    expect(entryMarkup).not.toContain('Open log')
   })
 })
 

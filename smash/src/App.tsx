@@ -53,31 +53,31 @@ const VIEW_ITEMS: ViewItem[] = [
     view: 'dashboard',
     title: 'Dashboard',
     step: '01',
-    detail: 'Session view',
+    detail: 'Overview',
   },
   {
     view: 'entry',
     title: 'New Entry',
     step: '02',
-    detail: 'Quick write',
+    detail: 'Log set',
   },
   {
     view: 'matchup',
     title: 'Matchup',
     step: '03',
-    detail: 'Opponent notes',
+    detail: 'Character',
   },
   {
     view: 'log',
     title: 'Entry Log',
     step: '04',
-    detail: 'Search notes',
+    detail: 'Search',
   },
   {
     view: 'drills',
     title: 'Drill Library',
     step: '05',
-    detail: 'Study board',
+    detail: 'Practice',
   },
 ]
 
@@ -152,6 +152,14 @@ function App({ initialView = 'dashboard' }: AppProps) {
 
   const todayFocus = useMemo(() => getTodayFocus(entries), [entries])
 
+  const todayFocusSummary = useMemo(() => {
+    if (!todayFocus) {
+      return undefined
+    }
+
+    return summarizeMatchup(entries, todayFocus.opponentCharacter)
+  }, [entries, todayFocus])
+
   const lastThirtyDaysWorst = useMemo(() => {
     const endDate = new Date(currentTime).toISOString()
     const startDate = new Date(
@@ -224,6 +232,9 @@ function App({ initialView = 'dashboard' }: AppProps) {
     pinnedDrills.includes(drill.title),
   )
 
+  const activeViewItem =
+    VIEW_ITEMS.find((item) => item.view === activeView) ?? VIEW_ITEMS[0]
+
   const coverRule =
     todayFocus?.rule ??
     latestInsight?.focusRule ??
@@ -231,6 +242,90 @@ function App({ initialView = 'dashboard' }: AppProps) {
 
   const coverOpponent =
     todayFocus?.opponentCharacter ?? latestInsight?.opponentCharacter
+
+  const focusDrill =
+    todayFocusSummary?.nextDrill.title ??
+    latestInsight?.nextDrill.title ??
+    'Save one note to generate a drill.'
+
+  const mastheadTitle = (() => {
+    switch (activeView) {
+      case 'dashboard':
+        return 'Build matchup answers after every set.'
+      case 'entry':
+        return 'Log the set while it is fresh.'
+      case 'matchup':
+        return selectedOpponent
+          ? `${selectedOpponent} matchup notebook`
+          : 'Matchup notebook'
+      case 'log':
+        return 'Search your set notes fast.'
+      case 'drills':
+        return 'Keep your next reps pinned.'
+    }
+  })()
+
+  const mastheadCopy = (() => {
+    switch (activeView) {
+      case 'dashboard':
+        return 'One rule, one drill, one place to see what keeps costing you stocks.'
+      case 'entry':
+        return 'Capture the exact stock-loss pattern, what worked, and the next constraint to test.'
+      case 'matchup':
+        return 'Use one opponent page to track recurring deaths, tags, drills, and clips.'
+      case 'log':
+        return 'Filter the notebook by opponent, tag, stage, date, or death note without leaving the keyboard flow.'
+      case 'drills':
+        return 'Pin the practice reps you want visible before the next session starts.'
+    }
+  })()
+
+  const mastheadSecondaryAction = (() => {
+    switch (activeView) {
+      case 'dashboard':
+        return {
+          label: 'Open log',
+          onClick: () => setActiveView('log'),
+        }
+      case 'entry':
+        return {
+          label: 'Back to dashboard',
+          onClick: () => setActiveView('dashboard'),
+        }
+      case 'matchup':
+        return {
+          label: 'Open log',
+          onClick: () => setActiveView('log'),
+        }
+      case 'log':
+        return {
+          label: 'Review drills',
+          onClick: () => setActiveView('drills'),
+        }
+      case 'drills':
+        return {
+          label: 'Back to dashboard',
+          onClick: () => setActiveView('dashboard'),
+        }
+    }
+  })()
+
+  const mastheadPrimaryAction = (() => {
+    if (activeView === 'entry') {
+      return {
+        label: 'Focus opponent',
+        onClick: () => focusSoon(opponentInputRef),
+      }
+    }
+
+    return {
+      label: 'Quick log a note',
+      onClick: () => {
+        setActiveView('entry')
+        focusSoon(opponentInputRef)
+      },
+    }
+  })()
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -392,67 +487,47 @@ function App({ initialView = 'dashboard' }: AppProps) {
       <p className="sr-only" role="status" aria-live="polite">
         {saveStatus}
       </p>
-      {activeView === 'dashboard' && (
-        <header className="cover-sheet panel animated-entry">
-          <div className="cover-sheet__meta">
-            <div>
-              <p className="eyebrow">Smash Matchup Lab</p>
-              <p className="cover-sheet__issue">Matchup notes</p>
+      <header className="masthead panel animated-entry" data-section="masthead">
+        <div className="masthead__top">
+          <div className="masthead__copy">
+            <p className="eyebrow">Smash Matchup Lab</p>
+            <div className="masthead__title-row">
+              <h1>{mastheadTitle}</h1>
+              <span className="masthead__view">{activeViewItem.title}</span>
             </div>
-            <p className="cover-sheet__stamp">
-              {coverOpponent ? `Focus / ${coverOpponent}` : 'No focus yet'}
-            </p>
+            <p className="masthead__lede">{mastheadCopy}</p>
           </div>
 
-          <div className="cover-sheet__grid">
-            <div className="cover-sheet__copy">
-              <h1>Set Notes</h1>
-              <p className="cover-sheet__lede">
-                Log what lost you the set, what worked, and the next rule to test.
-              </p>
-              <p className="cover-sheet__rule">{coverRule}</p>
-              <div className="cover-sheet__actions">
-                <button
-                  type="button"
-                  className="cover-button"
-                  onClick={() => {
-                    setActiveView('entry')
-                    focusSoon(opponentInputRef)
-                  }}
-                >
-                  Quick log a note
-                </button>
-                <button
-                  type="button"
-                  className="cover-button cover-button--secondary"
-                  onClick={() => setActiveView('log')}
-                >
-                  Open log
-                </button>
-              </div>
-            </div>
+          <div className="masthead__actions">
+            <button
+              type="button"
+              className="cover-button"
+              onClick={mastheadPrimaryAction.onClick}
+            >
+              {mastheadPrimaryAction.label}
+            </button>
+            <button
+              type="button"
+              className="cover-button cover-button--secondary"
+              onClick={mastheadSecondaryAction.onClick}
+            >
+              {mastheadSecondaryAction.label}
+            </button>
+          </div>
+        </div>
 
-            <div className="cover-sheet__stats">
-              <article className="stat-card">
-                <span className="stat-card__label">Entries logged</span>
-                <strong className="stat-card__value">{entries.length}</strong>
-                <p className="stat-card__note">
-                  {entries.length > 0
-                    ? `${trackedMatchups} matchups tracked`
-                    : 'Start with one set and the notebook begins to trend.'}
-                </p>
-              </article>
+        <div className="masthead__rail">
+          <div className="masthead__focus">
+            <span className="masthead__label">
+              {coverOpponent ? `Focus / ${coverOpponent}` : 'Current focus'}
+            </span>
+            <strong>{coverRule}</strong>
+          </div>
 
-              <article className="stat-card stat-card--accent">
-                <span className="stat-card__label">Pinned drills</span>
-                <strong className="stat-card__value">{pinnedDrills.length}</strong>
-                <p className="stat-card__note">
-                  {pinnedDrills.length > 0
-                    ? 'Keep your next session visible and concrete.'
-                    : 'Pin the drills you want ready before bracket.'}
-                </p>
-              </article>
-            </div>
+          <div className="masthead__stats">
+            <span className="masthead__stat">{entries.length} notes logged</span>
+            <span className="masthead__stat">{trackedMatchups} matchups tracked</span>
+            <span className="masthead__stat">{pinnedDrills.length} drills pinned</span>
           </div>
 
           <div className="hotkeys">
@@ -464,8 +539,8 @@ function App({ initialView = 'dashboard' }: AppProps) {
             <span>`R` Rule</span>
             <span>`Enter` Save</span>
           </div>
-        </header>
-      )}
+        </div>
+      </header>
 
       <NotebookNavigation
         activeView={activeView}
@@ -481,30 +556,31 @@ function App({ initialView = 'dashboard' }: AppProps) {
       >
         {activeView === 'dashboard' && (
           <section className="dashboard-view">
-            <div className="dashboard-lead" data-section="dashboard-lead">
-              <article className="lead-sheet notebook-card">
-                <p className="section-kicker">Today</p>
-                <h2>
-                  {todayFocus
-                    ? `Carry one clear rule into your next ${todayFocus.opponentCharacter} set.`
-                    : 'Turn one bad set into your next drill.'}
-                </h2>
+            <div className="dashboard-grid">
+              <article className="focus-board notebook-card" data-section="focus-board">
+                <div className="panel-heading">
+                  <div>
+                    <p className="section-kicker">Today</p>
+                    <h2>
+                      {todayFocus
+                        ? `Carry one clear rule into your next ${todayFocus.opponentCharacter} set.`
+                        : 'Turn one bad set into the next drill.'}
+                    </h2>
+                  </div>
+                </div>
+
                 <p className="lead-sheet__copy">
                   {todayFocus
                     ? todayFocus.rule
                     : 'Add one note after a set and the app turns it into one drill and one focus rule.'}
                 </p>
-                <div className="lead-sheet__actions">
-                  <button
-                    type="button"
-                    className="cover-button"
-                    onClick={() => {
-                      setActiveView('entry')
-                      focusSoon(opponentInputRef)
-                    }}
-                  >
-                    Quick log a note
-                  </button>
+
+                <div className="focus-board__footer">
+                  <div className="focus-board__next">
+                    <span className="metric-card__label">Next drill</span>
+                    <strong>{focusDrill}</strong>
+                  </div>
+
                   {todayFocus ? (
                     <button
                       type="button"
@@ -525,37 +601,39 @@ function App({ initialView = 'dashboard' }: AppProps) {
                 </div>
               </article>
 
-              <div className="dashboard-metrics">
-                <article className="metric-card notebook-card">
-                  <span className="metric-card__label">Matchups tracked</span>
-                  <strong className="metric-card__value">{trackedMatchups}</strong>
-                  <p className="metric-card__note">
-                    Opponents with at least one logged set.
-                  </p>
-                </article>
+              <aside className="session-brief notebook-card" data-section="session-brief">
+                <div className="panel-heading">
+                  <div>
+                    <p className="section-kicker">Session brief</p>
+                    <h3>At a glance</h3>
+                  </div>
+                </div>
 
-                <article className="metric-card notebook-card">
-                  <span className="metric-card__label">Latest note</span>
-                  <strong className="metric-card__value">
-                    {sortedEntries[0]?.opponentCharacter ?? 'No entries'}
-                  </strong>
-                  <p className="metric-card__note">
-                    {sortedEntries[0]
-                      ? formatDate(sortedEntries[0].date)
-                      : 'Your newest set note will show up here.'}
-                  </p>
-                </article>
+                <dl className="session-brief__list">
+                  <div className="session-brief__row">
+                    <dt>Entries logged</dt>
+                    <dd>{entries.length}</dd>
+                  </div>
+                  <div className="session-brief__row">
+                    <dt>Matchups tracked</dt>
+                    <dd>{trackedMatchups}</dd>
+                  </div>
+                  <div className="session-brief__row">
+                    <dt>Latest note</dt>
+                    <dd>{sortedEntries[0]?.opponentCharacter ?? 'No entries'}</dd>
+                  </div>
+                  <div className="session-brief__row">
+                    <dt>Pinned drills</dt>
+                    <dd>{pinnedDrills.length}</dd>
+                  </div>
+                </dl>
 
-                <article className="metric-card notebook-card metric-card--pin">
-                  <span className="metric-card__label">Pinned drills</span>
-                  <strong className="metric-card__value">{pinnedDrills.length}</strong>
-                  <p className="metric-card__note">
-                    {pinnedDrills.length > 0
-                      ? `${pinnedDrills.length} session reminders ready.`
-                      : 'Pin the drills you want for next session.'}
-                  </p>
-                </article>
-              </div>
+                <p className="session-brief__note">
+                  {sortedEntries[0]
+                    ? `Last entry: ${formatDate(sortedEntries[0].date)}`
+                    : 'Your newest set note will land here.'}
+                </p>
+              </aside>
             </div>
 
             <div className="dashboard-ledger">
