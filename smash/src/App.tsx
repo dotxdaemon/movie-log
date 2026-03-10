@@ -44,11 +44,6 @@ interface AppProps {
   initialView?: View
 }
 
-interface SummaryStat {
-  label: string
-  value: string | number
-}
-
 const DEFAULT_DRAFT: EntryInput = {
   opponentCharacter: '',
   situationTags: [],
@@ -71,8 +66,8 @@ const PRIMARY_BUTTON_STYLES =
 const SECONDARY_BUTTON_STYLES =
   'inline-flex items-center justify-center rounded-full border border-line/80 bg-paper-strong px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-line-strong hover:bg-paper-soft'
 
-const TEXT_BUTTON_STYLES =
-  'inline-flex items-center gap-2 text-sm font-semibold text-accent transition hover:text-accent-strong'
+const QUIET_BUTTON_STYLES =
+  'inline-flex items-center justify-center rounded-[0.9rem] border border-line/60 bg-paper-soft/70 px-3.5 py-2 text-sm font-medium text-ink-soft transition hover:border-line-strong hover:bg-paper-strong hover:text-ink'
 
 function App({ initialView = 'dashboard' }: AppProps) {
   const [initialState] = useState(loadState)
@@ -104,11 +99,6 @@ function App({ initialView = 'dashboard' }: AppProps) {
 
   const sortedEntries = useMemo(
     () => [...entries].sort((a, b) => b.date.localeCompare(a.date)),
-    [entries],
-  )
-
-  const trackedMatchups = useMemo(
-    () => new Set(entries.map((entry) => entry.opponentCharacter)).size,
     [entries],
   )
 
@@ -242,11 +232,6 @@ function App({ initialView = 'dashboard' }: AppProps) {
     [entries, lastThirtyDaysWorst],
   )
 
-  const drillPreview = useMemo(
-    () => (pinnedDrillCards.length > 0 ? pinnedDrillCards : rankedDrills).slice(0, 3),
-    [pinnedDrillCards, rankedDrills],
-  )
-
   const currentFocusIssue =
     (todayFocusSummary?.topDeathCauseCategory && todayFocus
       ? `${todayFocusSummary.topDeathCauseCategory} vs ${todayFocus.opponentCharacter}`
@@ -271,17 +256,10 @@ function App({ initialView = 'dashboard' }: AppProps) {
       tags: [],
     }
 
-  const summaryStats: SummaryStat[] = [
-    { label: 'Sets logged', value: entries.length },
-    { label: 'Matchups tracked', value: trackedMatchups },
-    { label: 'Most frequent issue', value: overallTopIssue ?? 'No pattern yet' },
-    { label: 'Pinned drills', value: pinnedDrills.length },
-  ]
-
   const shellPurpose = (() => {
     switch (activeView) {
       case 'dashboard':
-        return 'Track what keeps costing stocks and turn each set into one next action.'
+        return 'Log the set. See the habit, the rule, and the drill.'
       case 'entry':
         return 'Capture the exact habit, the one thing that worked, and the rule to test next set.'
       case 'matchup':
@@ -477,17 +455,11 @@ function App({ initialView = 'dashboard' }: AppProps) {
             currentFocusDrill={currentFocusDrill}
             currentFocusIssue={currentFocusIssue}
             currentFocusRule={currentFocusRule}
-            drillPreview={drillPreview}
             focusOpponent={todayFocus?.opponentCharacter ?? latestInsight?.opponentCharacter}
-            onOpenDrills={() => setActiveView('drills')}
             onOpenLog={() => setActiveView('log')}
             onOpenMatchup={openMatchup}
-            onToggleDrillPin={onToggleDrillPin}
-            pinnedCount={pinnedDrills.length}
-            pinnedTitles={pinnedDrills}
             pressurePoints={pressurePoints}
-            recentEntries={sortedEntries.slice(0, 4)}
-            summaryStats={summaryStats}
+            recentEntries={sortedEntries.slice(0, 3)}
           />
         )}
 
@@ -1205,7 +1177,7 @@ function AppNav({ activeView, ariaLabel, mobile, onSelect }: AppNavProps) {
   return (
     <nav
       className={mobile
-        ? 'fixed left-3 right-3 z-30 flex items-center gap-1 rounded-[1.25rem] border border-black/10 bg-[#241d18]/95 p-1 shadow-float backdrop-blur md:hidden'
+        ? 'fixed left-3 right-3 z-30 flex items-center gap-1 rounded-[1.05rem] border border-line/60 bg-paper-strong/90 p-1 shadow-[0_12px_30px_rgba(40,27,20,0.14)] backdrop-blur md:hidden'
         : 'hidden items-center gap-0.5 rounded-[0.95rem] bg-paper-soft/80 p-0.5 lg:inline-flex'}
       aria-label={ariaLabel}
       style={mobile ? { bottom: 'max(env(safe-area-inset-bottom), 0.75rem)' } : undefined}
@@ -1220,11 +1192,11 @@ function AppNav({ activeView, ariaLabel, mobile, onSelect }: AppNavProps) {
             className={joinClassNames(
               'group flex min-w-0 items-center justify-center rounded-full font-medium transition',
               mobile
-                ? 'flex-1 px-1.5 py-2.5 text-center text-[11px] leading-none text-paper-soft/72'
+                ? 'flex-1 px-1.5 py-2.5 text-center text-[11px] leading-none text-ink-soft/70'
                 : 'px-3.5 py-1.5 text-[13px] text-ink-soft',
               active &&
                 (mobile
-                  ? 'bg-paper-strong text-ink shadow-[0_6px_14px_rgba(0,0,0,0.18)]'
+                  ? 'bg-accent-soft/65 text-accent shadow-[0_1px_0_rgba(151,69,34,0.12)]'
                   : 'bg-paper-strong text-ink shadow-[0_1px_0_rgba(40,27,20,0.08)]'),
             )}
             aria-current={active ? 'page' : undefined}
@@ -1261,19 +1233,19 @@ function CurrentFocusCard({
     >
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)] lg:items-start">
         <div className="space-y-4" data-focus-item="issue">
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-accent">
               Current Focus
             </p>
             <p className="max-w-xl text-sm leading-6 text-ink-soft">
-              One coaching output for the next session: the habit to stop, the rule to test, and the drill to run.
+              What to do after the last set.
             </p>
           </div>
-          <div className="space-y-3 border-l-2 border-accent/30 pl-4">
+          <div className="space-y-2 border-l-2 border-accent/35 pl-4">
             <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">
-              Biggest issue
+              Habit to stop
             </p>
-            <h2 className="max-w-2xl text-[1.75rem] leading-[1.02] text-ink sm:text-[2.1rem]">
+            <h2 className="max-w-2xl text-[2rem] leading-[0.98] text-ink sm:text-[2.35rem]">
               {currentFocusIssue}
             </h2>
           </div>
@@ -1282,7 +1254,7 @@ function CurrentFocusCard({
         <div className="grid gap-4 border-t border-line/55 pt-4 lg:border-l lg:border-t-0 lg:pl-5">
           <div className="space-y-2" data-focus-item="rule">
             <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">
-              Next rule
+              Rule to follow
             </p>
             <p className="text-base font-semibold leading-7 text-ink">
               {currentFocusRule}
@@ -1290,7 +1262,7 @@ function CurrentFocusCard({
           </div>
           <div className="space-y-2 border-t border-line/55 pt-4" data-focus-item="drill">
             <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">
-              Suggested drill
+              Drill to run
             </p>
             <p className="text-base font-semibold leading-7 text-ink">
               {currentFocusDrill.title}
@@ -1303,34 +1275,15 @@ function CurrentFocusCard({
             <div className="border-t border-line/55 pt-4">
               <button
                 type="button"
-                className={TEXT_BUTTON_STYLES}
+                className={QUIET_BUTTON_STYLES}
                 onClick={() => onOpenMatchup(focusOpponent)}
               >
-                Open {focusOpponent}
+                Open {focusOpponent} notes
               </button>
             </div>
           )}
         </div>
       </div>
-    </section>
-  )
-}
-
-function StatRow({ stats }: { stats: SummaryStat[] }) {
-  return (
-    <section className="border-y border-line/55 py-3" data-section="summary-stats">
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <div key={stat.label} className="min-w-0 space-y-1.5">
-            <dt className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">
-              {stat.label}
-            </dt>
-            <dd className="text-base font-semibold leading-6 text-ink sm:text-[1.05rem]">
-              {stat.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
     </section>
   )
 }
@@ -1365,13 +1318,13 @@ function DashboardHeader({
               Smash Matchup Lab
             </p>
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <h1 className="max-w-3xl font-display text-[1.85rem] leading-[0.92] text-ink sm:text-[2.2rem] lg:text-[2.6rem]">
               {activeView === 'dashboard'
-                ? 'Find the habit. Write the rule. Run the drill.'
+                ? 'Log the set. Get the next step.'
                 : VIEW_ITEMS.find((item) => item.view === activeView)?.title}
             </h1>
-            <p className="max-w-xl text-sm leading-6 text-ink-soft sm:text-[0.95rem]">
+            <p className="max-w-lg text-sm leading-6 text-ink-soft sm:text-[0.95rem]">
               {shellPurpose}
             </p>
           </div>
@@ -1392,7 +1345,7 @@ function DashboardHeader({
             >
               Log Set
             </button>
-            <button type="button" className={TEXT_BUTTON_STYLES} onClick={onOpenLog}>
+            <button type="button" className={QUIET_BUTTON_STYLES} onClick={onOpenLog}>
               View Full Log
             </button>
           </div>
@@ -1406,34 +1359,22 @@ interface DashboardPageProps {
   currentFocusDrill: Drill
   currentFocusIssue: string
   currentFocusRule: string
-  drillPreview: Drill[]
   focusOpponent?: string
-  onOpenDrills: () => void
   onOpenLog: () => void
   onOpenMatchup: (opponentCharacter: string) => void
-  onToggleDrillPin: (title: string) => void
-  pinnedCount: number
-  pinnedTitles: string[]
   pressurePoints: Array<{ issue: string; negativeCount: number; opponentCharacter: string }>
   recentEntries: MatchEntry[]
-  summaryStats: SummaryStat[]
 }
 
 function DashboardPage({
   currentFocusDrill,
   currentFocusIssue,
   currentFocusRule,
-  drillPreview,
   focusOpponent,
-  onOpenDrills,
   onOpenLog,
   onOpenMatchup,
-  onToggleDrillPin,
-  pinnedCount,
-  pinnedTitles,
   pressurePoints,
   recentEntries,
-  summaryStats,
 }: DashboardPageProps) {
   return (
     <section className="flex flex-col gap-4 sm:gap-5">
@@ -1445,24 +1386,15 @@ function DashboardPage({
         onOpenMatchup={onOpenMatchup}
       />
 
-      <StatRow stats={summaryStats} />
-
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.85fr)]">
-        <RecentNotesPanel
-          entries={recentEntries}
-          onOpenLog={onOpenLog}
-          onOpenMatchup={onOpenMatchup}
-        />
-        <PressurePointsPanel items={pressurePoints} onOpenMatchup={onOpenMatchup} />
-      </div>
-
-      <DrillLibraryPreview
-        drills={drillPreview}
-        pinnedCount={pinnedCount}
-        pinnedTitles={pinnedTitles}
-        onOpenDrills={onOpenDrills}
-        onToggleDrillPin={onToggleDrillPin}
+      <RecentNotesPanel
+        entries={recentEntries}
+        onOpenLog={onOpenLog}
+        onOpenMatchup={onOpenMatchup}
       />
+
+      {pressurePoints.length > 0 && (
+        <MatchupPatternsPanel items={pressurePoints} onOpenMatchup={onOpenMatchup} />
+      )}
     </section>
   )
 }
@@ -1478,11 +1410,10 @@ function RecentNotesPanel({ entries, onOpenLog, onOpenMatchup }: RecentNotesPane
     <DashboardSection className="px-4 py-5 sm:px-5 sm:py-5" data-section="recent-notes">
       <SectionHeading
         eyebrow="Recent notes"
-        title={<h3 className="text-[1.35rem] leading-tight text-ink">Latest set notes</h3>}
-        description="Latest matchup, timestamp, and the one line worth carrying forward."
+        title={<h3 className="text-[1.3rem] leading-tight text-ink">Recent notes</h3>}
         action={
-          <button type="button" className={TEXT_BUTTON_STYLES} onClick={onOpenLog}>
-            Open full log
+          <button type="button" className={QUIET_BUTTON_STYLES} onClick={onOpenLog}>
+            Full log
           </button>
         }
       />
@@ -1519,7 +1450,7 @@ function RecentNotesPanel({ entries, onOpenLog, onOpenMatchup }: RecentNotesPane
   )
 }
 
-function PressurePointsPanel({
+function MatchupPatternsPanel({
   items,
   onOpenMatchup,
 }: {
@@ -1527,92 +1458,31 @@ function PressurePointsPanel({
   onOpenMatchup: (opponentCharacter: string) => void
 }) {
   return (
-    <DashboardSection className="px-4 py-5 sm:px-5 sm:py-5" data-section="pressure-points">
+    <DashboardSection className="px-4 py-5 sm:px-5 sm:py-5" data-section="matchup-patterns">
       <SectionHeading
-        eyebrow="Pressure points"
-        title={<h3 className="text-[1.35rem] leading-tight text-ink">Where stocks keep slipping away</h3>}
-        description="The matchups and habits that are costing the most negative notes right now."
+        eyebrow="Recurring matchups"
+        title={<h3 className="text-[1.3rem] leading-tight text-ink">Where the same problem keeps showing up</h3>}
       />
 
-      <div className="mt-5">
-        {items.length > 0 ? (
-          <ol className="divide-y divide-line/55">
-            {items.map((item, index) => (
-              <li key={item.opponentCharacter} className="py-3 first:pt-0 last:pb-0">
-                <button
-                  type="button"
-                  className="grid w-full gap-2 text-left transition hover:text-accent"
-                  onClick={() => onOpenMatchup(item.opponentCharacter)}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-                        <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">{index + 1}</span>
-                        <span>{item.opponentCharacter}</span>
-                      </div>
-                      <p className="text-sm leading-6 text-ink-soft">{item.issue}</p>
-                    </div>
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
-                      {item.negativeCount} notes
-                    </span>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <EmptyState
-            body="Patterns will appear after a few entries."
-            title="No recurring matchup issues yet"
-          />
-        )}
-      </div>
-    </DashboardSection>
-  )
-}
-
-interface DrillLibraryPreviewProps {
-  drills: Drill[]
-  onOpenDrills: () => void
-  onToggleDrillPin: (title: string) => void
-  pinnedCount: number
-  pinnedTitles: string[]
-}
-
-function DrillLibraryPreview({
-  drills,
-  onOpenDrills,
-  onToggleDrillPin,
-  pinnedCount,
-  pinnedTitles,
-}: DrillLibraryPreviewProps) {
-  return (
-    <DashboardSection className="px-4 py-5 sm:px-5 sm:py-5" data-section="drill-preview">
-      <SectionHeading
-        eyebrow="Drills"
-        title={<h3 className="text-[1.35rem] leading-tight text-ink">Practice layer</h3>}
-        description={
-          pinnedCount > 0
-            ? `${pinnedCount} drill${pinnedCount === 1 ? '' : 's'} pinned for the next session.`
-            : 'Pin the reps you want ready before the next session starts.'
-        }
-        action={
-          <button type="button" className={TEXT_BUTTON_STYLES} onClick={onOpenDrills}>
-            Open drills
-          </button>
-        }
-      />
-
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        {drills.map((drill) => (
-          <DrillItem
-            key={drill.title}
-            drill={drill}
-            pinned={pinnedTitles.includes(drill.title)}
-            onToggle={() => onToggleDrillPin(drill.title)}
-          />
+      <ol className="mt-4 divide-y divide-line/55">
+        {items.slice(0, 3).map((item) => (
+          <li key={item.opponentCharacter} className="py-3 first:pt-0 last:pb-0">
+            <button
+              type="button"
+              className="grid w-full gap-1.5 text-left transition hover:text-accent"
+              onClick={() => onOpenMatchup(item.opponentCharacter)}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-ink">{item.opponentCharacter}</span>
+                <span className="text-[11px] uppercase tracking-[0.18em] text-ink-faint">
+                  {item.negativeCount} notes
+                </span>
+              </div>
+              <p className="text-sm leading-6 text-ink-soft">{item.issue}</p>
+            </button>
+          </li>
         ))}
-      </div>
+      </ol>
     </DashboardSection>
   )
 }

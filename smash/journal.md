@@ -34,4 +34,9 @@
 - Result: The dashboard now leads with a compact header, one clear coaching output, a quiet stats strip, flatter analysis sections, and less competing chrome.
 - Missed: The first Tailwind pass still treated the header, Current Focus, stats, and analysis panels as nearly the same kind of rounded slab, which flattened the hierarchy; it also left Current Focus split into equal subcards and kept the stats row too tall on mobile.
 - Verification: `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build` all passed after the second-pass dashboard refinement.
+- Request: Simplify the dashboard aggressively so the product reads as log set -> see habit, rule, drill -> review notes only when needed.
+- Previous attempt: The second-pass refinement improved hierarchy, but the dashboard still exposed support metrics, matchup diagnostics, and drill browsing as if they were equal parts of the product.
+- Attempt: Removed the stats strip and dashboard drill preview, hid recurring matchup diagnostics unless there is real data, simplified the header copy, and lightened the mobile nav so the product reads as one focused loop.
+- Result: The dashboard now shows only the header, the current habit/rule/drill output, recent notes, and an optional recurring-matchup list when it adds value.
+- Verification: `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build` all passed after the dashboard simplification pass.
 

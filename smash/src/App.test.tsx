@@ -34,7 +34,7 @@ describe('App notebook shell', () => {
     expect(markup).not.toContain('>Drill Library</span>')
   })
 
-  it('renders the redesigned dashboard hierarchy', () => {
+  it('renders the simplified dashboard loop', () => {
     const markup = renderToStaticMarkup(<App />)
 
     expect(markup).toContain('data-shell="tournament-notebook"')
@@ -44,13 +44,13 @@ describe('App notebook shell', () => {
     expect(markup).toContain('data-focus-item="issue"')
     expect(markup).toContain('data-focus-item="rule"')
     expect(markup).toContain('data-focus-item="drill"')
-    expect(markup).toContain('data-section="summary-stats"')
     expect(markup).toContain('data-section="recent-notes"')
-    expect(markup).toContain('data-section="pressure-points"')
-    expect(markup).toContain('data-section="drill-preview"')
     expect(markup).toContain('href="#main-content"')
     expect(markup).toContain('id="main-content"')
     expect(markup.match(/Log Set/g)?.length ?? 0).toBeGreaterThanOrEqual(1)
+    expect(markup).not.toContain('data-section="summary-stats"')
+    expect(markup).not.toContain('data-section="pressure-points"')
+    expect(markup).not.toContain('data-section="drill-preview"')
     expect(markup).not.toContain('data-section="masthead"')
     expect(markup).not.toContain('data-section="focus-board"')
   })
