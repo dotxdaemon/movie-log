@@ -523,22 +523,6 @@ function App({ initialView = 'dashboard' }: AppProps) {
             </span>
             <strong>{coverRule}</strong>
           </div>
-
-          <div className="masthead__stats">
-            <span className="masthead__stat">{entries.length} notes logged</span>
-            <span className="masthead__stat">{trackedMatchups} matchups tracked</span>
-            <span className="masthead__stat">{pinnedDrills.length} drills pinned</span>
-          </div>
-
-          <div className="hotkeys">
-            <span>`N` New</span>
-            <span>`C` Opponent</span>
-            <span>`T` Tags</span>
-            <span>`D` Death</span>
-            <span>`W` Worked</span>
-            <span>`R` Rule</span>
-            <span>`Enter` Save</span>
-          </div>
         </div>
       </header>
 
@@ -575,6 +559,25 @@ function App({ initialView = 'dashboard' }: AppProps) {
                     : 'Add one note after a set and the app turns it into one drill and one focus rule.'}
                 </p>
 
+                <dl className="dashboard-metrics" data-section="dashboard-metrics">
+                  <div className="dashboard-metric">
+                    <dt>Entries logged</dt>
+                    <dd>{entries.length}</dd>
+                  </div>
+                  <div className="dashboard-metric">
+                    <dt>Matchups tracked</dt>
+                    <dd>{trackedMatchups}</dd>
+                  </div>
+                  <div className="dashboard-metric">
+                    <dt>Latest note</dt>
+                    <dd>{sortedEntries[0]?.opponentCharacter ?? 'No entries'}</dd>
+                  </div>
+                  <div className="dashboard-metric">
+                    <dt>Pinned drills</dt>
+                    <dd>{pinnedDrills.length}</dd>
+                  </div>
+                </dl>
+
                 <div className="focus-board__footer">
                   <div className="focus-board__next">
                     <span className="metric-card__label">Next drill</span>
@@ -601,39 +604,6 @@ function App({ initialView = 'dashboard' }: AppProps) {
                 </div>
               </article>
 
-              <aside className="session-brief notebook-card" data-section="session-brief">
-                <div className="panel-heading">
-                  <div>
-                    <p className="section-kicker">Session brief</p>
-                    <h3>At a glance</h3>
-                  </div>
-                </div>
-
-                <dl className="session-brief__list">
-                  <div className="session-brief__row">
-                    <dt>Entries logged</dt>
-                    <dd>{entries.length}</dd>
-                  </div>
-                  <div className="session-brief__row">
-                    <dt>Matchups tracked</dt>
-                    <dd>{trackedMatchups}</dd>
-                  </div>
-                  <div className="session-brief__row">
-                    <dt>Latest note</dt>
-                    <dd>{sortedEntries[0]?.opponentCharacter ?? 'No entries'}</dd>
-                  </div>
-                  <div className="session-brief__row">
-                    <dt>Pinned drills</dt>
-                    <dd>{pinnedDrills.length}</dd>
-                  </div>
-                </dl>
-
-                <p className="session-brief__note">
-                  {sortedEntries[0]
-                    ? `Last entry: ${formatDate(sortedEntries[0].date)}`
-                    : 'Your newest set note will land here.'}
-                </p>
-              </aside>
             </div>
 
             <div className="dashboard-ledger">

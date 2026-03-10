@@ -38,10 +38,12 @@ describe('App notebook shell', () => {
     expect(markup).toContain('data-shell="tournament-notebook"')
     expect(markup).toContain('data-section="masthead"')
     expect(markup).toContain('data-section="focus-board"')
-    expect(markup).toContain('data-section="session-brief"')
+    expect(markup).toContain('data-section="dashboard-metrics"')
     expect(markup).toContain('href="#main-content"')
     expect(markup).toContain('id="main-content"')
     expect(markup.match(/Quick log a note/g)).toHaveLength(1)
+    expect(markup).not.toContain('data-section="session-brief"')
+    expect(markup).not.toContain('class="hotkeys"')
   })
 
   it('renders the entry form with explicit status and grouped tag semantics', () => {
