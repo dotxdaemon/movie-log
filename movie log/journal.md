@@ -2,3 +2,17 @@
 - 2026-03-12: Added project AGENTS.md and journal.md, then removed GitHub Pages/Vercel-specific rules from the active AGENTS files.
 - 2026-03-12: Remaining architecture conflict is the copied iOS/PWA workout-specific section in movie log/AGENTS.md versus Sean's requested native desktop watcher app.
 - 2026-03-12: Sean approved removing the workout/PWA-specific section from movie log/AGENTS.md so the repo instructions match a native desktop media logger.
+- 2026-03-12: `npm install` failed because eslint-plugin-react-hooks 7.0.1 accepts ESLint up to 9.x, so the minimal fix is pinning ESLint to 9.x before retrying the install.
+- 2026-03-12: The next install failure showed @eslint/js must stay on the same major as ESLint, so it also needs to be pinned to 9.x.
+- 2026-03-12: `npm run typecheck` failed because the renderer tsconfig was pulling in shared/history.ts even though it imports node:path, so the renderer config now includes only shared/types.ts.
+- 2026-03-12: The Node-side typecheck still failed because Electron files needed DOM libs and NodeNext import specifiers, so tsconfig.node and the relative imports were aligned to Electron-friendly ESM.
+- 2026-03-12: Runtime capture failed with ENOENT when startup tried to re-watch a missing folder path, so the next fix is making folder monitoring skip deleted folders instead of throwing.
+- 2026-03-12: After the missing-folder fix, the watched-folder integration test still missed a new directory, which confirmed fs.watch alone was too brittle and needed a periodic rescan backup.
+- 2026-03-12: The capture script hung because mainWindow listened for did-finish-load after awaiting loadURL, so the capture hook could miss the event entirely.
+- 2026-03-12: The first successful capture was still black because did-finish-load fired before the renderer painted, so capture now waits for an explicit renderer-ready IPC signal.
+- 2026-03-12: The renderer-ready IPC still did not produce a usable capture, so the capture path now waits for the actual rendered DOM text instead of a second readiness bridge.
+- 2026-03-12: The DOM-text capture still wrote a black image, so capture now fails closed and prints the latest renderer text instead of silently saving a useless screenshot.
+- 2026-03-12: Capture logging confirmed the actual runtime issue was Electron treating preload.ts as a non-module preload script, so the preload bridge was moved to preload.mjs.
+- 2026-03-12: Electron still treated preload.mjs as non-module in this path, so the working preload format needed to be CommonJS at preload.cjs.
+- 2026-03-12: Once the preload worked, the capture gate still failed because innerText reflected uppercase heading styles, so the readiness check needed to be case-insensitive.
+- 2026-03-12: The final lint pass flagged the CommonJS preload for require(), so ESLint needed a tiny cjs-specific override rather than another preload rewrite.
