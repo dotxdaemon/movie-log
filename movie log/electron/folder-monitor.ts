@@ -13,9 +13,7 @@ interface FolderMonitorOptions {
 
 export function createFolderMonitor(options: FolderMonitorOptions) {
   const settleMs = options.settleMs ?? 400;
-  const pollMs = Math.max(settleMs * 4, 100);
   const watchers = new Map<string, FSWatcher>();
-  const pollingTimers = new Map<string, NodeJS.Timeout>();
   const scheduledSyncs = new Map<string, NodeJS.Timeout>();
 
   async function syncFolder(folderPath: string, emitNewItems: boolean): Promise<void> {
@@ -93,12 +91,6 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
       });
 
       watchers.set(folderPath, folderWatcher);
-      pollingTimers.set(
-        folderPath,
-        setInterval(() => {
-          void syncFolder(folderPath, true);
-        }, pollMs)
-      );
     },
 
     async unwatchFolder(folderPath: string): Promise<void> {
@@ -107,12 +99,6 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
       if (folderWatcher) {
         folderWatcher.close();
         watchers.delete(folderPath);
-      }
-
-      const pollingTimer = pollingTimers.get(folderPath);
-      if (pollingTimer) {
-        clearInterval(pollingTimer);
-        pollingTimers.delete(folderPath);
       }
 
       const timeout = scheduledSyncs.get(folderPath);
@@ -128,12 +114,6 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
       }
 
       scheduledSyncs.clear();
-
-      for (const pollingTimer of pollingTimers.values()) {
-        clearInterval(pollingTimer);
-      }
-
-      pollingTimers.clear();
 
       for (const folderWatcher of watchers.values()) {
         folderWatcher.close();

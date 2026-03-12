@@ -21,13 +21,15 @@ const folderMonitor = createFolderMonitor({
   loadKnownPaths: historyStore.readKnownPaths,
   saveKnownPaths: historyStore.writeKnownPaths,
   onDiscover: async (itemPath) => {
-    await syncWatchedFolder(dirname(itemPath), true);
+    await syncWatchedFolder(dirname(itemPath), 'new-only');
     await broadcastState();
   }
 });
 
 let mainWindow: BrowserWindow | null = null;
 let dailyScanTimer: NodeJS.Timeout | null = null;
+
+type HistoryMode = 'all-current' | 'new-only' | 'none';
 
 async function createEntryForPath(itemPath: string, source: 'drop' | 'watch'): Promise<WatchEntry | null> {
   const itemStats = await stat(itemPath);
@@ -44,23 +46,28 @@ async function readState(): Promise<MovieLogState> {
   return historyStore.readState();
 }
 
-async function syncWatchedFolder(folderPath: string, recordNewItems: boolean): Promise<void> {
+async function syncWatchedFolder(folderPath: string, historyMode: HistoryMode): Promise<void> {
   const scannedAt = new Date().toISOString();
   const currentItems = await scanFolderContents(folderPath);
   const newItems = await historyStore.syncWatchedFolderContents(folderPath, currentItems, scannedAt);
 
-  if (recordNewItems && newItems.length > 0) {
+  if (historyMode === 'all-current') {
+    await historyStore.recordWatchedFolderContents(folderPath, scannedAt);
+    return;
+  }
+
+  if (historyMode === 'new-only' && newItems.length > 0) {
     await historyStore.addHistoryEntries(
       newItems.map((item) => createEntryFromPath(item.sourcePath, 'watch', scannedAt, item.sourceKind))
     );
   }
 }
 
-async function syncAllWatchedFolders(recordNewItems: boolean): Promise<void> {
+async function syncAllWatchedFolders(historyMode: HistoryMode): Promise<void> {
   const state = await readState();
 
   for (const folder of state.watchedFolders) {
-    await syncWatchedFolder(folder.path, recordNewItems);
+    await syncWatchedFolder(folder.path, historyMode);
   }
 }
 
@@ -168,7 +175,7 @@ function registerIpcHandlers(): void {
 
     for (const selectedPath of result.filePaths) {
       const folder = await historyStore.addWatchedFolder(selectedPath);
-      await syncWatchedFolder(folder.path, false);
+      await syncWatchedFolder(folder.path, 'none');
       await folderMonitor.watchFolder(folder.path);
       folders.push(folder);
     }
@@ -187,6 +194,8 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('movie-log:get-data-file-path', async () => historyStore.getDataFilePath());
+
+  ipcMain.handle('movie-log:get-note-file-path', async () => historyStore.getNoteFilePath());
 
   ipcMain.handle('movie-log:get-state', async () => readState());
 
@@ -208,7 +217,7 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('movie-log:scan-now', async () => {
-    await syncAllWatchedFolders(true);
+    await syncAllWatchedFolders('all-current');
     await broadcastState();
   });
 
@@ -223,7 +232,7 @@ function registerIpcHandlers(): void {
 }
 
 async function startExistingWatchers(): Promise<void> {
-  await syncAllWatchedFolders(false);
+  await syncAllWatchedFolders('none');
 
   const state = await readState();
   for (const folder of state.watchedFolders) {
@@ -237,7 +246,7 @@ function startDailyScanLoop(): void {
   }
 
   dailyScanTimer = setInterval(() => {
-    void syncAllWatchedFolders(true).then(() => broadcastState());
+    void syncAllWatchedFolders('new-only').then(() => broadcastState());
   }, automaticScanIntervalMs);
 }
 

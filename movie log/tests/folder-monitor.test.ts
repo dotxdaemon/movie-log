@@ -91,6 +91,31 @@ describe('createFolderMonitor', () => {
     await monitor.dispose();
   });
 
+  it('does not keep rescanning a watched folder while it is idle', async () => {
+    const inboxPath = join(rootDirectory, 'Media Inbox');
+    await mkdir(inboxPath);
+
+    let saveCount = 0;
+    const knownByFolder = new Map<string, string[]>();
+    const monitor = createFolderMonitor({
+      loadKnownPaths: async (folderPath) => knownByFolder.get(folderPath) ?? [],
+      saveKnownPaths: async (folderPath, knownPaths) => {
+        saveCount += 1;
+        knownByFolder.set(folderPath, knownPaths);
+      },
+      onDiscover: async () => {},
+      settleMs: 25
+    });
+
+    await monitor.watchFolder(inboxPath);
+    await delay(120);
+    const settledSaveCount = saveCount;
+    await delay(180);
+    await monitor.dispose();
+
+    expect(saveCount).toBe(settledSaveCount);
+  });
+
   it('records one history entry when a new top-level item arrives in a watched folder', async () => {
     const inboxPath = join(rootDirectory, 'Media Inbox');
     const dataDirectory = join(rootDirectory, 'Data');

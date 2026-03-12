@@ -53,6 +53,7 @@ export default function App() {
   const [dropActive, setDropActive] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [logFilePath, setLogFilePath] = useState('');
+  const [noteFilePath, setNoteFilePath] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [scanInProgress, setScanInProgress] = useState(false);
 
@@ -60,9 +61,10 @@ export default function App() {
     let isMounted = true;
 
     const loadAppData = async () => {
-      const [nextState, nextLogFilePath] = await Promise.all([
+      const [nextState, nextLogFilePath, nextNoteFilePath] = await Promise.all([
         window.movieLog.getState(),
-        window.movieLog.getDataFilePath()
+        window.movieLog.getDataFilePath(),
+        window.movieLog.getNoteFilePath()
       ]);
 
       if (!isMounted) {
@@ -71,6 +73,7 @@ export default function App() {
 
       updateState(nextState, setState);
       setLogFilePath(nextLogFilePath);
+      setNoteFilePath(nextNoteFilePath);
     };
 
     void loadAppData();
@@ -398,6 +401,27 @@ export default function App() {
             <p className="summary">
               Movie Log keeps its history and watched folders in a local JSON file. Nothing is uploaded or synced.
             </p>
+            <p className="panel-kicker">Readable Note</p>
+            <p className="meta-path">{noteFilePath}</p>
+            <div className="button-row">
+              <button
+                className="ghost-button"
+                disabled={!noteFilePath}
+                onClick={() => void handleOpenItem(noteFilePath)}
+                type="button"
+              >
+                Open Note
+              </button>
+              <button
+                className="ghost-button"
+                disabled={!noteFilePath}
+                onClick={() => void handleCopyPath(noteFilePath)}
+                type="button"
+              >
+                Copy Note Path
+              </button>
+            </div>
+            <p className="panel-kicker">App Store</p>
             <p className="meta-path">{logFilePath}</p>
           </article>
         </section>

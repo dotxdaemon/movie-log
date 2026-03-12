@@ -43,6 +43,7 @@ export interface MovieLogState {
 export interface MovieLogApi {
   getState(): Promise<MovieLogState>;
   getDataFilePath(): Promise<string>;
+  getNoteFilePath(): Promise<string>;
   logPaths(paths: string[]): Promise<WatchEntry[]>;
   addWatchedFolders(): Promise<WatchedFolder[]>;
   removeWatchedFolder(id: string): Promise<void>;

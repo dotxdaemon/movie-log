@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('movieLog', {
   clearHistory: () => ipcRenderer.invoke('movie-log:clear-history'),
   copyPath: (itemPath) => ipcRenderer.invoke('movie-log:copy-path', itemPath),
   getDataFilePath: () => ipcRenderer.invoke('movie-log:get-data-file-path'),
+  getNoteFilePath: () => ipcRenderer.invoke('movie-log:get-note-file-path'),
   getState: () => ipcRenderer.invoke('movie-log:get-state'),
   logPaths: (paths) => ipcRenderer.invoke('movie-log:log-paths', paths),
   openInFinder: (itemPath) => ipcRenderer.invoke('movie-log:open-in-finder', itemPath),

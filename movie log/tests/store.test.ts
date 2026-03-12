@@ -1,6 +1,6 @@
 // ABOUTME: Verifies that the desktop app persists watch history and watched folders on disk.
 // ABOUTME: Uses real temporary files so the store behavior matches the local desktop runtime.
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -16,6 +16,28 @@ describe('createHistoryStore', () => {
 
   afterEach(async () => {
     await rm(dataDirectory, { recursive: true, force: true });
+  });
+
+  it('creates the local json file and note file on first read', async () => {
+    const store = createHistoryStore(dataDirectory);
+
+    const state = await store.readState();
+    const storedJson = await readFile(join(dataDirectory, 'movie-log.json'), 'utf8');
+    const storedNote = await readFile(join(dataDirectory, 'movie-log-note.md'), 'utf8');
+
+    expect(state).toEqual({
+      history: [],
+      libraryItems: [],
+      watchedFolders: []
+    });
+    expect(JSON.parse(storedJson)).toEqual({
+      history: [],
+      knownPathsByFolder: {},
+      libraryItems: [],
+      watchedFolders: []
+    });
+    expect(storedNote).toContain('# Movie Log');
+    expect(storedNote).toContain('Nothing logged yet');
   });
 
   it('persists history and watched folders across reloads', async () => {
@@ -161,6 +183,42 @@ describe('createHistoryStore', () => {
       }
     ]);
     expect(secondScan).toEqual([]);
+  });
+
+  it('records the current watched-folder contents into history without duplicates', async () => {
+    const store = createHistoryStore(dataDirectory);
+
+    await store.addWatchedFolder('/Users/seankim/Movies');
+    await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [
+        {
+          sourceKind: 'directory',
+          sourcePath: '/Users/seankim/Movies/Severance',
+          title: 'Severance'
+        },
+        {
+          sourceKind: 'file',
+          sourcePath: '/Users/seankim/Movies/The Brutalist.mkv',
+          title: 'The Brutalist'
+        }
+      ],
+      '2026-03-12T09:00:00.000Z'
+    );
+
+    const firstRecord = await store.recordWatchedFolderContents('/Users/seankim/Movies', '2026-03-12T10:00:00.000Z');
+    const secondRecord = await store.recordWatchedFolderContents('/Users/seankim/Movies', '2026-03-12T11:00:00.000Z');
+    const state = await store.readState();
+
+    expect(firstRecord.map((entry) => entry.sourcePath)).toEqual([
+      '/Users/seankim/Movies/Severance',
+      '/Users/seankim/Movies/The Brutalist.mkv'
+    ]);
+    expect(secondRecord).toEqual([]);
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual([
+      '/Users/seankim/Movies/Severance',
+      '/Users/seankim/Movies/The Brutalist.mkv'
+    ]);
   });
 
   it('clears history without removing watched folders', async () => {

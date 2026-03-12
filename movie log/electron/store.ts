@@ -2,7 +2,7 @@
 // ABOUTME: Provides the minimal read and write operations needed by the Electron process and tests.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { sortEntriesByWatchedAt } from '../shared/history.js';
+import { createEntryFromPath, sortEntriesByWatchedAt } from '../shared/history.js';
 import type { FolderContentsItem, LibraryItem, MovieLogState, WatchEntry, WatchedFolder } from '../shared/types.js';
 
 interface PersistedState extends MovieLogState {
@@ -44,8 +44,43 @@ function cloneState(state: PersistedState): PersistedState {
   };
 }
 
+function samePaths(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((path, index) => path === right[index]);
+}
+
 export function createHistoryStore(dataDirectory: string) {
   const dataFilePath = join(dataDirectory, 'movie-log.json');
+  const noteFilePath = join(dataDirectory, 'movie-log-note.md');
+
+  function renderNote(state: PersistedState): string {
+    const lines = ['# Movie Log', '', '## Recent History', ''];
+
+    if (state.history.length === 0) {
+      lines.push('- Nothing logged yet.');
+    } else {
+      for (const entry of sortEntriesByWatchedAt(state.history)) {
+        lines.push(
+          `- ${entry.watchedAt} | ${entry.title} | ${entry.sourceKind === 'file' ? 'File' : 'Folder'} | ${
+            entry.source === 'drop' ? 'Manual Drop' : 'Watched Folder'
+          } | ${entry.sourcePath}`
+        );
+      }
+    }
+
+    lines.push('', '## Watched Folders', '');
+
+    if (state.watchedFolders.length === 0) {
+      lines.push('- None');
+    } else {
+      for (const folder of state.watchedFolders) {
+        lines.push(
+          `- ${folder.name} | ${folder.path}${folder.lastScannedAt ? ` | Last scanned ${folder.lastScannedAt}` : ''}`
+        );
+      }
+    }
+
+    return `${lines.join('\n')}\n`;
+  }
 
   async function readPersistedState(): Promise<PersistedState> {
     await mkdir(dataDirectory, { recursive: true });
@@ -53,18 +88,21 @@ export function createHistoryStore(dataDirectory: string) {
     try {
       const stored = await readFile(dataFilePath, 'utf8');
       const parsed = JSON.parse(stored) as Partial<PersistedState>;
-
-      return {
+      const state = {
         history: sortEntriesByWatchedAt(parsed.history ?? []),
         libraryItems: sortLibraryItems(parsed.libraryItems ?? []),
         knownPathsByFolder: parsed.knownPathsByFolder ?? {},
         watchedFolders: parsed.watchedFolders ?? []
       };
+      await writeFile(noteFilePath, renderNote(state), 'utf8');
+      return state;
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
 
       if (code === 'ENOENT') {
-        return cloneState(EMPTY_STATE);
+        const emptyState = cloneState(EMPTY_STATE);
+        await writePersistedState(emptyState);
+        return emptyState;
       }
 
       throw error;
@@ -74,6 +112,7 @@ export function createHistoryStore(dataDirectory: string) {
   async function writePersistedState(state: PersistedState): Promise<void> {
     await mkdir(dataDirectory, { recursive: true });
     await writeFile(dataFilePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+    await writeFile(noteFilePath, renderNote(state), 'utf8');
   }
 
   return {
@@ -183,6 +222,23 @@ export function createHistoryStore(dataDirectory: string) {
         .map(({ sourceKind, sourcePath, title }) => ({ sourceKind, sourcePath, title }));
     },
 
+    async recordWatchedFolderContents(folderPath: string, watchedAt = new Date().toISOString()): Promise<WatchEntry[]> {
+      const state = await readPersistedState();
+      const knownPaths = new Set(state.history.map((entry) => entry.sourcePath));
+      const entries = state.libraryItems
+        .filter((item) => item.folderPath === folderPath)
+        .map((item) => createEntryFromPath(item.sourcePath, 'watch', watchedAt, item.sourceKind))
+        .filter((entry) => !knownPaths.has(entry.sourcePath));
+
+      if (entries.length === 0) {
+        return [];
+      }
+
+      state.history = mergeHistoryEntries(state.history, entries);
+      await writePersistedState(state);
+      return entries;
+    },
+
     async readKnownPaths(folderPath: string): Promise<string[]> {
       const state = await readPersistedState();
       return [...(state.knownPathsByFolder[folderPath] ?? [])];
@@ -190,12 +246,22 @@ export function createHistoryStore(dataDirectory: string) {
 
     async writeKnownPaths(folderPath: string, knownPaths: string[]): Promise<void> {
       const state = await readPersistedState();
+      const existingPaths = state.knownPathsByFolder[folderPath] ?? [];
+
+      if (samePaths(existingPaths, knownPaths)) {
+        return;
+      }
+
       state.knownPathsByFolder[folderPath] = [...knownPaths];
       await writePersistedState(state);
     },
 
     getDataFilePath(): string {
       return dataFilePath;
+    },
+
+    getNoteFilePath(): string {
+      return noteFilePath;
     }
   };
 }
