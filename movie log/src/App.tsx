@@ -358,6 +358,10 @@ export default function App() {
                 </button>
               </div>
             </div>
+            <p className="summary">
+              The first scan logs everything already in a watched folder. Later scans add only top-level arrivals, and
+              renames or moves inside the same watched folder do not log again.
+            </p>
 
             {state.watchedFolders.length === 0 ? (
               <div className="empty-card">

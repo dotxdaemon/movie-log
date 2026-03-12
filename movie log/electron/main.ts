@@ -9,6 +9,7 @@ import { createFolderMonitor } from './folder-monitor.js';
 import { automaticScanIntervalMs } from './scan-interval.js';
 import { scanFolderContents } from './folder-scan.js';
 import { createHistoryStore } from './store.js';
+import { closeMovieLog } from './window-close.js';
 import { createEntryFromPath } from '../shared/history.js';
 import { isTrackableMediaItem } from '../shared/media-items.js';
 import type { EntryKind, MovieLogState, WatchEntry } from '../shared/types.js';
@@ -21,15 +22,13 @@ const folderMonitor = createFolderMonitor({
   loadKnownPaths: historyStore.readKnownPaths,
   saveKnownPaths: historyStore.writeKnownPaths,
   onDiscover: async (itemPath) => {
-    await syncWatchedFolder(dirname(itemPath), 'new-only');
+    await syncWatchedFolder(dirname(itemPath));
     await broadcastState();
   }
 });
 
 let mainWindow: BrowserWindow | null = null;
 let dailyScanTimer: NodeJS.Timeout | null = null;
-
-type HistoryMode = 'all-current' | 'new-only' | 'none';
 
 async function createEntryForPath(itemPath: string, source: 'drop' | 'watch'): Promise<WatchEntry | null> {
   const itemStats = await stat(itemPath);
@@ -46,28 +45,17 @@ async function readState(): Promise<MovieLogState> {
   return historyStore.readState();
 }
 
-async function syncWatchedFolder(folderPath: string, historyMode: HistoryMode): Promise<void> {
+async function syncWatchedFolder(folderPath: string): Promise<void> {
   const scannedAt = new Date().toISOString();
   const currentItems = await scanFolderContents(folderPath);
-  const newItems = await historyStore.syncWatchedFolderContents(folderPath, currentItems, scannedAt);
-
-  if (historyMode === 'all-current') {
-    await historyStore.recordWatchedFolderContents(folderPath, scannedAt);
-    return;
-  }
-
-  if (historyMode === 'new-only' && newItems.length > 0) {
-    await historyStore.addHistoryEntries(
-      newItems.map((item) => createEntryFromPath(item.sourcePath, 'watch', scannedAt, item.sourceKind))
-    );
-  }
+  await historyStore.syncWatchedFolderContents(folderPath, currentItems, scannedAt);
 }
 
-async function syncAllWatchedFolders(historyMode: HistoryMode): Promise<void> {
+async function syncAllWatchedFolders(): Promise<void> {
   const state = await readState();
 
   for (const folder of state.watchedFolders) {
-    await syncWatchedFolder(folder.path, historyMode);
+    await syncWatchedFolder(folder.path);
   }
 }
 
@@ -175,7 +163,7 @@ function registerIpcHandlers(): void {
 
     for (const selectedPath of result.filePaths) {
       const folder = await historyStore.addWatchedFolder(selectedPath);
-      await syncWatchedFolder(folder.path, 'none');
+      await syncWatchedFolder(folder.path);
       await folderMonitor.watchFolder(folder.path);
       folders.push(folder);
     }
@@ -217,7 +205,7 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('movie-log:scan-now', async () => {
-    await syncAllWatchedFolders('all-current');
+    await syncAllWatchedFolders();
     await broadcastState();
   });
 
@@ -232,7 +220,7 @@ function registerIpcHandlers(): void {
 }
 
 async function startExistingWatchers(): Promise<void> {
-  await syncAllWatchedFolders('none');
+  await syncAllWatchedFolders();
 
   const state = await readState();
   for (const folder of state.watchedFolders) {
@@ -240,13 +228,18 @@ async function startExistingWatchers(): Promise<void> {
   }
 }
 
-function startDailyScanLoop(): void {
+function stopDailyScanLoop(): void {
   if (dailyScanTimer) {
     clearInterval(dailyScanTimer);
+    dailyScanTimer = null;
   }
+}
+
+function startDailyScanLoop(): void {
+  stopDailyScanLoop();
 
   dailyScanTimer = setInterval(() => {
-    void syncAllWatchedFolders('new-only').then(() => broadcastState());
+    void syncAllWatchedFolders().then(() => broadcastState());
   }, automaticScanIntervalMs);
 }
 
@@ -258,16 +251,11 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  if (dailyScanTimer) {
-    clearInterval(dailyScanTimer);
-    dailyScanTimer = null;
-  }
-
-  void folderMonitor.dispose();
-
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  void closeMovieLog({
+    disposeFolderMonitor: () => folderMonitor.dispose(),
+    quitApp: () => app.quit(),
+    stopScanLoop: stopDailyScanLoop
+  });
 });
 
 app.on('activate', async () => {

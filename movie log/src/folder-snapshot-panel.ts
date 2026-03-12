@@ -28,7 +28,7 @@ export function FolderSnapshotPanel({
         'div',
         null,
         createElement('p', { className: 'panel-kicker' }, 'Scanned Items'),
-        createElement('h2', null, 'Current folder contents')
+        createElement('h2', null, 'Current top-level contents')
       )
     ),
     items.length === 0

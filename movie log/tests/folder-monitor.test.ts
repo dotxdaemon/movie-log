@@ -8,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createFolderMonitor } from '../electron/folder-monitor.js';
 import { scanFolderContents } from '../electron/folder-scan.js';
 import { createHistoryStore } from '../electron/store.js';
-import { createEntryFromPath } from '../shared/history.js';
 
 async function waitForDiscovery(paths: string[]) {
   for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -132,13 +131,7 @@ describe('createFolderMonitor', () => {
       onDiscover: async () => {
         const scannedAt = '2026-03-12T09:00:00.000Z';
         const items = await scanFolderContents(inboxPath);
-        const newItems = await store.syncWatchedFolderContents(inboxPath, items, scannedAt);
-
-        if (newItems.length > 0) {
-          await store.addHistoryEntries(
-            newItems.map((item) => createEntryFromPath(item.sourcePath, 'watch', scannedAt, item.sourceKind))
-          );
-        }
+        await store.syncWatchedFolderContents(inboxPath, items, scannedAt);
       },
       settleMs: 25
     });

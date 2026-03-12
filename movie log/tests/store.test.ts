@@ -1,12 +1,25 @@
 // ABOUTME: Verifies that the desktop app persists watch history and watched folders on disk.
 // ABOUTME: Uses real temporary files so the store behavior matches the local desktop runtime.
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createHistoryStore } from '../electron/store.js';
 import { createEntryFromPath } from '../shared/history.js';
+
+function scannedItem(
+  sourcePath: string,
+  itemKey: string,
+  sourceKind: 'file' | 'directory' = 'file'
+) {
+  return {
+    itemKey,
+    sourceKind,
+    sourcePath,
+    title: createEntryFromPath(sourcePath, 'watch', '1970-01-01T00:00:00.000Z', sourceKind).title
+  };
+}
 
 describe('createHistoryStore', () => {
   let dataDirectory = '';
@@ -35,6 +48,7 @@ describe('createHistoryStore', () => {
       history: [],
       knownPathsByFolder: {},
       libraryItems: [],
+      seenKeysByFolder: {},
       watchedFolders: []
     });
     expect(storedNote).toContain('# Movie Log');
@@ -99,16 +113,8 @@ describe('createHistoryStore', () => {
     await store.syncWatchedFolderContents(
       '/Users/seankim/Movies',
       [
-        {
-          sourceKind: 'directory',
-          sourcePath: '/Users/seankim/Movies/Severance',
-          title: 'Severance'
-        },
-        {
-          sourceKind: 'file',
-          sourcePath: '/Users/seankim/Movies/The Brutalist.mkv',
-          title: 'The Brutalist'
-        }
+        scannedItem('/Users/seankim/Movies/Severance', 'dev:1', 'directory'),
+        scannedItem('/Users/seankim/Movies/The Brutalist.mkv', 'dev:2')
       ],
       '2026-03-12T09:00:00.000Z'
     );
@@ -127,16 +133,8 @@ describe('createHistoryStore', () => {
     await store.syncWatchedFolderContents(
       '/Users/seankim/Movies',
       [
-        {
-          sourceKind: 'directory',
-          sourcePath: '/Users/seankim/Movies/Severance',
-          title: 'Severance'
-        },
-        {
-          sourceKind: 'file',
-          sourcePath: '/Users/seankim/Movies/The Brutalist.mkv',
-          title: 'The Brutalist'
-        }
+        scannedItem('/Users/seankim/Movies/Severance', 'dev:1', 'directory'),
+        scannedItem('/Users/seankim/Movies/The Brutalist.mkv', 'dev:2')
       ],
       '2026-03-12T09:00:00.000Z'
     );
@@ -144,16 +142,8 @@ describe('createHistoryStore', () => {
     await store.syncWatchedFolderContents(
       '/Users/seankim/Movies',
       [
-        {
-          sourceKind: 'directory',
-          sourcePath: '/Users/seankim/Movies/Severance',
-          title: 'Severance'
-        },
-        {
-          sourceKind: 'file',
-          sourcePath: '/Users/seankim/Movies/Flow.mkv',
-          title: 'Flow'
-        }
+        scannedItem('/Users/seankim/Movies/Severance', 'dev:1', 'directory'),
+        scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:3')
       ],
       '2026-03-13T09:00:00.000Z'
     );
@@ -173,34 +163,16 @@ describe('createHistoryStore', () => {
 
     const firstScan = await store.syncWatchedFolderContents(
       '/Users/seankim/Movies',
-      [
-        {
-          sourceKind: 'file',
-          sourcePath: '/Users/seankim/Movies/Flow.mkv',
-          title: 'Flow'
-        }
-      ],
+      [scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1')],
       '2026-03-12T09:00:00.000Z'
     );
     const secondScan = await store.syncWatchedFolderContents(
       '/Users/seankim/Movies',
-      [
-        {
-          sourceKind: 'file',
-          sourcePath: '/Users/seankim/Movies/Flow.mkv',
-          title: 'Flow'
-        }
-      ],
+      [scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1')],
       '2026-03-13T09:00:00.000Z'
     );
 
-    expect(firstScan).toEqual([
-      {
-        sourceKind: 'file',
-        sourcePath: '/Users/seankim/Movies/Flow.mkv',
-        title: 'Flow'
-      }
-    ]);
+    expect(firstScan.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
     expect(secondScan).toEqual([]);
   });
 
@@ -210,13 +182,7 @@ describe('createHistoryStore', () => {
     await store.addWatchedFolder('/Users/seankim/Movies');
     await store.syncWatchedFolderContents(
       '/Users/seankim/Movies',
-      [
-        {
-          sourceKind: 'file',
-          sourcePath: '/Users/seankim/Movies/Flow.mkv',
-          title: 'Flow'
-        }
-      ],
+      [scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1')],
       '2026-03-12T09:00:00.000Z'
     );
 
@@ -228,13 +194,7 @@ describe('createHistoryStore', () => {
     await delay(20);
     await store.syncWatchedFolderContents(
       '/Users/seankim/Movies',
-      [
-        {
-          sourceKind: 'file',
-          sourcePath: '/Users/seankim/Movies/Flow.mkv',
-          title: 'Flow'
-        }
-      ],
+      [scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1')],
       '2026-03-13T09:00:00.000Z'
     );
 
@@ -245,39 +205,161 @@ describe('createHistoryStore', () => {
     expect(secondNoteStats.mtimeMs).toBe(firstNoteStats.mtimeMs);
   });
 
-  it('records the current watched-folder contents into history without duplicates', async () => {
+  it('imports current watched-folder items into history on the first scan', async () => {
+    const store = createHistoryStore(dataDirectory);
+
+    await store.addWatchedFolder('/Users/seankim/Movies');
+    const recordedEntries = await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [
+        scannedItem('/Users/seankim/Movies/Severance', 'dev:1', 'directory'),
+        scannedItem('/Users/seankim/Movies/The Brutalist.mkv', 'dev:2')
+      ],
+      '2026-03-12T09:00:00.000Z'
+    );
+    const state = await store.readState();
+
+    expect(recordedEntries.map((entry) => entry.sourcePath)).toEqual([
+      '/Users/seankim/Movies/Severance',
+      '/Users/seankim/Movies/The Brutalist.mkv'
+    ]);
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual([
+      '/Users/seankim/Movies/Severance',
+      '/Users/seankim/Movies/The Brutalist.mkv'
+    ]);
+  });
+
+  it('keeps cleared history empty when an unchanged watched folder is scanned again', async () => {
     const store = createHistoryStore(dataDirectory);
 
     await store.addWatchedFolder('/Users/seankim/Movies');
     await store.syncWatchedFolderContents(
       '/Users/seankim/Movies',
-      [
+      [scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1')],
+      '2026-03-12T09:00:00.000Z'
+    );
+    await store.clearHistory();
+
+    const repeatedScan = await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1')],
+      '2026-03-13T09:00:00.000Z'
+    );
+    const state = await store.readState();
+
+    expect(repeatedScan).toEqual([]);
+    expect(state.history).toEqual([]);
+    expect(state.libraryItems.map((item) => item.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
+  });
+
+  it('updates the scanned snapshot without adding history when a watched-folder file is renamed', async () => {
+    const store = createHistoryStore(dataDirectory);
+
+    await store.addWatchedFolder('/Users/seankim/Movies');
+    await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1')],
+      '2026-03-12T09:00:00.000Z'
+    );
+
+    const renamedScan = await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [scannedItem('/Users/seankim/Movies/Flow (1).mkv', 'dev:1')],
+      '2026-03-13T09:00:00.000Z'
+    );
+    const state = await store.readState();
+
+    expect(renamedScan).toEqual([]);
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
+    expect(state.libraryItems.map((item) => item.sourcePath)).toEqual(['/Users/seankim/Movies/Flow (1).mkv']);
+  });
+
+  it('updates the scanned snapshot without adding history when a watched-folder folder moves in place', async () => {
+    const store = createHistoryStore(dataDirectory);
+
+    await store.addWatchedFolder('/Users/seankim/Movies');
+    await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [scannedItem('/Users/seankim/Movies/Severance', 'dev:1', 'directory')],
+      '2026-03-12T09:00:00.000Z'
+    );
+
+    const movedScan = await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [scannedItem('/Users/seankim/Movies/Severance Archive', 'dev:1', 'directory')],
+      '2026-03-13T09:00:00.000Z'
+    );
+    const state = await store.readState();
+
+    expect(movedScan).toEqual([]);
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Severance']);
+    expect(state.libraryItems.map((item) => item.sourcePath)).toEqual(['/Users/seankim/Movies/Severance Archive']);
+  });
+
+  it('backfills old watched folders exactly once when stable item keys are missing', async () => {
+    const legacyState = {
+      history: [createEntryFromPath('/Users/seankim/Movies/Severance', 'watch', '2026-03-12T08:00:00.000Z', 'directory')],
+      knownPathsByFolder: {
+        '/Users/seankim/Movies': ['/Users/seankim/Movies/Flow.mkv', '/Users/seankim/Movies/Severance']
+      },
+      libraryItems: [
         {
+          firstSeenAt: '2026-03-12T08:00:00.000Z',
+          folderId: '/Users/seankim/Movies',
+          folderPath: '/Users/seankim/Movies',
+          id: '/Users/seankim/Movies/Severance',
+          lastSeenAt: '2026-03-12T08:00:00.000Z',
           sourceKind: 'directory',
           sourcePath: '/Users/seankim/Movies/Severance',
           title: 'Severance'
         },
         {
+          firstSeenAt: '2026-03-12T08:00:00.000Z',
+          folderId: '/Users/seankim/Movies',
+          folderPath: '/Users/seankim/Movies',
+          id: '/Users/seankim/Movies/Flow.mkv',
+          lastSeenAt: '2026-03-12T08:00:00.000Z',
           sourceKind: 'file',
-          sourcePath: '/Users/seankim/Movies/The Brutalist.mkv',
-          title: 'The Brutalist'
+          sourcePath: '/Users/seankim/Movies/Flow.mkv',
+          title: 'Flow'
         }
       ],
-      '2026-03-12T09:00:00.000Z'
-    );
+      watchedFolders: [
+        {
+          addedAt: '2026-03-12T08:00:00.000Z',
+          id: '/Users/seankim/Movies',
+          lastScannedAt: '2026-03-12T08:00:00.000Z',
+          name: 'Movies',
+          path: '/Users/seankim/Movies'
+        }
+      ]
+    };
+    await writeFile(join(dataDirectory, 'movie-log.json'), `${JSON.stringify(legacyState, null, 2)}\n`, 'utf8');
 
-    const firstRecord = await store.recordWatchedFolderContents('/Users/seankim/Movies', '2026-03-12T10:00:00.000Z');
-    const secondRecord = await store.recordWatchedFolderContents('/Users/seankim/Movies', '2026-03-12T11:00:00.000Z');
+    const store = createHistoryStore(dataDirectory);
+    const firstBackfill = await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [
+        scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1'),
+        scannedItem('/Users/seankim/Movies/Severance', 'dev:2', 'directory')
+      ],
+      '2026-03-13T09:00:00.000Z'
+    );
+    const secondBackfill = await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [
+        scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1'),
+        scannedItem('/Users/seankim/Movies/Severance', 'dev:2', 'directory')
+      ],
+      '2026-03-13T10:00:00.000Z'
+    );
     const state = await store.readState();
 
-    expect(firstRecord.map((entry) => entry.sourcePath)).toEqual([
-      '/Users/seankim/Movies/Severance',
-      '/Users/seankim/Movies/The Brutalist.mkv'
-    ]);
-    expect(secondRecord).toEqual([]);
+    expect(firstBackfill.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
+    expect(secondBackfill).toEqual([]);
     expect(state.history.map((entry) => entry.sourcePath)).toEqual([
-      '/Users/seankim/Movies/Severance',
-      '/Users/seankim/Movies/The Brutalist.mkv'
+      '/Users/seankim/Movies/Flow.mkv',
+      '/Users/seankim/Movies/Severance'
     ]);
   });
 

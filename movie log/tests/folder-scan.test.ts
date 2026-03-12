@@ -29,7 +29,7 @@ describe('scanFolderContents', () => {
 
     const items = await scanFolderContents(moviesPath);
 
-    expect(items).toEqual([
+    expect(items.map(({ sourceKind, sourcePath, title }) => ({ sourceKind, sourcePath, title }))).toEqual([
       {
         sourceKind: 'file',
         sourcePath: join(moviesPath, 'Clair de Lune.flac'),
@@ -51,5 +51,6 @@ describe('scanFolderContents', () => {
         title: 'The Brutalist'
       }
     ]);
+    expect(items.every((item) => item.itemKey.length > 0)).toBe(true);
   });
 });
