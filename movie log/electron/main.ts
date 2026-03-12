@@ -12,7 +12,7 @@ import { scanFolderContents } from './folder-scan.js';
 import { createStatusItem } from './status-item.js';
 import { createHistoryStore } from './store.js';
 import { revealWindow } from './window-visibility.js';
-import { closeMovieLog } from './window-close.js';
+import { closeMovieLog, handleWindowCloseRequest, shouldEndAppAfterWindowsClose } from './window-close.js';
 import { createEntryFromPath } from '../shared/history.js';
 import { isTrackableMediaItem } from '../shared/media-items.js';
 import type { EntryKind, MovieLogState, WatchEntry } from '../shared/types.js';
@@ -150,12 +150,17 @@ async function createWindow(): Promise<void> {
   }
 
   mainWindow.on('close', (event) => {
-    if (isQuitting || process.env.MOVIE_LOG_CAPTURE_PATH) {
-      return;
-    }
-
-    event.preventDefault();
-    mainWindow?.hide();
+    handleWindowCloseRequest({
+      closeWindow: () => {
+        mainWindow?.destroy();
+      },
+      hideWindow: () => {
+        mainWindow?.hide();
+      },
+      isCaptureRun: Boolean(process.env.MOVIE_LOG_CAPTURE_PATH),
+      isQuitting,
+      preventDefault: () => event.preventDefault()
+    });
   });
 
   mainWindow.on('closed', () => {
@@ -294,17 +299,16 @@ app.on('before-quit', () => {
 });
 
 app.on('window-all-closed', () => {
+  if (!shouldEndAppAfterWindowsClose({
+    hasStatusItem: statusItem !== null,
+    isQuitting
+  })) {
+    return;
+  }
+
   void closeMovieLog({
     disposeFolderMonitor: () => folderMonitor.dispose(),
     quitApp: () => app.quit(),
     stopScanLoop: stopDailyScanLoop
   });
-});
-
-app.on('activate', async () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    await startExistingWatchers();
-    startDailyScanLoop();
-    await createWindow();
-  }
 });

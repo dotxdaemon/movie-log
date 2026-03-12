@@ -1,9 +1,38 @@
-// ABOUTME: Stops Movie Log background work when the last desktop window closes.
-// ABOUTME: Keeps quitting behavior testable without importing the Electron app into unit tests.
+// ABOUTME: Decides how Movie Log handles window closing and app shutdown.
+// ABOUTME: Keeps the macOS close policy testable without importing the Electron app into unit tests.
 interface CloseMovieLogOptions {
   disposeFolderMonitor(): Promise<void>;
   quitApp(): void;
   stopScanLoop(): void;
+}
+
+interface WindowCloseRequestOptions {
+  closeWindow(): void;
+  hideWindow(): void;
+  isCaptureRun: boolean;
+  isQuitting: boolean;
+  preventDefault(): void;
+}
+
+interface WindowsClosedOptions {
+  hasStatusItem: boolean;
+  isQuitting: boolean;
+}
+
+export function handleWindowCloseRequest(options: WindowCloseRequestOptions): void {
+  if (options.isQuitting || options.isCaptureRun) {
+    return;
+  }
+
+  options.preventDefault();
+  options.closeWindow();
+}
+
+export function shouldEndAppAfterWindowsClose({
+  hasStatusItem,
+  isQuitting
+}: WindowsClosedOptions): boolean {
+  return isQuitting || !hasStatusItem;
 }
 
 export async function closeMovieLog({
