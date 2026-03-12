@@ -1,6 +1,7 @@
 // ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
 // ABOUTME: Shows recent history, watched-folder settings, and local file actions for logged entries.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
+import { FolderSnapshotPanel } from './folder-snapshot-panel';
 import type { MovieLogState, WatchEntry } from '../shared/types';
 
 type Screen = 'history' | 'settings';
@@ -424,6 +425,14 @@ export default function App() {
             <p className="panel-kicker">App Store</p>
             <p className="meta-path">{logFilePath}</p>
           </article>
+
+          <FolderSnapshotPanel
+            items={state.libraryItems}
+            onCopyPath={handleCopyPath}
+            onOpenInFinder={handleOpenInFinder}
+            onOpenItem={handleOpenItem}
+            timestampLabel={(isoTime) => timestampFormatter.format(new Date(isoTime))}
+          />
         </section>
       )}
     </main>
