@@ -1,6 +1,6 @@
 // ABOUTME: Runs the Electron desktop shell, local JSON store, and watched-folder integrations.
 // ABOUTME: Bridges native dialogs and file watching to the React renderer through a small IPC surface.
-import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron';
+import { Menu, Tray, app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron';
 import { stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,7 @@ import { createFolderMonitor } from './folder-monitor.js';
 import { automaticScanIntervalMs } from './scan-interval.js';
 import { prepareAppRuntime } from './runtime.js';
 import { scanFolderContents } from './folder-scan.js';
+import { createStatusItem } from './status-item.js';
 import { createHistoryStore } from './store.js';
 import { closeMovieLog } from './window-close.js';
 import { createEntryFromPath } from '../shared/history.js';
@@ -30,6 +31,8 @@ const folderMonitor = createFolderMonitor({
 
 let mainWindow: BrowserWindow | null = null;
 let dailyScanTimer: NodeJS.Timeout | null = null;
+let isQuitting = false;
+let statusItem: Tray | null = null;
 
 async function createEntryForPath(itemPath: string, source: 'drop' | 'watch'): Promise<WatchEntry | null> {
   const itemStats = await stat(itemPath);
@@ -145,9 +148,32 @@ async function createWindow(): Promise<void> {
     await mainWindow.loadFile(join(currentDirectory, '../dist/index.html'));
   }
 
+  mainWindow.on('close', (event) => {
+    if (isQuitting || process.env.MOVIE_LOG_CAPTURE_PATH) {
+      return;
+    }
+
+    event.preventDefault();
+    mainWindow?.hide();
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+}
+
+async function showMainWindow(): Promise<void> {
+  if (!mainWindow) {
+    await createWindow();
+    return;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  mainWindow.show();
+  mainWindow.focus();
 }
 
 function registerIpcHandlers(): void {
@@ -248,7 +274,26 @@ app.whenReady().then(async () => {
   registerIpcHandlers();
   await startExistingWatchers();
   startDailyScanLoop();
+  statusItem = createStatusItem({
+    TrayConstructor: Tray,
+    imageFactory: nativeImage,
+    menu: Menu,
+    quitApp: () => app.quit(),
+    showWindow: () => {
+      void showMainWindow();
+    }
+  });
   await createWindow();
+});
+
+app.on('activate', () => {
+  void showMainWindow();
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
+  statusItem?.destroy();
+  statusItem = null;
 });
 
 app.on('window-all-closed', () => {
