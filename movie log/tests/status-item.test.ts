@@ -4,12 +4,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { createStatusItem } from '../electron/status-item.js';
 
 describe('createStatusItem', () => {
-  it('creates a clickable menu bar item for showing and quitting Movie Log', () => {
+  it('creates an icon-only menu bar item for showing and quitting Movie Log', () => {
     const image = {
       resize: vi.fn(() => image),
       setTemplateImage: vi.fn()
     };
-    const createFromDataURL = vi.fn(() => image);
+    const createFromDataURL = vi.fn((dataUrl: string) => {
+      expect(dataUrl).toContain('data:image/svg+xml;base64,');
+      return image;
+    });
     const setContextMenu = vi.fn();
     const setTitle = vi.fn();
     const setToolTip = vi.fn();
@@ -42,10 +45,23 @@ describe('createStatusItem', () => {
     });
 
     expect(createFromDataURL).toHaveBeenCalledTimes(1);
+    const iconCall = createFromDataURL.mock.calls.at(0);
+
+    if (!iconCall) {
+      throw new Error('Expected createFromDataURL to be called.');
+    }
+
+    const [iconDataUrl] = iconCall;
+    const iconMarkup = Buffer.from(iconDataUrl.replace('data:image/svg+xml;base64,', ''), 'base64').toString('utf8');
+
     expect(image.resize).toHaveBeenCalledWith({ height: 18 });
     expect(image.setTemplateImage).toHaveBeenCalledWith(true);
     expect(setToolTip).toHaveBeenCalledWith('Movie Log');
-    expect(setTitle).toHaveBeenCalledWith('ML');
+    expect(setTitle).not.toHaveBeenCalled();
+    expect(iconMarkup).toContain('viewBox="0 0 18 18"');
+    expect(iconMarkup).toContain('<rect');
+    expect(iconMarkup).toContain('<circle');
+    expect(iconMarkup).not.toContain('M2.5 3.2h2.1l2.1 4.6');
     expect(buildFromTemplate).toHaveBeenCalledTimes(1);
     expect(buildFromTemplate.mock.calls[0][0].map((item: { label?: string; type?: string }) => item.label ?? item.type)).toEqual([
       'Show Movie Log',

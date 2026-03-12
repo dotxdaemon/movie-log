@@ -39,8 +39,16 @@ interface StatusItemActions {
 function createStatusIconMarkup(): string {
   return [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" role="img" aria-hidden="true">',
-    '<path fill="#000000" d="M2.5 3.2h2.1l2.1 4.6 2.1-4.6h2.1v11.1H9.2V7.9l-1.7 3.6H5.9L4.2 7.9v6.4H2.5V3.2Z"/>',
-    '<path fill="#000000" d="m11.8 3.5 3.7 2.2-3.7 2.2Z"/>',
+    '<defs>',
+    '<mask id="ticket-cutout">',
+    '<rect width="18" height="18" fill="#000000"/>',
+    '<rect x="2.5" y="4" width="13" height="10" rx="2.2" fill="#ffffff"/>',
+    '<circle cx="2.5" cy="9" r="1.3" fill="#000000"/>',
+    '<circle cx="15.5" cy="9" r="1.3" fill="#000000"/>',
+    '<rect x="7.4" y="6.2" width="3.2" height="5.6" rx="0.8" fill="#000000"/>',
+    '</mask>',
+    '</defs>',
+    '<rect width="18" height="18" fill="#000000" mask="url(#ticket-cutout)"/>',
     '</svg>'
   ].join('');
 }
@@ -75,7 +83,6 @@ export function createStatusItem<TTray extends StatusTray, TImage extends Status
   ]);
 
   tray.setToolTip('Movie Log');
-  tray.setTitle?.('ML');
   tray.setContextMenu(menu);
   tray.on('click', options.showWindow);
 
