@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createFolderMonitor } from './folder-monitor.js';
+import { automaticScanIntervalMs } from './scan-interval.js';
 import { scanFolderContents } from './folder-scan.js';
 import { createHistoryStore } from './store.js';
 import { createEntryFromPath } from '../shared/history.js';
@@ -15,7 +16,6 @@ import type { EntryKind, MovieLogState, WatchEntry } from '../shared/types.js';
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 app.setName('Movie Log');
 const dataDirectory = process.env.MOVIE_LOG_DATA_DIR ?? join(app.getPath('userData'), 'movie-log');
-const DAILY_SCAN_MS = 24 * 60 * 60 * 1000;
 const historyStore = createHistoryStore(dataDirectory);
 const folderMonitor = createFolderMonitor({
   loadKnownPaths: historyStore.readKnownPaths,
@@ -238,7 +238,7 @@ function startDailyScanLoop(): void {
 
   dailyScanTimer = setInterval(() => {
     void syncAllWatchedFolders(true).then(() => broadcastState());
-  }, DAILY_SCAN_MS);
+  }, automaticScanIntervalMs);
 }
 
 app.whenReady().then(async () => {
