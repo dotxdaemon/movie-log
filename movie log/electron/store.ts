@@ -1,6 +1,6 @@
 // ABOUTME: Persists watch history and watched folders as local JSON in the desktop app data directory.
 // ABOUTME: Provides the minimal read and write operations needed by the Electron process and tests.
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { createEntryFromPath, sortEntriesByWatchedAt } from '../shared/history.js';
 import type { FolderContentsItem, LibraryItem, MovieLogState, WatchEntry, WatchedFolder } from '../shared/types.js';
@@ -82,6 +82,21 @@ export function createHistoryStore(dataDirectory: string) {
     return `${lines.join('\n')}\n`;
   }
 
+  async function ensureNoteFile(state: PersistedState): Promise<void> {
+    try {
+      await access(noteFilePath);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+
+      if (code === 'ENOENT') {
+        await writeFile(noteFilePath, renderNote(state), 'utf8');
+        return;
+      }
+
+      throw error;
+    }
+  }
+
   async function readPersistedState(): Promise<PersistedState> {
     await mkdir(dataDirectory, { recursive: true });
 
@@ -94,7 +109,7 @@ export function createHistoryStore(dataDirectory: string) {
         knownPathsByFolder: parsed.knownPathsByFolder ?? {},
         watchedFolders: parsed.watchedFolders ?? []
       };
-      await writeFile(noteFilePath, renderNote(state), 'utf8');
+      await ensureNoteFile(state);
       return state;
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
@@ -206,12 +221,20 @@ export function createHistoryStore(dataDirectory: string) {
           lastSeenAt: scannedAt
         };
       });
+      const nextPaths = items.map((item) => item.sourcePath);
+      const existingPaths = state.knownPathsByFolder[folderPath] ?? [];
+      const hasSamePaths = samePaths(existingPaths, nextPaths);
+      const hasSeenFolderContents = folder?.lastScannedAt !== null || existingItemsByPath.size > 0;
+
+      if (hasSamePaths && hasSeenFolderContents && existingItemsByPath.size === nextItems.length) {
+        return [];
+      }
 
       state.libraryItems = sortLibraryItems([
         ...state.libraryItems.filter((item) => item.folderPath !== folderPath),
         ...nextItems
       ]);
-      state.knownPathsByFolder[folderPath] = items.map((item) => item.sourcePath);
+      state.knownPathsByFolder[folderPath] = nextPaths;
       state.watchedFolders = state.watchedFolders.map((item) =>
         item.path === folderPath ? { ...item, lastScannedAt: scannedAt } : item
       );

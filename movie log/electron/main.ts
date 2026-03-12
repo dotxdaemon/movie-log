@@ -263,13 +263,17 @@ app.on('window-all-closed', () => {
     dailyScanTimer = null;
   }
 
+  void folderMonitor.dispose();
+
   if (process.platform !== 'darwin') {
-    void folderMonitor.dispose().finally(() => app.quit());
+    app.quit();
   }
 });
 
 app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
+    await startExistingWatchers();
+    startDailyScanLoop();
     await createWindow();
   }
 });

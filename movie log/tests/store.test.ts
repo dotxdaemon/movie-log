@@ -1,8 +1,9 @@
 // ABOUTME: Verifies that the desktop app persists watch history and watched folders on disk.
 // ABOUTME: Uses real temporary files so the store behavior matches the local desktop runtime.
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createHistoryStore } from '../electron/store.js';
 import { createEntryFromPath } from '../shared/history.js';
@@ -55,6 +56,24 @@ describe('createHistoryStore', () => {
     expect(state.history[0]?.title).toBe('Flow');
     expect(state.watchedFolders).toHaveLength(1);
     expect(state.watchedFolders[0]?.path).toBe('/Users/seankim/Media Inbox');
+  });
+
+  it('does not rewrite the readable note when state is only being read', async () => {
+    const store = createHistoryStore(dataDirectory);
+
+    await store.addHistoryEntry(
+      createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'watch', '2026-03-12T08:00:00.000Z', 'file')
+    );
+
+    const notePath = join(dataDirectory, 'movie-log-note.md');
+    const firstStats = await stat(notePath);
+
+    await delay(20);
+    await store.readState();
+
+    const secondStats = await stat(notePath);
+
+    expect(secondStats.mtimeMs).toBe(firstStats.mtimeMs);
   });
 
   it('does not add duplicate history entries for the same source path', async () => {
@@ -183,6 +202,47 @@ describe('createHistoryStore', () => {
       }
     ]);
     expect(secondScan).toEqual([]);
+  });
+
+  it('does not rewrite persisted files when a watched-folder scan finds no changes', async () => {
+    const store = createHistoryStore(dataDirectory);
+
+    await store.addWatchedFolder('/Users/seankim/Movies');
+    await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [
+        {
+          sourceKind: 'file',
+          sourcePath: '/Users/seankim/Movies/Flow.mkv',
+          title: 'Flow'
+        }
+      ],
+      '2026-03-12T09:00:00.000Z'
+    );
+
+    const dataPath = join(dataDirectory, 'movie-log.json');
+    const notePath = join(dataDirectory, 'movie-log-note.md');
+    const firstDataStats = await stat(dataPath);
+    const firstNoteStats = await stat(notePath);
+
+    await delay(20);
+    await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [
+        {
+          sourceKind: 'file',
+          sourcePath: '/Users/seankim/Movies/Flow.mkv',
+          title: 'Flow'
+        }
+      ],
+      '2026-03-13T09:00:00.000Z'
+    );
+
+    const secondDataStats = await stat(dataPath);
+    const secondNoteStats = await stat(notePath);
+
+    expect(secondDataStats.mtimeMs).toBe(firstDataStats.mtimeMs);
+    expect(secondNoteStats.mtimeMs).toBe(firstNoteStats.mtimeMs);
   });
 
   it('records the current watched-folder contents into history without duplicates', async () => {
