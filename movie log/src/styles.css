@@ -94,9 +94,8 @@ button:disabled {
 .empty-card {
   border: 1px solid rgba(245, 242, 235, 0.1);
   border-radius: 20px;
-  background: rgba(255, 250, 244, 0.05);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(18px);
+  background: rgba(24, 18, 13, 0.9);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
 }
 
 .stat-card {
