@@ -1,6 +1,6 @@
 // ABOUTME: Runs the Electron desktop shell, local JSON store, and watched-folder integrations.
 // ABOUTME: Bridges native dialogs and file watching to the React renderer through a small IPC surface.
-import { Menu, Tray, app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron';
+import { Menu, Tray, app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, screen, shell } from 'electron';
 import { stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +11,7 @@ import { prepareAppRuntime } from './runtime.js';
 import { scanFolderContents } from './folder-scan.js';
 import { createStatusItem } from './status-item.js';
 import { createHistoryStore } from './store.js';
+import { revealWindow } from './window-visibility.js';
 import { closeMovieLog } from './window-close.js';
 import { createEntryFromPath } from '../shared/history.js';
 import { isTrackableMediaItem } from '../shared/media-items.js';
@@ -168,12 +169,8 @@ async function showMainWindow(): Promise<void> {
     return;
   }
 
-  if (mainWindow.isMinimized()) {
-    mainWindow.restore();
-  }
-
-  mainWindow.show();
-  mainWindow.focus();
+  const activeDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  revealWindow(mainWindow, activeDisplay.workArea);
 }
 
 function registerIpcHandlers(): void {
