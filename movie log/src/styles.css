@@ -130,7 +130,7 @@ button:disabled {
   border-radius: 999px;
   padding: 10px 16px;
   cursor: pointer;
-  transition: transform 140ms ease, opacity 140ms ease, background 140ms ease;
+  transition: opacity 140ms ease, background 140ms ease;
 }
 
 .tab-button,
@@ -144,12 +144,6 @@ button:disabled {
   background: #d8aa61;
   color: #18120d;
   font-weight: 700;
-}
-
-.tab-button:hover,
-.panel-button:hover,
-.ghost-button:hover {
-  transform: translateY(-1px);
 }
 
 .drop-zone {

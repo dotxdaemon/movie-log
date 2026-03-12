@@ -14,4 +14,12 @@ describe('styles.css', () => {
       /\.stat-card,\s*\.panel,\s*\.drop-zone,\s*\.message-strip,\s*\.tab-row,\s*\.empty-card\s*\{[^}]*backdrop-filter:/s
     );
   });
+
+  it('keeps shared button hover styles from moving controls under the pointer', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).not.toMatch(
+      /\.tab-button:hover,\s*\.panel-button:hover,\s*\.ghost-button:hover\s*\{[^}]*transform:/s
+    );
+  });
 });
