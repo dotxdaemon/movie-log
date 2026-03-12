@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createFolderMonitor } from './folder-monitor.js';
 import { automaticScanIntervalMs } from './scan-interval.js';
+import { prepareAppRuntime } from './runtime.js';
 import { scanFolderContents } from './folder-scan.js';
 import { createHistoryStore } from './store.js';
 import { closeMovieLog } from './window-close.js';
@@ -15,7 +16,7 @@ import { isTrackableMediaItem } from '../shared/media-items.js';
 import type { EntryKind, MovieLogState, WatchEntry } from '../shared/types.js';
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
-app.setName('Movie Log');
+prepareAppRuntime(app);
 const dataDirectory = process.env.MOVIE_LOG_DATA_DIR ?? join(app.getPath('userData'), 'movie-log');
 const historyStore = createHistoryStore(dataDirectory);
 const folderMonitor = createFolderMonitor({
