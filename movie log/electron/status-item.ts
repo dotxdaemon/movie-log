@@ -42,7 +42,7 @@ export function createStatusItem<TTray extends StatusTray, TImage extends Status
     imageFactory: StatusImageFactory<TImage>;
   }
 ): TTray {
-  const icon = options.imageFactory.createFromNamedImage('play.fill').resize({ height: 18, width: 18 });
+  const icon = options.imageFactory.createFromNamedImage('ticket.fill').resize({ height: 18, width: 18 });
   icon.setTemplateImage(true);
 
   const tray = new options.TrayConstructor(icon);

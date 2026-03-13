@@ -10,7 +10,7 @@ describe('createStatusItem', () => {
       setTemplateImage: vi.fn()
     };
     const createFromNamedImage = vi.fn((imageName: string) => {
-      expect(imageName).toBe('play.fill');
+      expect(imageName).toBe('ticket.fill');
       return image;
     });
     const setContextMenu = vi.fn();
