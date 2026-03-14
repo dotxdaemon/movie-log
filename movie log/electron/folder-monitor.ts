@@ -1,5 +1,5 @@
-// ABOUTME: Watches top-level inbox folders and reports newly added files or folders to the app.
-// ABOUTME: Uses real filesystem scans with a short settle delay so repeated events do not duplicate history.
+// ABOUTME: Watches top-level inbox folders and reports when a watched folder needs one refresh.
+// ABOUTME: Uses real filesystem scans with a short settle delay so one batch of arrivals stays one update.
 import { stat } from 'node:fs/promises';
 import { watch, type FSWatcher } from 'node:fs';
 import { scanFolderContents } from './folder-scan.js';
@@ -7,7 +7,7 @@ import { scanFolderContents } from './folder-scan.js';
 interface FolderMonitorOptions {
   loadKnownPaths(folderPath: string): Promise<string[]>;
   saveKnownPaths(folderPath: string, knownPaths: string[]): Promise<void>;
-  onDiscover(itemPath: string): Promise<void> | void;
+  onChange(folderPath: string): Promise<void> | void;
   settleMs?: number;
 }
 
@@ -33,9 +33,7 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
         return;
       }
 
-      for (const itemPath of newPaths) {
-        await options.onDiscover(itemPath);
-      }
+      await options.onChange(folderPath);
 
       await options.saveKnownPaths(folderPath, currentPaths);
     } catch (error) {

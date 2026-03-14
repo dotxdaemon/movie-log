@@ -52,15 +52,17 @@ describe('createFolderMonitor', () => {
     await writeFile(join(inboxPath, 'Already There.txt'), 'text');
     await writeFile(join(inboxPath, '.DS_Store'), 'junk');
 
-    const seenPaths: string[] = [];
+    const changedFolders: string[] = [];
+    let visibleItems: string[] = [];
     const knownByFolder = new Map<string, string[]>();
     const monitor = createFolderMonitor({
       loadKnownPaths: async (folderPath) => knownByFolder.get(folderPath) ?? [],
       saveKnownPaths: async (folderPath, knownPaths) => {
         knownByFolder.set(folderPath, knownPaths);
       },
-      onDiscover: async (itemPath) => {
-        seenPaths.push(itemPath);
+      onChange: async (folderPath) => {
+        changedFolders.push(folderPath);
+        visibleItems = (await scanFolderContents(folderPath)).map((item) => item.sourcePath);
       },
       settleMs: 25
     });
@@ -70,10 +72,11 @@ describe('createFolderMonitor', () => {
     await writeFile(join(inboxPath, 'Just Added.txt'), 'text');
     await mkdir(join(inboxPath, 'Movie Folder'));
     await writeFile(join(inboxPath, 'Movie File.mkv'), 'movie');
-    await waitForDiscovery(seenPaths);
+    await waitForDiscovery(changedFolders);
     await monitor.dispose();
 
-    expect(seenPaths).toEqual([join(inboxPath, 'Movie File.mkv'), join(inboxPath, 'Movie Folder')]);
+    expect(changedFolders).toEqual([inboxPath]);
+    expect(visibleItems).toEqual([join(inboxPath, 'Movie File.mkv'), join(inboxPath, 'Movie Folder')]);
   });
 
   it('does not throw when a watched folder is missing', async () => {
@@ -83,7 +86,7 @@ describe('createFolderMonitor', () => {
       saveKnownPaths: async (folderPath, knownPaths) => {
         knownByFolder.set(folderPath, knownPaths);
       },
-      onDiscover: async () => {}
+      onChange: async () => {}
     });
 
     await expect(monitor.watchFolder(join(rootDirectory, 'Missing Folder'))).resolves.toBeUndefined();
@@ -102,7 +105,7 @@ describe('createFolderMonitor', () => {
         saveCount += 1;
         knownByFolder.set(folderPath, knownPaths);
       },
-      onDiscover: async () => {},
+      onChange: async () => {},
       settleMs: 25
     });
 
@@ -128,7 +131,7 @@ describe('createFolderMonitor', () => {
       saveKnownPaths: async (folderPath, knownPaths) => {
         await store.writeKnownPaths(folderPath, knownPaths);
       },
-      onDiscover: async () => {
+      onChange: async () => {
         const scannedAt = '2026-03-12T09:00:00.000Z';
         const items = await scanFolderContents(inboxPath);
         await store.syncWatchedFolderContents(inboxPath, items, scannedAt);
@@ -144,5 +147,35 @@ describe('createFolderMonitor', () => {
     const state = await store.readState();
 
     expect(state.history.map((entry) => entry.sourcePath)).toEqual([join(inboxPath, 'Flow.mkv')]);
+  });
+
+  it('coalesces multiple new top-level media files into one folder update', async () => {
+    const inboxPath = join(rootDirectory, 'Media Inbox');
+    await mkdir(inboxPath);
+
+    const changedFolders: string[] = [];
+    const knownByFolder = new Map<string, string[]>();
+    const monitor = createFolderMonitor({
+      loadKnownPaths: async (folderPath) => knownByFolder.get(folderPath) ?? [],
+      saveKnownPaths: async (folderPath, knownPaths) => {
+        knownByFolder.set(folderPath, knownPaths);
+      },
+      onChange: async (folderPath) => {
+        changedFolders.push(folderPath);
+      },
+      settleMs: 25
+    });
+
+    await monitor.watchFolder(inboxPath);
+    await Promise.all([
+      writeFile(join(inboxPath, 'One.mkv'), 'one'),
+      writeFile(join(inboxPath, 'Two.mkv'), 'two'),
+      writeFile(join(inboxPath, 'Three.mkv'), 'three')
+    ]);
+    await waitForDiscovery(changedFolders);
+    await delay(150);
+    await monitor.dispose();
+
+    expect(changedFolders).toEqual([inboxPath]);
   });
 });

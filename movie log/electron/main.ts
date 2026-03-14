@@ -24,8 +24,8 @@ const historyStore = createHistoryStore(dataDirectory);
 const folderMonitor = createFolderMonitor({
   loadKnownPaths: historyStore.readKnownPaths,
   saveKnownPaths: historyStore.writeKnownPaths,
-  onDiscover: async (itemPath) => {
-    await syncWatchedFolder(dirname(itemPath));
+  onChange: async (folderPath) => {
+    await syncWatchedFolder(folderPath);
     await broadcastState();
   }
 });
