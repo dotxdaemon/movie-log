@@ -13,6 +13,5 @@ export function prepareAppRuntime(app: DesktopApp): void {
     return;
   }
 
-  app.disableHardwareAcceleration();
   app.setName('Movie Log');
 }

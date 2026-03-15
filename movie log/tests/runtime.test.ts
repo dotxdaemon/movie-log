@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { prepareAppRuntime } from '../electron/runtime.js';
 
 describe('prepareAppRuntime', () => {
-  it('disables hardware acceleration before naming the app', () => {
+  it('keeps hardware acceleration enabled before naming the app', () => {
     const disableHardwareAcceleration = vi.fn();
     const quit = vi.fn();
     const requestSingleInstanceLock = vi.fn(() => true);
@@ -18,11 +18,10 @@ describe('prepareAppRuntime', () => {
     });
 
     expect(requestSingleInstanceLock).toHaveBeenCalledTimes(1);
-    expect(disableHardwareAcceleration).toHaveBeenCalledTimes(1);
+    expect(disableHardwareAcceleration).not.toHaveBeenCalled();
     expect(quit).not.toHaveBeenCalled();
     expect(setName).toHaveBeenCalledWith('Movie Log');
-    expect(requestSingleInstanceLock.mock.invocationCallOrder[0]).toBeLessThan(disableHardwareAcceleration.mock.invocationCallOrder[0]);
-    expect(disableHardwareAcceleration.mock.invocationCallOrder[0]).toBeLessThan(setName.mock.invocationCallOrder[0]);
+    expect(requestSingleInstanceLock.mock.invocationCallOrder[0]).toBeLessThan(setName.mock.invocationCallOrder[0]);
   });
 
   it('quits immediately when another Movie Log instance already owns the lock', () => {
