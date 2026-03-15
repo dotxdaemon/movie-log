@@ -19,6 +19,11 @@ interface WindowsClosedOptions {
   isQuitting: boolean;
 }
 
+interface WindowsClosedRequestOptions extends WindowsClosedOptions {
+  closeMovieLog(): Promise<void>;
+  pauseBackgroundWork(): Promise<void>;
+}
+
 export function handleWindowCloseRequest(options: WindowCloseRequestOptions): void {
   if (options.isQuitting || options.isCaptureRun) {
     return;
@@ -33,6 +38,20 @@ export function shouldEndAppAfterWindowsClose({
   isQuitting
 }: WindowsClosedOptions): boolean {
   return isQuitting || !hasStatusItem;
+}
+
+export async function handleWindowsClosed({
+  closeMovieLog,
+  hasStatusItem,
+  isQuitting,
+  pauseBackgroundWork
+}: WindowsClosedRequestOptions): Promise<void> {
+  if (shouldEndAppAfterWindowsClose({ hasStatusItem, isQuitting })) {
+    await closeMovieLog();
+    return;
+  }
+
+  await pauseBackgroundWork();
 }
 
 export async function closeMovieLog({

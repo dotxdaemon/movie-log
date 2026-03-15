@@ -12,7 +12,7 @@ import { scanFolderContents } from './folder-scan.js';
 import { createStatusItem } from './status-item.js';
 import { createHistoryStore } from './store.js';
 import { revealWindow } from './window-visibility.js';
-import { closeMovieLog, handleWindowCloseRequest, shouldEndAppAfterWindowsClose } from './window-close.js';
+import { closeMovieLog, handleWindowCloseRequest, handleWindowsClosed } from './window-close.js';
 import { createEntryFromPath } from '../shared/history.js';
 import { isTrackableMediaItem } from '../shared/media-items.js';
 import type { EntryKind, MovieLogState, WatchEntry } from '../shared/types.js';
@@ -32,6 +32,7 @@ const folderMonitor = createFolderMonitor({
 
 let mainWindow: BrowserWindow | null = null;
 let dailyScanTimer: NodeJS.Timeout | null = null;
+let backgroundWorkRunning = false;
 let isQuitting = false;
 let statusItem: Tray | null = null;
 
@@ -169,6 +170,8 @@ async function createWindow(): Promise<void> {
 }
 
 async function showMainWindow(): Promise<void> {
+  await startBackgroundWork();
+
   if (!mainWindow) {
     await createWindow();
     return;
@@ -257,6 +260,26 @@ async function startExistingWatchers(): Promise<void> {
   }
 }
 
+async function startBackgroundWork(): Promise<void> {
+  if (backgroundWorkRunning) {
+    return;
+  }
+
+  await startExistingWatchers();
+  startDailyScanLoop();
+  backgroundWorkRunning = true;
+}
+
+async function pauseBackgroundWork(): Promise<void> {
+  if (!backgroundWorkRunning) {
+    return;
+  }
+
+  stopDailyScanLoop();
+  await folderMonitor.dispose();
+  backgroundWorkRunning = false;
+}
+
 function stopDailyScanLoop(): void {
   if (dailyScanTimer) {
     clearInterval(dailyScanTimer);
@@ -274,8 +297,7 @@ function startDailyScanLoop(): void {
 
 app.whenReady().then(async () => {
   registerIpcHandlers();
-  await startExistingWatchers();
-  startDailyScanLoop();
+  await startBackgroundWork();
   statusItem = createStatusItem({
     TrayConstructor: Tray,
     imageFactory: nativeImage,
@@ -299,16 +321,15 @@ app.on('before-quit', () => {
 });
 
 app.on('window-all-closed', () => {
-  if (!shouldEndAppAfterWindowsClose({
+  void handleWindowsClosed({
+    closeMovieLog: () =>
+      closeMovieLog({
+        disposeFolderMonitor: () => folderMonitor.dispose(),
+        quitApp: () => app.quit(),
+        stopScanLoop: stopDailyScanLoop
+      }),
     hasStatusItem: statusItem !== null,
-    isQuitting
-  })) {
-    return;
-  }
-
-  void closeMovieLog({
-    disposeFolderMonitor: () => folderMonitor.dispose(),
-    quitApp: () => app.quit(),
-    stopScanLoop: stopDailyScanLoop
+    isQuitting,
+    pauseBackgroundWork
   });
 });

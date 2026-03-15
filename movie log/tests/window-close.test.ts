@@ -1,7 +1,12 @@
 // ABOUTME: Verifies that Movie Log shuts down its background work when the last window closes.
 // ABOUTME: Keeps the Electron lifecycle deterministic without importing the real Electron runtime into tests.
 import { describe, expect, it, vi } from 'vitest';
-import { closeMovieLog, handleWindowCloseRequest, shouldEndAppAfterWindowsClose } from '../electron/window-close.js';
+import {
+  closeMovieLog,
+  handleWindowCloseRequest,
+  handleWindowsClosed,
+  shouldEndAppAfterWindowsClose
+} from '../electron/window-close.js';
 
 describe('closeMovieLog', () => {
   it('stops background work before quitting the app', async () => {
@@ -49,5 +54,22 @@ describe('shouldEndAppAfterWindowsClose', () => {
       hasStatusItem: true,
       isQuitting: false
     })).toBe(false);
+  });
+});
+
+describe('handleWindowsClosed', () => {
+  it('pauses background work when the last window closes but the menu bar app stays alive', async () => {
+    const pauseBackgroundWork = vi.fn().mockResolvedValue(undefined);
+    const endApp = vi.fn().mockResolvedValue(undefined);
+
+    await handleWindowsClosed({
+      closeMovieLog: endApp,
+      hasStatusItem: true,
+      isQuitting: false,
+      pauseBackgroundWork
+    });
+
+    expect(pauseBackgroundWork).toHaveBeenCalledTimes(1);
+    expect(endApp).not.toHaveBeenCalled();
   });
 });
