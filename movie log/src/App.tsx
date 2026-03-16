@@ -101,22 +101,6 @@ export default function App() {
     }
   };
 
-  const handleClearHistory = async () => {
-    const confirmed = window.confirm('Clear all history entries? Watched folders will stay in place.');
-
-    if (!confirmed) {
-      return;
-    }
-
-    setErrorMessage('');
-
-    try {
-      await window.movieLog.clearHistory();
-    } catch (error) {
-      setErrorMessage((error as Error).message);
-    }
-  };
-
   const handleCopyPath = async (itemPath: string) => {
     setErrorMessage('');
 
@@ -282,9 +266,6 @@ export default function App() {
                     value={searchQuery}
                   />
                 </label>
-                <button className="ghost-button" onClick={() => void handleClearHistory()} type="button">
-                  Clear History
-                </button>
               </div>
             </div>
 

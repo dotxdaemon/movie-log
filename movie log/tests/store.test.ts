@@ -229,7 +229,7 @@ describe('createHistoryStore', () => {
     ]);
   });
 
-  it('keeps cleared history empty when an unchanged watched folder is scanned again', async () => {
+  it('keeps watched-folder history when a clear request is followed by an unchanged scan', async () => {
     const store = createHistoryStore(dataDirectory);
 
     await store.addWatchedFolder('/Users/seankim/Movies');
@@ -248,7 +248,7 @@ describe('createHistoryStore', () => {
     const state = await store.readState();
 
     expect(repeatedScan).toEqual([]);
-    expect(state.history).toEqual([]);
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
     expect(state.libraryItems.map((item) => item.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
   });
 
@@ -363,7 +363,7 @@ describe('createHistoryStore', () => {
     ]);
   });
 
-  it('clears history without removing watched folders', async () => {
+  it('keeps the record and note intact when clearHistory is requested', async () => {
     const store = createHistoryStore(dataDirectory);
 
     await store.addHistoryEntry(
@@ -373,8 +373,10 @@ describe('createHistoryStore', () => {
     await store.clearHistory();
 
     const state = await store.readState();
+    const storedNote = await readFile(join(dataDirectory, 'movie-log-note.md'), 'utf8');
 
-    expect(state.history).toEqual([]);
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
     expect(state.watchedFolders).toHaveLength(1);
+    expect(storedNote).toContain('Flow');
   });
 });

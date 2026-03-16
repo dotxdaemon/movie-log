@@ -60,6 +60,12 @@ function buildWatchEntries(items: ScannedFolderItem[], watchedAt: string): Watch
   return items.map((item) => createEntryFromPath(item.sourcePath, 'watch', watchedAt, item.sourceKind));
 }
 
+function buildHistoryFromLibraryItems(items: LibraryItem[]): WatchEntry[] {
+  return sortEntriesByWatchedAt(
+    items.map((item) => createEntryFromPath(item.sourcePath, 'watch', item.firstSeenAt, item.sourceKind))
+  );
+}
+
 export function createHistoryStore(dataDirectory: string) {
   const dataFilePath = join(dataDirectory, 'movie-log.json');
   const noteFilePath = join(dataDirectory, 'movie-log-note.md');
@@ -122,6 +128,12 @@ export function createHistoryStore(dataDirectory: string) {
         seenKeysByFolder: parsed.seenKeysByFolder ?? {},
         watchedFolders: parsed.watchedFolders ?? []
       };
+      if (state.history.length === 0 && state.libraryItems.length > 0) {
+        state.history = buildHistoryFromLibraryItems(state.libraryItems);
+        await writePersistedState(state);
+        return state;
+      }
+
       await ensureNoteFile(state);
       return state;
     } catch (error) {
@@ -169,9 +181,7 @@ export function createHistoryStore(dataDirectory: string) {
     },
 
     async clearHistory(): Promise<void> {
-      const state = await readPersistedState();
-      state.history = [];
-      await writePersistedState(state);
+      await readPersistedState();
     },
 
     async addWatchedFolder(folderPath: string): Promise<WatchedFolder> {
