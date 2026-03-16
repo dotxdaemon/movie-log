@@ -4,7 +4,6 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('movieLog', {
   addWatchedFolders: () => ipcRenderer.invoke('movie-log:add-watched-folders'),
-  clearHistory: () => ipcRenderer.invoke('movie-log:clear-history'),
   copyPath: (itemPath) => ipcRenderer.invoke('movie-log:copy-path', itemPath),
   getDataFilePath: () => ipcRenderer.invoke('movie-log:get-data-file-path'),
   getNoteFilePath: () => ipcRenderer.invoke('movie-log:get-note-file-path'),

@@ -110,15 +110,16 @@ describe('createFolderMonitor', () => {
     });
 
     await monitor.watchFolder(inboxPath);
-    await delay(120);
+    await delay(180);
     const settledSaveCount = saveCount;
     await delay(180);
     await monitor.dispose();
 
     expect(saveCount).toBe(settledSaveCount);
+    expect(saveCount).toBe(0);
   });
 
-  it('can resume watching from known paths without an initial scan', async () => {
+  it('does not sync until an arrival happens after watching starts', async () => {
     const inboxPath = join(rootDirectory, 'Media Inbox');
     const existingPath = join(inboxPath, 'Already There.mkv');
     const arrivalPath = join(inboxPath, 'Just Arrived.mkv');
@@ -127,12 +128,17 @@ describe('createFolderMonitor', () => {
 
     const changedFolders: string[] = [];
     let saveCount = 0;
+    let resolveKnownPathsWrite: (() => void) | null = null;
+    const knownPathsWritten = new Promise<void>((resolve) => {
+      resolveKnownPathsWrite = resolve;
+    });
     const knownByFolder = new Map<string, string[]>([[inboxPath, [existingPath]]]);
     const monitor = createFolderMonitor({
       loadKnownPaths: async (folderPath) => knownByFolder.get(folderPath) ?? [],
       saveKnownPaths: async (folderPath, knownPaths) => {
         saveCount += 1;
         knownByFolder.set(folderPath, knownPaths);
+        resolveKnownPathsWrite?.();
       },
       onChange: async (folderPath) => {
         changedFolders.push(folderPath);
@@ -140,12 +146,15 @@ describe('createFolderMonitor', () => {
       settleMs: 25
     });
 
-    await monitor.watchFolder(inboxPath, { skipInitialSync: true });
+    await monitor.watchFolder(inboxPath);
+    await delay(80);
 
     expect(saveCount).toBe(0);
+    expect(changedFolders).toEqual([]);
 
     await writeFile(arrivalPath, 'movie');
     await waitForDiscovery(changedFolders);
+    await knownPathsWritten;
     await monitor.dispose();
 
     expect(changedFolders).toEqual([inboxPath]);

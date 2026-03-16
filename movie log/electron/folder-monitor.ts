@@ -11,26 +11,39 @@ interface FolderMonitorOptions {
   settleMs?: number;
 }
 
-interface WatchFolderOptions {
-  skipInitialSync?: boolean;
+function sameValues(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 export function createFolderMonitor(options: FolderMonitorOptions) {
   const settleMs = options.settleMs ?? 400;
   const watchers = new Map<string, FSWatcher>();
   const scheduledSyncs = new Map<string, NodeJS.Timeout>();
+  const pendingSyncs = new Set<Promise<void>>();
+
+  function trackPendingSync(syncPromise: Promise<void>): void {
+    pendingSyncs.add(syncPromise);
+    void syncPromise.finally(() => {
+      pendingSyncs.delete(syncPromise);
+    });
+  }
 
   async function syncFolder(folderPath: string, emitNewItems: boolean): Promise<void> {
     try {
-      const knownPaths = new Set(await options.loadKnownPaths(folderPath));
+      const knownPaths = await options.loadKnownPaths(folderPath);
       const currentPaths = (await scanFolderContents(folderPath)).map((item) => item.sourcePath);
+      const knownPathSet = new Set(knownPaths);
+
+      if (sameValues(knownPaths, currentPaths)) {
+        return;
+      }
 
       if (!emitNewItems) {
         await options.saveKnownPaths(folderPath, currentPaths);
         return;
       }
 
-      const newPaths = currentPaths.filter((itemPath) => !knownPaths.has(itemPath));
+      const newPaths = currentPaths.filter((itemPath) => !knownPathSet.has(itemPath));
 
       if (newPaths.length === 0) {
         await options.saveKnownPaths(folderPath, currentPaths);
@@ -61,14 +74,14 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
 
     const timeout = setTimeout(() => {
       scheduledSyncs.delete(folderPath);
-      void syncFolder(folderPath, true);
+      trackPendingSync(syncFolder(folderPath, true));
     }, settleMs);
 
     scheduledSyncs.set(folderPath, timeout);
   }
 
   return {
-    async watchFolder(folderPath: string, watchOptions: WatchFolderOptions = {}): Promise<void> {
+    async watchFolder(folderPath: string): Promise<void> {
       if (watchers.has(folderPath)) {
         return;
       }
@@ -84,10 +97,6 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
         }
 
         throw error;
-      }
-
-      if (!watchOptions.skipInitialSync) {
-        await syncFolder(folderPath, false);
       }
 
       const folderWatcher = watch(folderPath, () => {
@@ -110,6 +119,10 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
         clearTimeout(timeout);
         scheduledSyncs.delete(folderPath);
       }
+
+      if (pendingSyncs.size > 0) {
+        await Promise.all([...pendingSyncs]);
+      }
     },
 
     async dispose(): Promise<void> {
@@ -124,6 +137,10 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
       }
 
       watchers.clear();
+
+      if (pendingSyncs.size > 0) {
+        await Promise.all([...pendingSyncs]);
+      }
     }
   };
 }

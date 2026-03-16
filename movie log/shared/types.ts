@@ -47,7 +47,6 @@ export interface MovieLogApi {
   logPaths(paths: string[]): Promise<WatchEntry[]>;
   addWatchedFolders(): Promise<WatchedFolder[]>;
   removeWatchedFolder(id: string): Promise<void>;
-  clearHistory(): Promise<void>;
   copyPath(path: string): Promise<void>;
   openInFinder(path: string): Promise<void>;
   openItem(path: string): Promise<void>;

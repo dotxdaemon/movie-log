@@ -10,6 +10,7 @@ import { prepareAppRuntime } from './runtime.js';
 import { scanFolderContents } from './folder-scan.js';
 import { createStatusItem } from './status-item.js';
 import { createHistoryStore } from './store.js';
+import { createWatchedFolderSync } from './watched-folder-sync.js';
 import { revealWindow } from './window-visibility.js';
 import { closeMovieLog, handleWindowCloseRequest, handleWindowsClosed } from './window-close.js';
 import { createEntryFromPath } from '../shared/history.js';
@@ -20,12 +21,12 @@ const currentDirectory = dirname(fileURLToPath(import.meta.url));
 prepareAppRuntime(app);
 const dataDirectory = process.env.MOVIE_LOG_DATA_DIR ?? join(app.getPath('userData'), 'movie-log');
 const historyStore = createHistoryStore(dataDirectory);
+let watchedFolderSync: ReturnType<typeof createWatchedFolderSync>;
 const folderMonitor = createFolderMonitor({
   loadKnownPaths: historyStore.readKnownPaths,
   saveKnownPaths: historyStore.writeKnownPaths,
   onChange: async (folderPath) => {
-    await syncWatchedFolder(folderPath);
-    await broadcastState();
+    await watchedFolderSync.queueRefresh(folderPath);
   }
 });
 
@@ -47,20 +48,6 @@ async function createEntryForPath(itemPath: string, source: 'drop' | 'watch'): P
 
 async function readState(): Promise<MovieLogState> {
   return historyStore.readState();
-}
-
-async function syncWatchedFolder(folderPath: string): Promise<void> {
-  const scannedAt = new Date().toISOString();
-  const currentItems = await scanFolderContents(folderPath);
-  await historyStore.syncWatchedFolderContents(folderPath, currentItems, scannedAt);
-}
-
-async function syncAllWatchedFolders(): Promise<void> {
-  const state = await readState();
-
-  for (const folder of state.watchedFolders) {
-    await syncWatchedFolder(folder.path);
-  }
 }
 
 async function broadcastState(): Promise<void> {
@@ -193,18 +180,12 @@ function registerIpcHandlers(): void {
 
     for (const selectedPath of result.filePaths) {
       const folder = await historyStore.addWatchedFolder(selectedPath);
-      await syncWatchedFolder(folder.path);
-      await folderMonitor.watchFolder(folder.path, { skipInitialSync: true });
+      await watchedFolderSync.watchAndRefreshFolder(folder.path);
       folders.push(folder);
     }
 
     await broadcastState();
     return folders;
-  });
-
-  ipcMain.handle('movie-log:clear-history', async () => {
-    await historyStore.clearHistory();
-    await broadcastState();
   });
 
   ipcMain.handle('movie-log:copy-path', async (_event, itemPath: string) => {
@@ -235,8 +216,7 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('movie-log:scan-now', async () => {
-    await syncAllWatchedFolders();
-    await broadcastState();
+    await watchedFolderSync.refreshWatchedFolders();
   });
 
   ipcMain.handle('movie-log:remove-watched-folder', async (_event, folderId: string) => {
@@ -250,10 +230,7 @@ function registerIpcHandlers(): void {
 }
 
 async function startExistingWatchers(): Promise<void> {
-  const state = await readState();
-  for (const folder of state.watchedFolders) {
-    await folderMonitor.watchFolder(folder.path, { skipInitialSync: true });
-  }
+  await watchedFolderSync.catchUpWatchedFolders();
 }
 
 async function startBackgroundWork(): Promise<void> {
@@ -275,6 +252,18 @@ async function pauseBackgroundWork(): Promise<void> {
 }
 
 app.whenReady().then(async () => {
+  watchedFolderSync = createWatchedFolderSync({
+    broadcastState,
+    listWatchedFolders: async () => (await readState()).watchedFolders,
+    now: () => new Date().toISOString(),
+    saveFolderContents: async (folderPath, items, scannedAt) => {
+      await historyStore.syncWatchedFolderContents(folderPath, items, scannedAt);
+    },
+    scanFolder: scanFolderContents,
+    watchFolder: async (folderPath) => {
+      await folderMonitor.watchFolder(folderPath);
+    }
+  });
   registerIpcHandlers();
   await startBackgroundWork();
   statusItem = createStatusItem({

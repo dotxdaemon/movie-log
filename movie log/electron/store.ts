@@ -6,13 +6,17 @@ import type { ScannedFolderItem } from './folder-scan.js';
 import { createEntryFromPath, sortEntriesByWatchedAt } from '../shared/history.js';
 import type { LibraryItem, MovieLogState, WatchEntry, WatchedFolder } from '../shared/types.js';
 
+const HISTORY_POLICY = 'append-only';
+
 interface PersistedState extends MovieLogState {
+  historyPolicy: typeof HISTORY_POLICY;
   knownPathsByFolder: Record<string, string[]>;
   seenKeysByFolder: Record<string, string[]>;
 }
 
 const EMPTY_STATE: PersistedState = {
   history: [],
+  historyPolicy: HISTORY_POLICY,
   libraryItems: [],
   knownPathsByFolder: {},
   seenKeysByFolder: {},
@@ -41,6 +45,7 @@ function sortLibraryItems(items: LibraryItem[]): LibraryItem[] {
 function cloneState(state: PersistedState): PersistedState {
   return {
     history: [...state.history],
+    historyPolicy: state.historyPolicy,
     libraryItems: [...state.libraryItems],
     knownPathsByFolder: { ...state.knownPathsByFolder },
     seenKeysByFolder: { ...state.seenKeysByFolder },
@@ -121,15 +126,22 @@ export function createHistoryStore(dataDirectory: string) {
     try {
       const stored = await readFile(dataFilePath, 'utf8');
       const parsed = JSON.parse(stored) as Partial<PersistedState>;
-      const state = {
+      const state: PersistedState = {
         history: sortEntriesByWatchedAt(parsed.history ?? []),
+        historyPolicy: HISTORY_POLICY,
         libraryItems: sortLibraryItems(parsed.libraryItems ?? []),
         knownPathsByFolder: parsed.knownPathsByFolder ?? {},
         seenKeysByFolder: parsed.seenKeysByFolder ?? {},
         watchedFolders: parsed.watchedFolders ?? []
       };
-      if (state.history.length === 0 && state.libraryItems.length > 0) {
+
+      if (parsed.historyPolicy !== HISTORY_POLICY && state.history.length === 0 && state.libraryItems.length > 0) {
         state.history = buildHistoryFromLibraryItems(state.libraryItems);
+        await writePersistedState(state);
+        return state;
+      }
+
+      if (parsed.historyPolicy !== HISTORY_POLICY) {
         await writePersistedState(state);
         return state;
       }
@@ -178,10 +190,6 @@ export function createHistoryStore(dataDirectory: string) {
       state.history = mergeHistoryEntries(state.history, entries);
       await writePersistedState(state);
       return entries;
-    },
-
-    async clearHistory(): Promise<void> {
-      await readPersistedState();
     },
 
     async addWatchedFolder(folderPath: string): Promise<WatchedFolder> {

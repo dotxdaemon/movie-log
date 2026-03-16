@@ -46,6 +46,7 @@ describe('createHistoryStore', () => {
     });
     expect(JSON.parse(storedJson)).toEqual({
       history: [],
+      historyPolicy: 'append-only',
       knownPathsByFolder: {},
       libraryItems: [],
       seenKeysByFolder: {},
@@ -229,29 +230,6 @@ describe('createHistoryStore', () => {
     ]);
   });
 
-  it('keeps watched-folder history when a clear request is followed by an unchanged scan', async () => {
-    const store = createHistoryStore(dataDirectory);
-
-    await store.addWatchedFolder('/Users/seankim/Movies');
-    await store.syncWatchedFolderContents(
-      '/Users/seankim/Movies',
-      [scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1')],
-      '2026-03-12T09:00:00.000Z'
-    );
-    await store.clearHistory();
-
-    const repeatedScan = await store.syncWatchedFolderContents(
-      '/Users/seankim/Movies',
-      [scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1')],
-      '2026-03-13T09:00:00.000Z'
-    );
-    const state = await store.readState();
-
-    expect(repeatedScan).toEqual([]);
-    expect(state.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
-    expect(state.libraryItems.map((item) => item.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
-  });
-
   it('updates the scanned snapshot without adding history when a watched-folder file is renamed', async () => {
     const store = createHistoryStore(dataDirectory);
 
@@ -296,8 +274,8 @@ describe('createHistoryStore', () => {
     expect(state.libraryItems.map((item) => item.sourcePath)).toEqual(['/Users/seankim/Movies/Severance Archive']);
   });
 
-  it('backfills old watched folders exactly once when stable item keys are missing', async () => {
-    const legacyState = {
+  it('backfills unmarked stores into append-only history once when stable item keys are missing', async () => {
+    const unmarkedState = {
       history: [createEntryFromPath('/Users/seankim/Movies/Severance', 'watch', '2026-03-12T08:00:00.000Z', 'directory')],
       knownPathsByFolder: {
         '/Users/seankim/Movies': ['/Users/seankim/Movies/Flow.mkv', '/Users/seankim/Movies/Severance']
@@ -334,7 +312,7 @@ describe('createHistoryStore', () => {
         }
       ]
     };
-    await writeFile(join(dataDirectory, 'movie-log.json'), `${JSON.stringify(legacyState, null, 2)}\n`, 'utf8');
+    await writeFile(join(dataDirectory, 'movie-log.json'), `${JSON.stringify(unmarkedState, null, 2)}\n`, 'utf8');
 
     const store = createHistoryStore(dataDirectory);
     const firstBackfill = await store.syncWatchedFolderContents(
@@ -354,6 +332,7 @@ describe('createHistoryStore', () => {
       '2026-03-13T10:00:00.000Z'
     );
     const state = await store.readState();
+    const storedJson = JSON.parse(await readFile(join(dataDirectory, 'movie-log.json'), 'utf8')) as { historyPolicy?: string };
 
     expect(firstBackfill.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
     expect(secondBackfill).toEqual([]);
@@ -361,22 +340,91 @@ describe('createHistoryStore', () => {
       '/Users/seankim/Movies/Flow.mkv',
       '/Users/seankim/Movies/Severance'
     ]);
+    expect(storedJson.historyPolicy).toBe('append-only');
   });
 
-  it('keeps the record and note intact when clearHistory is requested', async () => {
+  it('backfills empty history from library items when the append-only marker is missing', async () => {
+    const unmarkedState = {
+      history: [],
+      knownPathsByFolder: {
+        '/Users/seankim/Movies': ['/Users/seankim/Movies/Flow.mkv']
+      },
+      libraryItems: [
+        {
+          firstSeenAt: '2026-03-12T08:00:00.000Z',
+          folderId: '/Users/seankim/Movies',
+          folderPath: '/Users/seankim/Movies',
+          id: 'dev:1',
+          lastSeenAt: '2026-03-12T08:00:00.000Z',
+          sourceKind: 'file',
+          sourcePath: '/Users/seankim/Movies/Flow.mkv',
+          title: 'Flow'
+        }
+      ],
+      seenKeysByFolder: {
+        '/Users/seankim/Movies': ['dev:1']
+      },
+      watchedFolders: [
+        {
+          addedAt: '2026-03-12T08:00:00.000Z',
+          id: '/Users/seankim/Movies',
+          lastScannedAt: '2026-03-12T08:00:00.000Z',
+          name: 'Movies',
+          path: '/Users/seankim/Movies'
+        }
+      ]
+    };
+    await writeFile(join(dataDirectory, 'movie-log.json'), `${JSON.stringify(unmarkedState, null, 2)}\n`, 'utf8');
+
     const store = createHistoryStore(dataDirectory);
-
-    await store.addHistoryEntry(
-      createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'drop', '2026-03-12T08:00:00.000Z', 'file')
-    );
-    await store.addWatchedFolder('/Users/seankim/Movies');
-    await store.clearHistory();
-
     const state = await store.readState();
-    const storedNote = await readFile(join(dataDirectory, 'movie-log-note.md'), 'utf8');
+    const storedJson = JSON.parse(await readFile(join(dataDirectory, 'movie-log.json'), 'utf8')) as {
+      history: Array<{ sourcePath: string }>;
+      historyPolicy?: string;
+    };
 
     expect(state.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
-    expect(state.watchedFolders).toHaveLength(1);
-    expect(storedNote).toContain('Flow');
+    expect(storedJson.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
+    expect(storedJson.historyPolicy).toBe('append-only');
+  });
+
+  it('does not silently backfill marked append-only stores with empty history', async () => {
+    const currentState = {
+      history: [],
+      historyPolicy: 'append-only',
+      knownPathsByFolder: {
+        '/Users/seankim/Movies': ['/Users/seankim/Movies/Flow.mkv']
+      },
+      libraryItems: [
+        {
+          firstSeenAt: '2026-03-12T08:00:00.000Z',
+          folderId: '/Users/seankim/Movies',
+          folderPath: '/Users/seankim/Movies',
+          id: 'dev:1',
+          lastSeenAt: '2026-03-12T08:00:00.000Z',
+          sourceKind: 'file',
+          sourcePath: '/Users/seankim/Movies/Flow.mkv',
+          title: 'Flow'
+        }
+      ],
+      seenKeysByFolder: {
+        '/Users/seankim/Movies': ['dev:1']
+      },
+      watchedFolders: [
+        {
+          addedAt: '2026-03-12T08:00:00.000Z',
+          id: '/Users/seankim/Movies',
+          lastScannedAt: '2026-03-12T08:00:00.000Z',
+          name: 'Movies',
+          path: '/Users/seankim/Movies'
+        }
+      ]
+    };
+    await writeFile(join(dataDirectory, 'movie-log.json'), `${JSON.stringify(currentState, null, 2)}\n`, 'utf8');
+
+    const store = createHistoryStore(dataDirectory);
+    const state = await store.readState();
+
+    expect(state.history).toEqual([]);
   });
 });
