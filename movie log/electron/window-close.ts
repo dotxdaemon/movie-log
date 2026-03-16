@@ -3,7 +3,6 @@
 interface CloseMovieLogOptions {
   disposeFolderMonitor(): Promise<void>;
   quitApp(): void;
-  stopScanLoop(): void;
 }
 
 interface WindowCloseRequestOptions {
@@ -56,10 +55,8 @@ export async function handleWindowsClosed({
 
 export async function closeMovieLog({
   disposeFolderMonitor,
-  quitApp,
-  stopScanLoop
+  quitApp
 }: CloseMovieLogOptions): Promise<void> {
-  stopScanLoop();
   await disposeFolderMonitor();
   quitApp();
 }

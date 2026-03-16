@@ -11,6 +11,10 @@ interface FolderMonitorOptions {
   settleMs?: number;
 }
 
+interface WatchFolderOptions {
+  skipInitialSync?: boolean;
+}
+
 export function createFolderMonitor(options: FolderMonitorOptions) {
   const settleMs = options.settleMs ?? 400;
   const watchers = new Map<string, FSWatcher>();
@@ -64,7 +68,7 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
   }
 
   return {
-    async watchFolder(folderPath: string): Promise<void> {
+    async watchFolder(folderPath: string, watchOptions: WatchFolderOptions = {}): Promise<void> {
       if (watchers.has(folderPath)) {
         return;
       }
@@ -82,7 +86,9 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
         throw error;
       }
 
-      await syncFolder(folderPath, false);
+      if (!watchOptions.skipInitialSync) {
+        await syncFolder(folderPath, false);
+      }
 
       const folderWatcher = watch(folderPath, () => {
         scheduleSync(folderPath);

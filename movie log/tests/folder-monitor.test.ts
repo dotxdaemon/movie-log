@@ -118,6 +118,40 @@ describe('createFolderMonitor', () => {
     expect(saveCount).toBe(settledSaveCount);
   });
 
+  it('can resume watching from known paths without an initial scan', async () => {
+    const inboxPath = join(rootDirectory, 'Media Inbox');
+    const existingPath = join(inboxPath, 'Already There.mkv');
+    const arrivalPath = join(inboxPath, 'Just Arrived.mkv');
+    await mkdir(inboxPath);
+    await writeFile(existingPath, 'movie');
+
+    const changedFolders: string[] = [];
+    let saveCount = 0;
+    const knownByFolder = new Map<string, string[]>([[inboxPath, [existingPath]]]);
+    const monitor = createFolderMonitor({
+      loadKnownPaths: async (folderPath) => knownByFolder.get(folderPath) ?? [],
+      saveKnownPaths: async (folderPath, knownPaths) => {
+        saveCount += 1;
+        knownByFolder.set(folderPath, knownPaths);
+      },
+      onChange: async (folderPath) => {
+        changedFolders.push(folderPath);
+      },
+      settleMs: 25
+    });
+
+    await monitor.watchFolder(inboxPath, { skipInitialSync: true });
+
+    expect(saveCount).toBe(0);
+
+    await writeFile(arrivalPath, 'movie');
+    await waitForDiscovery(changedFolders);
+    await monitor.dispose();
+
+    expect(changedFolders).toEqual([inboxPath]);
+    expect(knownByFolder.get(inboxPath)).toEqual([existingPath, arrivalPath]);
+  });
+
   it('records one history entry when a new top-level item arrives in a watched folder', async () => {
     const inboxPath = join(rootDirectory, 'Media Inbox');
     const dataDirectory = join(rootDirectory, 'Data');

@@ -6,7 +6,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createFolderMonitor } from './folder-monitor.js';
-import { automaticScanIntervalMs } from './scan-interval.js';
 import { prepareAppRuntime } from './runtime.js';
 import { scanFolderContents } from './folder-scan.js';
 import { createStatusItem } from './status-item.js';
@@ -31,7 +30,6 @@ const folderMonitor = createFolderMonitor({
 });
 
 let mainWindow: BrowserWindow | null = null;
-let dailyScanTimer: NodeJS.Timeout | null = null;
 let backgroundWorkRunning = false;
 let isQuitting = false;
 let statusItem: Tray | null = null;
@@ -196,7 +194,7 @@ function registerIpcHandlers(): void {
     for (const selectedPath of result.filePaths) {
       const folder = await historyStore.addWatchedFolder(selectedPath);
       await syncWatchedFolder(folder.path);
-      await folderMonitor.watchFolder(folder.path);
+      await folderMonitor.watchFolder(folder.path, { skipInitialSync: true });
       folders.push(folder);
     }
 
@@ -252,11 +250,9 @@ function registerIpcHandlers(): void {
 }
 
 async function startExistingWatchers(): Promise<void> {
-  await syncAllWatchedFolders();
-
   const state = await readState();
   for (const folder of state.watchedFolders) {
-    await folderMonitor.watchFolder(folder.path);
+    await folderMonitor.watchFolder(folder.path, { skipInitialSync: true });
   }
 }
 
@@ -266,7 +262,6 @@ async function startBackgroundWork(): Promise<void> {
   }
 
   await startExistingWatchers();
-  startDailyScanLoop();
   backgroundWorkRunning = true;
 }
 
@@ -275,24 +270,8 @@ async function pauseBackgroundWork(): Promise<void> {
     return;
   }
 
-  stopDailyScanLoop();
   await folderMonitor.dispose();
   backgroundWorkRunning = false;
-}
-
-function stopDailyScanLoop(): void {
-  if (dailyScanTimer) {
-    clearInterval(dailyScanTimer);
-    dailyScanTimer = null;
-  }
-}
-
-function startDailyScanLoop(): void {
-  stopDailyScanLoop();
-
-  dailyScanTimer = setInterval(() => {
-    void syncAllWatchedFolders().then(() => broadcastState());
-  }, automaticScanIntervalMs);
 }
 
 app.whenReady().then(async () => {
@@ -325,8 +304,7 @@ app.on('window-all-closed', () => {
     closeMovieLog: () =>
       closeMovieLog({
         disposeFolderMonitor: () => folderMonitor.dispose(),
-        quitApp: () => app.quit(),
-        stopScanLoop: stopDailyScanLoop
+        quitApp: () => app.quit()
       }),
     hasStatusItem: statusItem !== null,
     isQuitting,

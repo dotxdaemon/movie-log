@@ -9,21 +9,17 @@ import {
 } from '../electron/window-close.js';
 
 describe('closeMovieLog', () => {
-  it('stops background work before quitting the app', async () => {
-    const stopScanLoop = vi.fn();
+  it('disposes the folder monitor before quitting the app', async () => {
     const disposeFolderMonitor = vi.fn().mockResolvedValue(undefined);
     const quitApp = vi.fn();
 
     await closeMovieLog({
       disposeFolderMonitor,
-      quitApp,
-      stopScanLoop
+      quitApp
     });
 
-    expect(stopScanLoop).toHaveBeenCalledTimes(1);
     expect(disposeFolderMonitor).toHaveBeenCalledTimes(1);
     expect(quitApp).toHaveBeenCalledTimes(1);
-    expect(stopScanLoop.mock.invocationCallOrder[0]).toBeLessThan(disposeFolderMonitor.mock.invocationCallOrder[0]);
     expect(disposeFolderMonitor.mock.invocationCallOrder[0]).toBeLessThan(quitApp.mock.invocationCallOrder[0]);
   });
 });
