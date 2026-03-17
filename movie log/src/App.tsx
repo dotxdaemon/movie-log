@@ -93,18 +93,14 @@ export default function App() {
 
   const filteredHistory = state.history.filter((entry) => matchesSearch(entry, searchQuery));
   const historySummary = searchQuery
-    ? `Showing ${formatCount(filteredHistory.length, 'entry', 'entries')} of ${formatCount(
-        state.history.length,
-        'entry',
-        'entries'
-      )}.`
+    ? `${formatCount(filteredHistory.length, 'entry', 'entries')} of ${formatCount(state.history.length, 'entry', 'entries')} shown`
     : state.history.length === 0
-      ? 'No recorded arrivals yet.'
-      : `${formatCount(state.history.length, 'entry', 'entries')} recorded.`;
+      ? 'Nothing recorded'
+      : `${formatCount(state.history.length, 'entry', 'entries')} recorded`;
   const watchedFolderSummary =
     state.watchedFolders.length === 0
-      ? 'No watched folders yet.'
-      : `${formatCount(state.watchedFolders.length, 'folder')} active. Use Scan Now for catch-up.`;
+      ? 'None'
+      : `${formatCount(state.watchedFolders.length, 'folder')} active`;
 
   const handleAddWatchedFolders = async () => {
     setErrorMessage('');
@@ -196,8 +192,12 @@ export default function App() {
 
   return (
     <AppShell
-      commandBar={
-        <div className="command-bar">
+      contentHeader={
+        <header className="records-header">
+          <div className="records-copy">
+            <h2>History</h2>
+            <p className="records-note">{historySummary}</p>
+          </div>
           <label className="search-field">
             <span className="visually-hidden">Search history</span>
             <input
@@ -207,78 +207,11 @@ export default function App() {
               value={searchQuery}
             />
           </label>
-          <button className="panel-button" onClick={() => void handleAddWatchedFolders()} type="button">
-            Add Folder
-          </button>
-          <button
-            className="ghost-button"
-            disabled={state.watchedFolders.length === 0 || scanInProgress}
-            onClick={() => void handleScanNow()}
-            type="button"
-          >
-            {scanInProgress ? 'Scanning...' : 'Scan Now'}
-          </button>
-        </div>
-      }
-      historyLedger={
-        <section className="history-ledger">
-          <div className="ledger-header">
-            <div>
-              <h2>History</h2>
-              <p className="ledger-note">{historySummary}</p>
-            </div>
-          </div>
-
-          {filteredHistory.length === 0 ? (
-            <div className="blank-slate">
-              <p className="blank-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
-              <p className="blank-copy">
-                {searchQuery
-                  ? 'Try a different title or path search.'
-                  : 'Drop a media file or folder, or add a watched folder to start logging arrivals.'}
-              </p>
-            </div>
-          ) : (
-            <ol className="ledger-list">
-              {filteredHistory.map((entry) => (
-                <li className="ledger-row" key={entry.id}>
-                  <div className="ledger-row-top">
-                    <strong className="ledger-title">{entry.title}</strong>
-                    <div className="row-actions">
-                      <button className="ghost-button" onClick={() => void handleCopyPath(entry.sourcePath)} type="button">
-                        Copy Path
-                      </button>
-                      <button
-                        className="ghost-button"
-                        onClick={() => void handleOpenInFinder(entry.sourcePath)}
-                        type="button"
-                      >
-                        Show in Finder
-                      </button>
-                      <button
-                        className="ghost-button"
-                        disabled={entry.sourceKind !== 'file'}
-                        onClick={() => void handleOpenItem(entry.sourcePath)}
-                        type="button"
-                      >
-                        Open
-                      </button>
-                    </div>
-                  </div>
-                  <p className="ledger-row-meta">
-                    {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
-                    {formatEntryType(entry.sourceKind)}
-                  </p>
-                  <p className="path-line">{entry.sourcePath}</p>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
+        </header>
       }
       intakeBar={
         <section
-          className={dropActive ? 'intake-bar intake-bar-active' : 'intake-bar'}
+          className={dropActive ? 'drop-inline drop-inline-active' : 'drop-inline'}
           onDragEnter={() => setDropActive(true)}
           onDragLeave={() => setDropActive(false)}
           onDragOver={(event) => {
@@ -287,46 +220,101 @@ export default function App() {
           }}
           onDrop={handleDrop}
         >
-          <p className="intake-label">Manual Drop</p>
-          <div className="intake-copy">
-            <strong>Drop a media file or folder</strong>
-            <span>One drop becomes one history entry.</span>
-          </div>
+          <span className="drop-tag">Drop</span>
+          <span className="drop-text">Media file or folder</span>
         </section>
       }
-      note="local arrivals ledger"
-      sideRail={
-        <aside className="side-rail">
-          <section className="rail-group">
-            <div className="rail-heading">
+      note=""
+      recordsPanel={
+        <section className="records-panel">
+          {filteredHistory.length === 0 ? (
+            <div className="blank-slate blank-slate-records">
+              <p className="blank-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
+              {!searchQuery ? <p className="blank-copy">Drop a file or add a watched folder.</p> : null}
+            </div>
+          ) : (
+            <ol className="record-list">
+              {filteredHistory.map((entry) => (
+                <li className="record-row" key={entry.id}>
+                  <div className="record-head">
+                    <div className="record-main">
+                      <strong className="record-title">{entry.title}</strong>
+                      <p className="path-line">{entry.sourcePath}</p>
+                    </div>
+                    <div className="inline-actions">
+                      <button className="text-button" onClick={() => void handleCopyPath(entry.sourcePath)} type="button">
+                        Copy Path
+                      </button>
+                      <button
+                        className="text-button"
+                        onClick={() => void handleOpenInFinder(entry.sourcePath)}
+                        type="button"
+                      >
+                        Show in Finder
+                      </button>
+                      <button
+                        className="text-button"
+                        disabled={entry.sourceKind !== 'file'}
+                        onClick={() => void handleOpenItem(entry.sourcePath)}
+                        type="button"
+                      >
+                        Open
+                      </button>
+                    </div>
+                  </div>
+                  <p className="record-details">
+                    {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
+                    {formatEntryType(entry.sourceKind)}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      }
+      utilityPanel={
+        <div className="rail-stack">
+          <section className="rail-panel rail-actions">
+            <button className="panel-button" onClick={() => void handleAddWatchedFolders()} type="button">
+              Add Folder
+            </button>
+            <button
+              className="ghost-button"
+              disabled={state.watchedFolders.length === 0 || scanInProgress}
+              onClick={() => void handleScanNow()}
+              type="button"
+            >
+              {scanInProgress ? 'Scanning...' : 'Scan Now'}
+            </button>
+          </section>
+
+          <section className="rail-panel">
+            <div className="panel-heading">
               <div>
                 <h2>Watched folders</h2>
-                <p className="rail-note">{watchedFolderSummary}</p>
+                <p className="panel-note">{watchedFolderSummary}</p>
               </div>
             </div>
 
             {state.watchedFolders.length === 0 ? (
               <div className="blank-slate blank-slate-compact">
                 <p className="blank-title">No watched folders</p>
-                <p className="blank-copy">
-                  Add one or more folders and Movie Log will watch for new top-level folders or supported media files.
-                </p>
               </div>
             ) : (
-              <ul className="watch-list">
+              <ul className="secondary-list">
                 {state.watchedFolders.map((folder) => (
-                  <li className="watch-row" key={folder.id}>
-                    <div className="watch-copy">
-                      <strong className="watch-name">{folder.name}</strong>
-                      <p className="rail-meta">
+                  <li className="secondary-row" key={folder.id}>
+                    <div className="secondary-copy">
+                      <strong className="secondary-title">{folder.name}</strong>
+                      <p className="secondary-meta">
                         {folder.lastScannedAt
                           ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}`
-                          : 'Waiting for first catch-up or arrival'}
+                          : 'Waiting for scan or arrival'}
                       </p>
                       <p className="path-line">{folder.path}</p>
                     </div>
                     <button
-                      className="ghost-button"
+                      className="text-button"
                       onClick={() => void handleRemoveWatchedFolder(folder.id)}
                       type="button"
                     >
@@ -338,35 +326,30 @@ export default function App() {
             )}
           </section>
 
-          <details className="rail-detail">
-            <summary className="rail-detail-summary">
-              <span>Current top-level contents</span>
+          <details className="rail-disclosure">
+            <summary className="disclosure-summary">
+              <span>Reference</span>
               <span>{formatCount(state.libraryItems.length, 'item')}</span>
             </summary>
-            <div className="rail-detail-body">
-              <FolderSnapshotPanel
-                compact
-                items={state.libraryItems}
-                onCopyPath={handleCopyPath}
-                onOpenInFinder={handleOpenInFinder}
-                onOpenItem={handleOpenItem}
-                timestampLabel={(isoTime) => timestampFormatter.format(new Date(isoTime))}
-              />
-            </div>
-          </details>
+            <div className="disclosure-body">
+              <div className="reference-block">
+                <p className="reference-label">Current contents</p>
+                <FolderSnapshotPanel
+                  compact
+                  items={state.libraryItems}
+                  onCopyPath={handleCopyPath}
+                  onOpenInFinder={handleOpenInFinder}
+                  onOpenItem={handleOpenItem}
+                  timestampLabel={(isoTime) => timestampFormatter.format(new Date(isoTime))}
+                />
+              </div>
 
-          <details className="rail-detail">
-            <summary className="rail-detail-summary">
-              <span>Stored on this Mac</span>
-              <span>Paths and note</span>
-            </summary>
-            <div className="rail-detail-body">
-              <div className="data-block">
-                <p className="data-label">Readable Note</p>
+              <div className="reference-block">
+                <p className="reference-label">Readable note</p>
                 <p className="path-line">{noteFilePath}</p>
-                <div className="row-actions">
+                <div className="inline-actions">
                   <button
-                    className="ghost-button"
+                    className="text-button"
                     disabled={!noteFilePath}
                     onClick={() => void handleOpenItem(noteFilePath)}
                     type="button"
@@ -374,7 +357,7 @@ export default function App() {
                     Open Note
                   </button>
                   <button
-                    className="ghost-button"
+                    className="text-button"
                     disabled={!noteFilePath}
                     onClick={() => void handleCopyPath(noteFilePath)}
                     type="button"
@@ -384,13 +367,13 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="data-block">
-                <p className="data-label">App Store</p>
+              <div className="reference-block">
+                <p className="reference-label">App store</p>
                 <p className="path-line">{logFilePath}</p>
               </div>
             </div>
           </details>
-        </aside>
+        </div>
       }
       statusBanner={
         errorMessage ? (

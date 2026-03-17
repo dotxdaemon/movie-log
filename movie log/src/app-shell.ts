@@ -1,45 +1,47 @@
-// ABOUTME: Renders the shared Movie Log workspace frame around the command bar, history, and side rail.
+// ABOUTME: Renders the shared Movie Log workspace frame as a utility rail beside a records stage.
 // ABOUTME: Keeps the shell structure testable without importing browser-only renderer code into Node checks.
 import { createElement, type ReactNode } from 'react';
 
 interface AppShellProps {
-  commandBar: ReactNode;
-  historyLedger: ReactNode;
+  contentHeader: ReactNode;
   intakeBar: ReactNode;
-  note: string;
-  sideRail: ReactNode;
+  note?: string;
+  recordsPanel: ReactNode;
   statusBanner?: ReactNode;
   title: string;
+  utilityPanel?: ReactNode;
 }
 
 export function AppShell({
-  commandBar,
-  historyLedger,
+  contentHeader,
   intakeBar,
-  note,
-  sideRail,
+  note = '',
+  recordsPanel,
   statusBanner = null,
-  title
+  title,
+  utilityPanel = null
 }: AppShellProps) {
   return createElement(
     'main',
-    { className: 'app-shell' },
+    { className: 'workspace-frame' },
     createElement(
-      'header',
-      { className: 'top-bar' },
+      'aside',
+      { className: 'utility-rail' },
       createElement(
         'div',
-        { className: 'brand-block' },
+        { className: 'rail-head' },
         createElement('h1', { className: 'app-title' }, title),
-        createElement('p', { className: 'brand-note' }, note)
+        note ? createElement('p', { className: 'rail-note' }, note) : null
       ),
-      commandBar
+      statusBanner,
+      utilityPanel
     ),
     createElement(
       'section',
-      { className: 'workspace-shell' },
-      createElement('div', { className: 'main-column' }, statusBanner, intakeBar, historyLedger),
-      sideRail
+      { className: 'records-pane' },
+      contentHeader,
+      intakeBar,
+      recordsPanel
     )
   );
 }
