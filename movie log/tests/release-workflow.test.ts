@@ -30,6 +30,8 @@ describe('release main build workflow', () => {
     expect(workflowSource).toContain('gh release delete-asset');
     expect(workflowSource).toContain('gh release upload');
     expect(workflowSource).toContain('working-directory: movie log');
+    expect(workflowSource).toContain("package_version=$(node --input-type=module -e '");
+    expect(workflowSource).toContain('echo "PACKAGE_VERSION=${package_version}" >> "$GITHUB_ENV"');
 
     const verificationCommands = [
       'npm ci',

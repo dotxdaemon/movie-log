@@ -52,7 +52,9 @@ jobs:
         run: npm run package:mac
 
       - name: Read package version
-        run: echo "PACKAGE_VERSION=$(node -p \"JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version\")" >> "$GITHUB_ENV"
+        run: |
+          package_version=$(node --input-type=module -e 'import { readFileSync } from "node:fs"; console.log(JSON.parse(readFileSync("package.json", "utf8")).version);')
+          echo "PACKAGE_VERSION=${package_version}" >> "$GITHUB_ENV"
 
       - name: Archive packaged app
         run: ditto -c -k --sequesterRsrc --keepParent "release/mac/Movie Log.app" "release/mac/Movie-Log-macOS.zip"
