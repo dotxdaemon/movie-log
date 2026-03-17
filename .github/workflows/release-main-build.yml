@@ -18,6 +18,9 @@ concurrency:
 jobs:
   release-main-build:
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: movie log
     env:
       GH_TOKEN: ${{ github.token }}
     steps:

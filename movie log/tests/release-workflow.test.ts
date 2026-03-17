@@ -1,12 +1,14 @@
 // ABOUTME: Verifies the GitHub Actions release workflow publishes the packaged macOS app on each main push.
 // ABOUTME: Keeps the workflow aligned with the agreed trigger, verification, archive, and rolling-release rules.
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const rootDirectory = fileURLToPath(new URL('..', import.meta.url));
-const workflowPath = join(rootDirectory, '.github', 'workflows', 'release-main-build.yml');
+const projectDirectory = fileURLToPath(new URL('..', import.meta.url));
+const repositoryDirectory = fileURLToPath(new URL('../..', import.meta.url));
+const workflowPath = join(repositoryDirectory, '.github', 'workflows', 'release-main-build.yml');
+const misplacedWorkflowPath = join(projectDirectory, '.github', 'workflows', 'release-main-build.yml');
 
 describe('release main build workflow', () => {
   it('publishes a rolling macOS prerelease from main', async () => {
@@ -26,6 +28,7 @@ describe('release main build workflow', () => {
     expect(workflowSource).toContain('gh release edit');
     expect(workflowSource).toContain('gh release delete-asset');
     expect(workflowSource).toContain('gh release upload');
+    expect(workflowSource).toContain('working-directory: movie log');
 
     const verificationCommands = [
       'npm ci',
@@ -42,5 +45,7 @@ describe('release main build workflow', () => {
       expect(commandIndex).toBeGreaterThan(previousCommandIndex);
       previousCommandIndex = commandIndex;
     }
+
+    await expect(access(misplacedWorkflowPath)).rejects.toThrow();
   });
 });
