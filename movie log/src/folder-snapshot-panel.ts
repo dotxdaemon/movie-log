@@ -4,6 +4,7 @@ import { createElement } from 'react';
 import type { LibraryItem } from '../shared/types.js';
 
 interface FolderSnapshotPanelProps {
+  compact?: boolean;
   items: LibraryItem[];
   onCopyPath(itemPath: string): Promise<void>;
   onOpenInFinder(itemPath: string): Promise<void>;
@@ -12,25 +13,14 @@ interface FolderSnapshotPanelProps {
 }
 
 export function FolderSnapshotPanel({
+  compact = false,
   items,
   onCopyPath,
   onOpenInFinder,
   onOpenItem,
   timestampLabel
 }: FolderSnapshotPanelProps) {
-  return createElement(
-    'article',
-    { className: 'panel' },
-    createElement(
-      'div',
-      { className: 'panel-header' },
-      createElement(
-        'div',
-        null,
-        createElement('p', { className: 'panel-kicker' }, 'Scanned Items'),
-        createElement('h2', null, 'Current top-level contents')
-      )
-    ),
+  const body =
     items.length === 0
       ? createElement(
           'div',
@@ -86,6 +76,24 @@ export function FolderSnapshotPanel({
               )
             )
           )
-        )
+        );
+  if (compact) {
+    return createElement('div', { className: 'snapshot-body' }, body);
+  }
+
+  return createElement(
+    'article',
+    { className: 'surface section-card' },
+    createElement(
+      'div',
+      { className: 'section-header' },
+      createElement(
+        'div',
+        null,
+        createElement('p', { className: 'section-label' }, 'Library'),
+        createElement('h2', null, 'Current top-level contents')
+      )
+    ),
+    body
   );
 }

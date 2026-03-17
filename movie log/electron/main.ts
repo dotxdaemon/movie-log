@@ -78,7 +78,10 @@ async function captureIfRequested(): Promise<void> {
     latestText = await mainWindow.webContents.executeJavaScript(`
       document.body ? document.body.innerText.toLowerCase() : ''
     `);
-    isReady = latestText.includes('recent history') && latestText.includes('settings');
+    isReady =
+      latestText.includes('movie log') &&
+      latestText.includes('watched folders') &&
+      (latestText.includes('activity') || latestText.includes('recent history'));
 
     if (isReady) {
       break;

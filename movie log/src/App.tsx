@@ -4,8 +4,6 @@ import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { FolderSnapshotPanel } from './folder-snapshot-panel';
 import type { MovieLogState, WatchEntry } from '../shared/types';
 
-type Screen = 'history' | 'settings';
-
 const emptyState: MovieLogState = {
   history: [],
   libraryItems: [],
@@ -31,6 +29,10 @@ function formatEntryType(sourceKind: WatchEntry['sourceKind']): string {
   return sourceKind === 'file' ? 'File' : 'Folder';
 }
 
+function formatCount(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 function matchesSearch(entry: WatchEntry, searchQuery: string): boolean {
   if (!searchQuery) {
     return true;
@@ -50,7 +52,6 @@ function matchesSearch(entry: WatchEntry, searchQuery: string): boolean {
 
 export default function App() {
   const [state, setState] = useState<MovieLogState>(emptyState);
-  const [activeScreen, setActiveScreen] = useState<Screen>('history');
   const [dropActive, setDropActive] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [logFilePath, setLogFilePath] = useState('');
@@ -90,6 +91,19 @@ export default function App() {
   }, []);
 
   const filteredHistory = state.history.filter((entry) => matchesSearch(entry, searchQuery));
+  const historySummary = searchQuery
+    ? `Showing ${formatCount(filteredHistory.length, 'entry', 'entries')} of ${formatCount(
+        state.history.length,
+        'entry',
+        'entries'
+      )}.`
+    : state.history.length === 0
+      ? 'Nothing logged yet.'
+      : `${formatCount(state.history.length, 'entry', 'entries')} kept locally.`;
+  const watchedFolderSummary =
+    state.watchedFolders.length === 0
+      ? 'Add a folder to log arrivals automatically.'
+      : `${formatCount(state.watchedFolders.length, 'folder')} watching for arrivals. Use Scan Now for catch-up.`;
 
   const handleAddWatchedFolders = async () => {
     setErrorMessage('');
@@ -181,48 +195,37 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <section className="hero">
-        <div>
-          <p className="eyebrow">Movie Log</p>
-          <h1>Keep a local history of what you just added.</h1>
-          <p className="summary">
-            Movie Log is a small macOS desktop utility that logs media files and folders you drop in by hand or add
-            through watched folders. It stays local, keeps the history newest first, and does not try to be a media
-            server.
+      <header className="workspace-header">
+        <div className="workspace-title">
+          <p className="app-name">Movie Log</p>
+          <h1>Local history for what lands in your library.</h1>
+          <p className="workspace-summary">
+            Manual drops and watched-folder arrivals stay on this Mac and remain easy to find.
           </p>
         </div>
-        <div className="stat-grid" aria-label="Current totals">
-          <article className="stat-card">
-            <span className="stat-value">{state.history.length}</span>
-            <span className="stat-label">History Entries</span>
-          </article>
-          <article className="stat-card">
-            <span className="stat-value">{state.watchedFolders.length}</span>
-            <span className="stat-label">Watched Folders</span>
-          </article>
-          <article className="stat-card">
-            <span className="stat-value">{filteredHistory.length}</span>
-            <span className="stat-label">Visible Results</span>
-          </article>
+        <div className="command-strip">
+          <label className="search-field search-field-compact">
+            <span className="search-label">Search</span>
+            <input
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search title or path"
+              type="search"
+              value={searchQuery}
+            />
+          </label>
+          <button className="panel-button" onClick={() => void handleAddWatchedFolders()} type="button">
+            Add Folder
+          </button>
+          <button
+            className="ghost-button"
+            disabled={state.watchedFolders.length === 0 || scanInProgress}
+            onClick={() => void handleScanNow()}
+            type="button"
+          >
+            {scanInProgress ? 'Scanning...' : 'Scan Now'}
+          </button>
         </div>
-      </section>
-
-      <nav className="tab-row" aria-label="Screens">
-        <button
-          className={activeScreen === 'history' ? 'tab-button tab-button-active' : 'tab-button'}
-          onClick={() => setActiveScreen('history')}
-          type="button"
-        >
-          History
-        </button>
-        <button
-          className={activeScreen === 'settings' ? 'tab-button tab-button-active' : 'tab-button'}
-          onClick={() => setActiveScreen('settings')}
-          type="button"
-        >
-          Settings
-        </button>
-      </nav>
+      </header>
 
       {errorMessage ? (
         <section className="message-strip" role="alert">
@@ -230,10 +233,10 @@ export default function App() {
         </section>
       ) : null}
 
-      {activeScreen === 'history' ? (
-        <>
+      <section className="workspace-grid">
+        <div className="primary-column">
           <section
-            className={dropActive ? 'drop-zone drop-zone-active' : 'drop-zone'}
+            className={dropActive ? 'drop-strip drop-strip-active' : 'drop-strip'}
             onDragEnter={() => setDropActive(true)}
             onDragLeave={() => setDropActive(false)}
             onDragOver={(event) => {
@@ -242,30 +245,21 @@ export default function App() {
             }}
             onDrop={handleDrop}
           >
-            <p className="drop-kicker">Manual Drop</p>
-            <h2>Drop a media file or folder</h2>
-            <p className="drop-copy">
-              Every supported file or folder dropped here becomes one history entry. Files use a conservative
-              media-file allowlist, and folders keep their folder name as the title.
+            <div>
+              <p className="section-label">Manual Drop</p>
+              <h2>Drop a media file or folder</h2>
+            </div>
+            <p className="section-note">
+              Every supported file or folder dropped here becomes one history entry.
             </p>
           </section>
 
-          <section className="panel panel-history">
-            <div className="panel-header panel-header-stacked">
+          <section className="surface section-card">
+            <div className="section-header">
               <div>
-                <p className="panel-kicker">Recent History</p>
-                <h2>Newest first</h2>
-              </div>
-              <div className="toolbar-row">
-                <label className="search-field">
-                  <span className="search-label">Search</span>
-                  <input
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Search title or path"
-                    type="search"
-                    value={searchQuery}
-                  />
-                </label>
+                <p className="section-label">Activity</p>
+                <h2>Recent history</h2>
+                <p className="section-note">{historySummary}</p>
               </div>
             </div>
 
@@ -275,7 +269,7 @@ export default function App() {
                 <p className="empty-copy">
                   {searchQuery
                     ? 'Try a different title or path search.'
-                    : 'Drop a media file or folder, or add a watched folder in Settings to start logging arrivals.'}
+                    : 'Drop a media file or folder, or add a watched folder to start logging arrivals.'}
                 </p>
               </div>
             ) : (
@@ -284,12 +278,11 @@ export default function App() {
                   <li className="history-card" key={entry.id}>
                     <div className="history-topline">
                       <strong>{entry.title}</strong>
-                      <div className="badge-row">
-                        <span className="history-badge">{formatSource(entry.source)}</span>
-                        <span className="history-badge history-badge-secondary">{formatEntryType(entry.sourceKind)}</span>
-                      </div>
                     </div>
-                    <p className="history-time">{timestampFormatter.format(new Date(entry.watchedAt))}</p>
+                    <p className="history-meta">
+                      {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
+                      {formatEntryType(entry.sourceKind)}
+                    </p>
                     <p className="meta-path">{entry.sourcePath}</p>
                     <div className="action-row">
                       <button className="ghost-button" onClick={() => void handleCopyPath(entry.sourcePath)} type="button">
@@ -316,33 +309,17 @@ export default function App() {
               </ol>
             )}
           </section>
-        </>
-      ) : (
-        <section className="content-grid content-grid-settings">
-          <article className="panel">
-            <div className="panel-header">
+        </div>
+
+        <aside className="secondary-column">
+          <section className="surface section-card">
+            <div className="section-header">
               <div>
-                <p className="panel-kicker">Watched Folders</p>
-                <h2>Automatic logging</h2>
-              </div>
-              <div className="button-row">
-                <button className="panel-button" onClick={() => void handleAddWatchedFolders()} type="button">
-                  Add Folders
-                </button>
-                <button
-                  className="ghost-button"
-                  disabled={state.watchedFolders.length === 0 || scanInProgress}
-                  onClick={() => void handleScanNow()}
-                  type="button"
-                >
-                  {scanInProgress ? 'Scanning...' : 'Scan Now'}
-                </button>
+                <p className="section-label">Watched Folders</p>
+                <h2>Automatic arrivals</h2>
+                <p className="section-note">{watchedFolderSummary}</p>
               </div>
             </div>
-            <p className="summary">
-              The first scan logs everything already in a watched folder. Later scans add only top-level arrivals, and
-              renames or moves inside the same watched folder do not log again.
-            </p>
 
             {state.watchedFolders.length === 0 ? (
               <div className="empty-card">
@@ -357,12 +334,12 @@ export default function App() {
                   <li className="list-card" key={folder.id}>
                     <div>
                       <strong>{folder.name}</strong>
-                      <p className="meta-path">{folder.path}</p>
-                      <p className="history-time">
+                      <p className="history-meta">
                         {folder.lastScannedAt
                           ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}`
-                          : 'Waiting for first scan'}
+                          : 'Waiting for first catch-up or arrival'}
                       </p>
+                      <p className="meta-path">{folder.path}</p>
                     </div>
                     <button
                       className="ghost-button"
@@ -375,51 +352,68 @@ export default function App() {
                 ))}
               </ul>
             )}
-          </article>
+          </section>
 
-          <article className="panel">
-            <div className="panel-header">
-              <div>
-                <p className="panel-kicker">Local Data</p>
-                <h2>Stored on this Mac</h2>
+          <details className="detail-block">
+            <summary className="detail-summary">
+              <span className="detail-label-group">
+                <span className="section-label section-label-inline">Library</span>
+                <strong>Current top-level contents</strong>
+              </span>
+              <span className="detail-count">{formatCount(state.libraryItems.length, 'item')}</span>
+            </summary>
+            <div className="detail-content">
+              <FolderSnapshotPanel
+                compact
+                items={state.libraryItems}
+                onCopyPath={handleCopyPath}
+                onOpenInFinder={handleOpenInFinder}
+                onOpenItem={handleOpenItem}
+                timestampLabel={(isoTime) => timestampFormatter.format(new Date(isoTime))}
+              />
+            </div>
+          </details>
+
+          <details className="detail-block">
+            <summary className="detail-summary">
+              <span className="detail-label-group">
+                <span className="section-label section-label-inline">Local Data</span>
+                <strong>Stored on this Mac</strong>
+              </span>
+              <span className="detail-count">Paths and note</span>
+            </summary>
+            <div className="detail-content">
+              <div className="data-row">
+                <p className="section-label">Readable Note</p>
+                <p className="meta-path">{noteFilePath}</p>
+                <div className="data-actions">
+                  <button
+                    className="ghost-button"
+                    disabled={!noteFilePath}
+                    onClick={() => void handleOpenItem(noteFilePath)}
+                    type="button"
+                  >
+                    Open Note
+                  </button>
+                  <button
+                    className="ghost-button"
+                    disabled={!noteFilePath}
+                    onClick={() => void handleCopyPath(noteFilePath)}
+                    type="button"
+                  >
+                    Copy Note Path
+                  </button>
+                </div>
+              </div>
+
+              <div className="data-row">
+                <p className="section-label">App Store</p>
+                <p className="meta-path">{logFilePath}</p>
               </div>
             </div>
-            <p className="summary">
-              Movie Log keeps its history and watched folders in a local JSON file. Nothing is uploaded or synced.
-            </p>
-            <p className="panel-kicker">Readable Note</p>
-            <p className="meta-path">{noteFilePath}</p>
-            <div className="button-row">
-              <button
-                className="ghost-button"
-                disabled={!noteFilePath}
-                onClick={() => void handleOpenItem(noteFilePath)}
-                type="button"
-              >
-                Open Note
-              </button>
-              <button
-                className="ghost-button"
-                disabled={!noteFilePath}
-                onClick={() => void handleCopyPath(noteFilePath)}
-                type="button"
-              >
-                Copy Note Path
-              </button>
-            </div>
-            <p className="panel-kicker">App Store</p>
-            <p className="meta-path">{logFilePath}</p>
-          </article>
-
-          <FolderSnapshotPanel
-            items={state.libraryItems}
-            onCopyPath={handleCopyPath}
-            onOpenInFinder={handleOpenInFinder}
-            onOpenItem={handleOpenItem}
-            timestampLabel={(isoTime) => timestampFormatter.format(new Date(isoTime))}
-          />
-        </section>
-      )}
+          </details>
+        </aside>
+      </section>
     </main>
   );
 }
