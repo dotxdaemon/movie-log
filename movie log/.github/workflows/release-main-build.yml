@@ -1,0 +1,83 @@
+# ABOUTME: Builds the packaged macOS Movie Log app on each main push and publishes one rolling GitHub prerelease asset.
+# ABOUTME: Verifies the app before packaging, archives the app bundle, and updates the shared release tag and asset.
+name: Release Main Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-main-build
+  cancel-in-progress: true
+
+jobs:
+  release-main-build:
+    runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run type checks
+        run: npm run typecheck
+
+      - name: Build packaged app
+        run: npm run package:mac
+
+      - name: Read package version
+        run: echo "PACKAGE_VERSION=$(node -p \"JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version\")" >> "$GITHUB_ENV"
+
+      - name: Archive packaged app
+        run: ditto -c -k --sequesterRsrc --keepParent "release/mac/Movie Log.app" "release/mac/Movie-Log-macOS.zip"
+
+      - name: Move release tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f main-build "${GITHUB_SHA}"
+          git push origin refs/tags/main-build --force
+
+      - name: Write release notes
+        run: |
+          cat <<EOF > release-notes.txt
+          Version: ${PACKAGE_VERSION}
+          Commit: ${GITHUB_SHA}
+
+          This macOS app is unsigned. macOS may require manual approval on first open.
+          EOF
+
+      - name: Create or update release
+        run: |
+          if gh release view main-build >/dev/null 2>&1; then
+            gh release edit main-build --title "Latest main build" --notes-file release-notes.txt --prerelease
+          else
+            gh release create main-build --title "Latest main build" --notes-file release-notes.txt --prerelease
+          fi
+
+      - name: Replace release asset
+        run: |
+          gh release delete-asset main-build Movie-Log-macOS.zip --yes || true
+          gh release upload main-build release/mac/Movie-Log-macOS.zip#Movie-Log-macOS.zip --clobber
