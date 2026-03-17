@@ -22,6 +22,7 @@ describe('release main build workflow', () => {
     expect(workflowSource).toContain('main-build');
     expect(workflowSource).toContain('Latest main build');
     expect(workflowSource).toContain('Movie-Log-macOS.zip');
+    expect(workflowSource).toContain('cache-dependency-path: movie log/package-lock.json');
     expect(workflowSource).toContain('ditto -c -k --sequesterRsrc --keepParent');
     expect(workflowSource).toContain('git tag -f main-build');
     expect(workflowSource).toContain('gh release create');
