@@ -81,7 +81,7 @@ async function captureIfRequested(): Promise<void> {
     isReady =
       latestText.includes('movie log') &&
       latestText.includes('watched folders') &&
-      (latestText.includes('activity') || latestText.includes('recent history'));
+      latestText.includes('history');
 
     if (isReady) {
       break;

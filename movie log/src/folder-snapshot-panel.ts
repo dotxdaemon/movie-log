@@ -24,35 +24,35 @@ export function FolderSnapshotPanel({
     items.length === 0
       ? createElement(
           'div',
-          { className: 'empty-card' },
-          createElement('p', { className: 'empty-title' }, 'No scanned items yet'),
+          { className: 'blank-slate blank-slate-compact' },
+          createElement('p', { className: 'blank-title' }, 'No scanned items yet'),
           createElement(
             'p',
-            { className: 'empty-copy' },
+            { className: 'blank-copy' },
             'Run a folder scan or add a watched folder to see what Movie Log found.'
           )
         )
       : createElement(
           'ul',
-          { className: 'stack-list' },
+          { className: 'snapshot-list' },
           ...items.map((item) =>
             createElement(
               'li',
-              { className: 'list-card', key: item.id },
+              { className: 'snapshot-row', key: item.id },
               createElement(
                 'div',
                 null,
-                createElement('strong', null, item.title),
-                createElement('p', { className: 'meta-path' }, item.sourcePath),
+                createElement('strong', { className: 'snapshot-title' }, item.title),
                 createElement(
                   'p',
-                  { className: 'history-time' },
+                  { className: 'rail-meta' },
                   `Seen ${timestampLabel(item.lastSeenAt)} • ${item.sourceKind === 'file' ? 'File' : 'Folder'}`
-                )
+                ),
+                createElement('p', { className: 'path-line' }, item.sourcePath)
               ),
               createElement(
                 'div',
-                { className: 'action-row' },
+                { className: 'row-actions' },
                 createElement(
                   'button',
                   { className: 'ghost-button', onClick: () => void onCopyPath(item.sourcePath), type: 'button' },
@@ -83,14 +83,13 @@ export function FolderSnapshotPanel({
 
   return createElement(
     'article',
-    { className: 'surface section-card' },
+    { className: 'history-ledger' },
     createElement(
       'div',
-      { className: 'section-header' },
+      { className: 'ledger-header' },
       createElement(
         'div',
         null,
-        createElement('p', { className: 'section-label' }, 'Library'),
         createElement('h2', null, 'Current top-level contents')
       )
     ),

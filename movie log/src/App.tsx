@@ -1,6 +1,7 @@
 // ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
 // ABOUTME: Shows recent history, watched-folder settings, and local file actions for logged entries.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
+import { AppShell } from './app-shell';
 import { FolderSnapshotPanel } from './folder-snapshot-panel';
 import type { MovieLogState, WatchEntry } from '../shared/types';
 
@@ -98,12 +99,12 @@ export default function App() {
         'entries'
       )}.`
     : state.history.length === 0
-      ? 'Nothing logged yet.'
-      : `${formatCount(state.history.length, 'entry', 'entries')} kept locally.`;
+      ? 'No recorded arrivals yet.'
+      : `${formatCount(state.history.length, 'entry', 'entries')} recorded.`;
   const watchedFolderSummary =
     state.watchedFolders.length === 0
-      ? 'Add a folder to log arrivals automatically.'
-      : `${formatCount(state.watchedFolders.length, 'folder')} watching for arrivals. Use Scan Now for catch-up.`;
+      ? 'No watched folders yet.'
+      : `${formatCount(state.watchedFolders.length, 'folder')} active. Use Scan Now for catch-up.`;
 
   const handleAddWatchedFolders = async () => {
     setErrorMessage('');
@@ -194,18 +195,11 @@ export default function App() {
   };
 
   return (
-    <main className="app-shell">
-      <header className="workspace-header">
-        <div className="workspace-title">
-          <p className="app-name">Movie Log</p>
-          <h1>Local history for what lands in your library.</h1>
-          <p className="workspace-summary">
-            Manual drops and watched-folder arrivals stay on this Mac and remain easy to find.
-          </p>
-        </div>
-        <div className="command-strip">
-          <label className="search-field search-field-compact">
-            <span className="search-label">Search</span>
+    <AppShell
+      commandBar={
+        <div className="command-bar">
+          <label className="search-field">
+            <span className="visually-hidden">Search history</span>
             <input
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search title or path"
@@ -225,66 +219,32 @@ export default function App() {
             {scanInProgress ? 'Scanning...' : 'Scan Now'}
           </button>
         </div>
-      </header>
-
-      {errorMessage ? (
-        <section className="message-strip" role="alert">
-          {errorMessage}
-        </section>
-      ) : null}
-
-      <section className="workspace-grid">
-        <div className="primary-column">
-          <section
-            className={dropActive ? 'drop-strip drop-strip-active' : 'drop-strip'}
-            onDragEnter={() => setDropActive(true)}
-            onDragLeave={() => setDropActive(false)}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDropActive(true);
-            }}
-            onDrop={handleDrop}
-          >
+      }
+      historyLedger={
+        <section className="history-ledger">
+          <div className="ledger-header">
             <div>
-              <p className="section-label">Manual Drop</p>
-              <h2>Drop a media file or folder</h2>
+              <h2>History</h2>
+              <p className="ledger-note">{historySummary}</p>
             </div>
-            <p className="section-note">
-              Every supported file or folder dropped here becomes one history entry.
-            </p>
-          </section>
+          </div>
 
-          <section className="surface section-card">
-            <div className="section-header">
-              <div>
-                <p className="section-label">Activity</p>
-                <h2>Recent history</h2>
-                <p className="section-note">{historySummary}</p>
-              </div>
+          {filteredHistory.length === 0 ? (
+            <div className="blank-slate">
+              <p className="blank-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
+              <p className="blank-copy">
+                {searchQuery
+                  ? 'Try a different title or path search.'
+                  : 'Drop a media file or folder, or add a watched folder to start logging arrivals.'}
+              </p>
             </div>
-
-            {filteredHistory.length === 0 ? (
-              <div className="empty-card">
-                <p className="empty-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
-                <p className="empty-copy">
-                  {searchQuery
-                    ? 'Try a different title or path search.'
-                    : 'Drop a media file or folder, or add a watched folder to start logging arrivals.'}
-                </p>
-              </div>
-            ) : (
-              <ol className="history-list">
-                {filteredHistory.map((entry) => (
-                  <li className="history-card" key={entry.id}>
-                    <div className="history-topline">
-                      <strong>{entry.title}</strong>
-                    </div>
-                    <p className="history-meta">
-                      {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
-                      {formatEntryType(entry.sourceKind)}
-                    </p>
-                    <p className="meta-path">{entry.sourcePath}</p>
-                    <div className="action-row">
+          ) : (
+            <ol className="ledger-list">
+              {filteredHistory.map((entry) => (
+                <li className="ledger-row" key={entry.id}>
+                  <div className="ledger-row-top">
+                    <strong className="ledger-title">{entry.title}</strong>
+                    <div className="row-actions">
                       <button className="ghost-button" onClick={() => void handleCopyPath(entry.sourcePath)} type="button">
                         Copy Path
                       </button>
@@ -304,42 +264,66 @@ export default function App() {
                         Open
                       </button>
                     </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        </div>
-
-        <aside className="secondary-column">
-          <section className="surface section-card">
-            <div className="section-header">
+                  </div>
+                  <p className="ledger-row-meta">
+                    {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
+                    {formatEntryType(entry.sourceKind)}
+                  </p>
+                  <p className="path-line">{entry.sourcePath}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      }
+      intakeBar={
+        <section
+          className={dropActive ? 'intake-bar intake-bar-active' : 'intake-bar'}
+          onDragEnter={() => setDropActive(true)}
+          onDragLeave={() => setDropActive(false)}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDropActive(true);
+          }}
+          onDrop={handleDrop}
+        >
+          <p className="intake-label">Manual Drop</p>
+          <div className="intake-copy">
+            <strong>Drop a media file or folder</strong>
+            <span>One drop becomes one history entry.</span>
+          </div>
+        </section>
+      }
+      note="local arrivals ledger"
+      sideRail={
+        <aside className="side-rail">
+          <section className="rail-group">
+            <div className="rail-heading">
               <div>
-                <p className="section-label">Watched Folders</p>
-                <h2>Automatic arrivals</h2>
-                <p className="section-note">{watchedFolderSummary}</p>
+                <h2>Watched folders</h2>
+                <p className="rail-note">{watchedFolderSummary}</p>
               </div>
             </div>
 
             {state.watchedFolders.length === 0 ? (
-              <div className="empty-card">
-                <p className="empty-title">No watched folders yet</p>
-                <p className="empty-copy">
+              <div className="blank-slate blank-slate-compact">
+                <p className="blank-title">No watched folders</p>
+                <p className="blank-copy">
                   Add one or more folders and Movie Log will watch for new top-level folders or supported media files.
                 </p>
               </div>
             ) : (
-              <ul className="stack-list">
+              <ul className="watch-list">
                 {state.watchedFolders.map((folder) => (
-                  <li className="list-card" key={folder.id}>
-                    <div>
-                      <strong>{folder.name}</strong>
-                      <p className="history-meta">
+                  <li className="watch-row" key={folder.id}>
+                    <div className="watch-copy">
+                      <strong className="watch-name">{folder.name}</strong>
+                      <p className="rail-meta">
                         {folder.lastScannedAt
                           ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}`
                           : 'Waiting for first catch-up or arrival'}
                       </p>
-                      <p className="meta-path">{folder.path}</p>
+                      <p className="path-line">{folder.path}</p>
                     </div>
                     <button
                       className="ghost-button"
@@ -354,15 +338,12 @@ export default function App() {
             )}
           </section>
 
-          <details className="detail-block">
-            <summary className="detail-summary">
-              <span className="detail-label-group">
-                <span className="section-label section-label-inline">Library</span>
-                <strong>Current top-level contents</strong>
-              </span>
-              <span className="detail-count">{formatCount(state.libraryItems.length, 'item')}</span>
+          <details className="rail-detail">
+            <summary className="rail-detail-summary">
+              <span>Current top-level contents</span>
+              <span>{formatCount(state.libraryItems.length, 'item')}</span>
             </summary>
-            <div className="detail-content">
+            <div className="rail-detail-body">
               <FolderSnapshotPanel
                 compact
                 items={state.libraryItems}
@@ -374,19 +355,16 @@ export default function App() {
             </div>
           </details>
 
-          <details className="detail-block">
-            <summary className="detail-summary">
-              <span className="detail-label-group">
-                <span className="section-label section-label-inline">Local Data</span>
-                <strong>Stored on this Mac</strong>
-              </span>
-              <span className="detail-count">Paths and note</span>
+          <details className="rail-detail">
+            <summary className="rail-detail-summary">
+              <span>Stored on this Mac</span>
+              <span>Paths and note</span>
             </summary>
-            <div className="detail-content">
-              <div className="data-row">
-                <p className="section-label">Readable Note</p>
-                <p className="meta-path">{noteFilePath}</p>
-                <div className="data-actions">
+            <div className="rail-detail-body">
+              <div className="data-block">
+                <p className="data-label">Readable Note</p>
+                <p className="path-line">{noteFilePath}</p>
+                <div className="row-actions">
                   <button
                     className="ghost-button"
                     disabled={!noteFilePath}
@@ -406,14 +384,22 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="data-row">
-                <p className="section-label">App Store</p>
-                <p className="meta-path">{logFilePath}</p>
+              <div className="data-block">
+                <p className="data-label">App Store</p>
+                <p className="path-line">{logFilePath}</p>
               </div>
             </div>
           </details>
         </aside>
-      </section>
-    </main>
+      }
+      statusBanner={
+        errorMessage ? (
+          <section className="status-banner" role="alert">
+            {errorMessage}
+          </section>
+        ) : undefined
+      }
+      title="Movie Log"
+    />
   );
 }
