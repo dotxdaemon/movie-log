@@ -6,22 +6,18 @@ import { describe, expect, it } from 'vitest';
 import { AppShell } from '../src/app-shell.js';
 
 describe('App shell', () => {
-  it('renders a utility rail beside a records workspace', () => {
+  it('renders a status spine beside an archive stage', () => {
     const markup = renderToStaticMarkup(
       createElement(AppShell, {
-        contentHeader: createElement('div', { className: 'records-header' }, 'Records'),
-        intakeBar: createElement('section', { className: 'drop-inline' }, 'Manual Drop'),
-        note: 'local arrivals ledger',
-        recordsPanel: createElement('section', { className: 'records-panel' }, 'History'),
-        title: 'Movie Log'
+        archiveStage: createElement('section', { className: 'archive-sheet' }, 'History'),
+        statusSpine: createElement('aside', { className: 'spine-stack' }, 'Status')
       })
     );
 
     expect(markup).toContain('workspace-frame');
-    expect(markup).toContain('utility-rail');
-    expect(markup).toContain('records-pane');
-    expect(markup).not.toContain('top-bar');
-    expect(markup).not.toContain('side-rail');
-    expect(markup).not.toContain('history-ledger');
+    expect(markup).toContain('status-spine');
+    expect(markup).toContain('archive-stage');
+    expect(markup).not.toContain('utility-rail');
+    expect(markup).not.toContain('records-pane');
   });
 });

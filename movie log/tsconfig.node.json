@@ -4,11 +4,12 @@
     "lib": ["ES2022", "DOM"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "jsx": "react-jsx",
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "strict": true,
     "types": ["node"]
   },
-  "include": ["electron", "scripts", "tests", "shared", "vite.config.ts"]
+  "include": ["electron", "scripts", "tests", "shared", "src/vite-env.d.ts", "vite.config.ts"]
 }

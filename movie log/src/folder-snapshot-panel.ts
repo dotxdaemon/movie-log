@@ -22,56 +22,66 @@ export function FolderSnapshotPanel({
 }: FolderSnapshotPanelProps) {
   const body =
     items.length === 0
-      ? createElement(
-          'div',
-          { className: 'blank-slate blank-slate-compact' },
-          createElement('p', { className: 'blank-title' }, 'No scanned items yet'),
-        )
-      : createElement(
-          'ul',
-          { className: 'snapshot-list' },
-          ...items.map((item) =>
-            createElement(
-              'li',
-              { className: 'snapshot-row', key: item.id },
-              createElement(
-                'div',
-                null,
-                createElement('strong', { className: 'snapshot-title' }, item.title),
-                createElement(
-                  'p',
-                  { className: 'secondary-meta' },
-                  `Seen ${timestampLabel(item.lastSeenAt)} • ${item.sourceKind === 'file' ? 'File' : 'Folder'}`
-                ),
-                createElement('p', { className: 'path-line' }, item.sourcePath)
-              ),
-              createElement(
-                'div',
-                { className: 'inline-actions' },
-                createElement(
-                  'button',
-                  { className: 'text-button', onClick: () => void onCopyPath(item.sourcePath), type: 'button' },
-                  'Copy Path'
-                ),
-                createElement(
-                  'button',
-                  { className: 'text-button', onClick: () => void onOpenInFinder(item.sourcePath), type: 'button' },
-                  'Show in Finder'
-                ),
-                createElement(
-                  'button',
-                  {
-                    className: 'text-button',
-                    disabled: item.sourceKind !== 'file',
-                    onClick: () => void onOpenItem(item.sourcePath),
-                    type: 'button'
-                  },
-                  'Open'
-                )
-              )
-            )
-          )
-        );
+	      ? createElement(
+	          'div',
+	          { className: 'blank-slate blank-slate-compact' },
+	          createElement('p', { className: 'blank-title' }, 'No scanned items yet'),
+	        )
+	      : createElement(
+	          'ul',
+	          { className: 'snapshot-list' },
+	          ...items.map((item) =>
+	            createElement(
+	              'li',
+	              { className: 'snapshot-row', key: item.id },
+	              createElement(
+	                'div',
+	                { className: 'snapshot-copy' },
+	                createElement('strong', { className: 'snapshot-title' }, item.title),
+	                createElement(
+	                  'p',
+	                  { className: 'secondary-meta' },
+	                  `Seen ${timestampLabel(item.lastSeenAt)} • ${item.sourceKind === 'file' ? 'File' : 'Folder'}`
+	                ),
+	                createElement('p', { className: 'path-line' }, item.sourcePath)
+	              ),
+	              createElement(
+	                'div',
+	                { className: 'snapshot-actions' },
+	                createElement(
+	                  'button',
+	                  { className: 'finder-button', onClick: () => void onOpenInFinder(item.sourcePath), type: 'button' },
+	                  'Show in Finder'
+	                ),
+	                createElement(
+	                  'details',
+	                  { className: 'row-more' },
+	                  createElement('summary', null, 'More'),
+	                  createElement(
+	                    'div',
+	                    { className: 'row-more-menu' },
+	                    item.sourceKind === 'file'
+	                      ? createElement(
+	                          'button',
+	                          {
+	                            className: 'text-button',
+	                            onClick: () => void onOpenItem(item.sourcePath),
+	                            type: 'button'
+	                          },
+	                          'Open'
+	                        )
+	                      : null,
+	                    createElement(
+	                      'button',
+	                      { className: 'text-button', onClick: () => void onCopyPath(item.sourcePath), type: 'button' },
+	                      'Copy Path'
+	                    )
+	                  )
+	                )
+	              )
+	            )
+	          )
+	        );
   if (compact) {
     return createElement('div', { className: 'snapshot-body' }, body);
   }
