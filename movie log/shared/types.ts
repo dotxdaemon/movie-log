@@ -40,11 +40,16 @@ export interface MovieLogState {
   watchedFolders: WatchedFolder[];
 }
 
+export interface LogPathsResult {
+  addedCount: number;
+  skippedPaths: string[];
+}
+
 export interface MovieLogApi {
   getState(): Promise<MovieLogState>;
   getDataFilePath(): Promise<string>;
   getNoteFilePath(): Promise<string>;
-  logPaths(paths: string[]): Promise<WatchEntry[]>;
+  logPaths(paths: string[]): Promise<LogPathsResult>;
   addWatchedFolders(): Promise<WatchedFolder[]>;
   removeWatchedFolder(id: string): Promise<void>;
   copyPath(path: string): Promise<void>;

@@ -16,4 +16,16 @@ describe('Movie Log public API', () => {
     expect(preloadSource).not.toContain('movie-log:clear-history');
     expect(sharedTypesSource).not.toContain('clearHistory');
   });
+
+  it('keeps the dropped-path result contract aligned across shared types, preload, and the renderer', async () => {
+    const preloadSource = await readFile(join(rootDirectory, 'electron', 'preload.cjs'), 'utf8');
+    const sharedTypesSource = await readFile(join(rootDirectory, 'shared', 'types.ts'), 'utf8');
+    const appSource = await readFile(join(rootDirectory, 'src', 'App.tsx'), 'utf8');
+
+    expect(sharedTypesSource).toContain('export interface LogPathsResult');
+    expect(sharedTypesSource).toContain('logPaths(paths: string[]): Promise<LogPathsResult>;');
+    expect(preloadSource).toContain("logPaths: (paths) => ipcRenderer.invoke('movie-log:log-paths', paths)");
+    expect(appSource).toContain('loggedPaths.addedCount');
+    expect(appSource).toContain('loggedPaths.skippedPaths');
+  });
 });

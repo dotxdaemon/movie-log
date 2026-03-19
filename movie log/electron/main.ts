@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createFolderMonitor } from './folder-monitor.js';
+import { addWatchedFolderPath, logPathsFromDrop } from './main-actions.js';
 import { prepareAppRuntime } from './runtime.js';
 import { scanFolderContents } from './folder-scan.js';
 import { createStatusItem } from './status-item.js';
@@ -182,8 +183,19 @@ function registerIpcHandlers(): void {
     const folders = [];
 
     for (const selectedPath of result.filePaths) {
-      const folder = await historyStore.addWatchedFolder(selectedPath);
-      await watchedFolderSync.watchAndRefreshFolder(folder.path);
+      const folder = await addWatchedFolderPath(selectedPath, {
+        queueFolderRefresh: async (folderPath) => {
+          await watchedFolderSync.queueRefresh(folderPath);
+        },
+        removeWatchedFolder: async (folderId) => historyStore.removeWatchedFolder(folderId),
+        saveWatchedFolder: async (folderPath) => historyStore.addWatchedFolder(folderPath),
+        unwatchFolder: async (folderPath) => {
+          await folderMonitor.unwatchFolder(folderPath);
+        },
+        watchFolder: async (folderPath) => {
+          await folderMonitor.watchFolder(folderPath);
+        }
+      });
       folders.push(folder);
     }
 
@@ -202,12 +214,11 @@ function registerIpcHandlers(): void {
   ipcMain.handle('movie-log:get-state', async () => readState());
 
   ipcMain.handle('movie-log:log-paths', async (_event, paths: string[]) => {
-    const entries = (await Promise.all(paths.map((itemPath) => createEntryForPath(itemPath, 'drop')))).filter(
-      (entry): entry is WatchEntry => entry !== null
-    );
-    await historyStore.addHistoryEntries(entries);
-    await broadcastState();
-    return entries;
+    return logPathsFromDrop(paths, {
+      addHistoryEntries: async (entries) => historyStore.addHistoryEntries(entries),
+      broadcastState,
+      createEntryForPath: async (itemPath) => createEntryForPath(itemPath, 'drop')
+    });
   });
 
   ipcMain.handle('movie-log:open-in-finder', async (_event, itemPath: string) => {
@@ -226,6 +237,7 @@ function registerIpcHandlers(): void {
     const removedFolder = await historyStore.removeWatchedFolder(folderId);
 
     if (removedFolder) {
+      watchedFolderSync.forgetFolder(removedFolder.path);
       await folderMonitor.unwatchFolder(removedFolder.path);
       await broadcastState();
     }

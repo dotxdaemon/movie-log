@@ -1,6 +1,6 @@
 // ABOUTME: Verifies that watched folders only emit newly added top-level items after startup.
 // ABOUTME: Uses the real filesystem so the monitor logic matches how the desktop app discovers media.
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -33,6 +33,32 @@ async function waitForHistory(store: ReturnType<typeof createHistoryStore>) {
   }
 
   throw new Error('Timed out waiting for watched-folder history to be recorded');
+}
+
+async function waitForLibraryItemCount(store: ReturnType<typeof createHistoryStore>, expectedCount: number) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const state = await store.readState();
+
+    if (state.libraryItems.length === expectedCount) {
+      return;
+    }
+
+    await delay(50);
+  }
+
+  throw new Error(`Timed out waiting for watched-folder library item count ${expectedCount}`);
+}
+
+async function waitForFlag(getValue: () => boolean, label: string) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (getValue()) {
+      return;
+    }
+
+    await delay(50);
+  }
+
+  throw new Error(`Timed out waiting for ${label}`);
 }
 
 describe('createFolderMonitor', () => {
@@ -91,6 +117,32 @@ describe('createFolderMonitor', () => {
 
     await expect(monitor.watchFolder(join(rootDirectory, 'Missing Folder'))).resolves.toBeUndefined();
     await monitor.dispose();
+  });
+
+  it('starts watching a missing folder when the folder appears later', async () => {
+    const missingPath = join(rootDirectory, 'Missing Folder');
+    const changedFolders: string[] = [];
+    const knownByFolder = new Map<string, string[]>();
+    const monitor = createFolderMonitor({
+      loadKnownPaths: async (folderPath) => knownByFolder.get(folderPath) ?? [],
+      saveKnownPaths: async (folderPath, knownPaths) => {
+        knownByFolder.set(folderPath, knownPaths);
+      },
+      onChange: async (folderPath) => {
+        changedFolders.push(folderPath);
+      },
+      settleMs: 25
+    });
+
+    await monitor.watchFolder(missingPath);
+    await delay(50);
+    await mkdir(missingPath);
+    await delay(50);
+    await writeFile(join(missingPath, 'Flow.mkv'), 'movie');
+    await waitForDiscovery(changedFolders);
+    await monitor.dispose();
+
+    expect(changedFolders).toEqual([missingPath]);
   });
 
   it('does not keep rescanning a watched folder while it is idle', async () => {
@@ -192,6 +244,87 @@ describe('createFolderMonitor', () => {
     expect(state.history.map((entry) => entry.sourcePath)).toEqual([join(inboxPath, 'Flow.mkv')]);
   });
 
+  it('refreshes the stored snapshot when a watched-folder item is deleted', async () => {
+    const inboxPath = join(rootDirectory, 'Media Inbox');
+    const dataDirectory = join(rootDirectory, 'Data');
+    const filePath = join(inboxPath, 'Flow.mkv');
+    const store = createHistoryStore(dataDirectory);
+    await mkdir(inboxPath);
+    await writeFile(filePath, 'movie');
+    await store.addWatchedFolder(inboxPath);
+    await store.syncWatchedFolderContents(
+      inboxPath,
+      [{ itemKey: 'dev:1', sourceKind: 'file', sourcePath: filePath, title: 'Flow' }],
+      '2026-03-12T08:00:00.000Z'
+    );
+
+    const monitor = createFolderMonitor({
+      loadKnownPaths: async (folderPath) => store.readKnownPaths(folderPath),
+      saveKnownPaths: async (folderPath, knownPaths) => {
+        await store.writeKnownPaths(folderPath, knownPaths);
+      },
+      onChange: async () => {
+        const items = await scanFolderContents(inboxPath);
+        await store.syncWatchedFolderContents(inboxPath, items, '2026-03-12T09:00:00.000Z');
+      },
+      settleMs: 25
+    });
+
+    await monitor.watchFolder(inboxPath);
+    await unlink(filePath);
+    await waitForLibraryItemCount(store, 0);
+    await monitor.dispose();
+
+    const state = await store.readState();
+
+    expect(state.libraryItems).toEqual([]);
+  });
+
+  it('unwatches one folder without waiting for another folder sync to finish', async () => {
+    const firstFolderPath = join(rootDirectory, 'First Folder');
+    const secondFolderPath = join(rootDirectory, 'Second Folder');
+    await mkdir(firstFolderPath);
+    await mkdir(secondFolderPath);
+
+    let releaseSecondFolderSync = () => {};
+    let secondFolderSyncStarted = false;
+    const secondFolderSync = new Promise<void>((resolve) => {
+      releaseSecondFolderSync = resolve;
+    });
+    const knownByFolder = new Map<string, string[]>();
+    const monitor = createFolderMonitor({
+      loadKnownPaths: async (folderPath) => knownByFolder.get(folderPath) ?? [],
+      saveKnownPaths: async (folderPath, knownPaths) => {
+        knownByFolder.set(folderPath, knownPaths);
+      },
+      onChange: async (folderPath) => {
+        if (folderPath !== secondFolderPath) {
+          return;
+        }
+
+        secondFolderSyncStarted = true;
+        await secondFolderSync;
+      },
+      settleMs: 25
+    });
+
+    await monitor.watchFolder(firstFolderPath);
+    await monitor.watchFolder(secondFolderPath);
+    await writeFile(join(secondFolderPath, 'Flow.mkv'), 'movie');
+    await waitForFlag(() => secondFolderSyncStarted, 'the second folder sync to start');
+    let unwatchResolved = false;
+    const unwatchPromise = monitor.unwatchFolder(firstFolderPath).then(() => {
+      unwatchResolved = true;
+    });
+    await delay(50);
+
+    expect(unwatchResolved).toBe(true);
+
+    releaseSecondFolderSync();
+    await unwatchPromise;
+    await monitor.dispose();
+  });
+
   it('coalesces multiple new top-level media files into one folder update', async () => {
     const inboxPath = join(rootDirectory, 'Media Inbox');
     await mkdir(inboxPath);
@@ -210,6 +343,7 @@ describe('createFolderMonitor', () => {
     });
 
     await monitor.watchFolder(inboxPath);
+    await delay(50);
     await Promise.all([
       writeFile(join(inboxPath, 'One.mkv'), 'one'),
       writeFile(join(inboxPath, 'Two.mkv'), 'two'),

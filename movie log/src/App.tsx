@@ -137,9 +137,16 @@ export default function App() {
     }
 
     try {
-      const loggedEntries = await window.movieLog.logPaths(paths);
+      const loggedPaths = await window.movieLog.logPaths(paths);
 
-      if (loggedEntries.length === 0) {
+      if (loggedPaths.skippedPaths.length > 0) {
+        setErrorMessage(
+          `Logged ${formatCount(loggedPaths.addedCount, 'item')}. Skipped ${formatCount(loggedPaths.skippedPaths.length, 'path')} that could not be read.`
+        );
+        return;
+      }
+
+      if (loggedPaths.addedCount === 0) {
         setErrorMessage('Only folders and likely media files are logged. Hidden files and junk are ignored.');
       }
     } catch (error) {

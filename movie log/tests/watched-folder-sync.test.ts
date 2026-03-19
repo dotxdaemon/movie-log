@@ -102,6 +102,7 @@ describe('createWatchedFolderSync', () => {
 
   it('serializes refreshes for the same watched folder', async () => {
     const order: string[] = [];
+    const trackedFolders = [watchedFolder('/Movies/Queue')];
     let releaseFirstScan = () => {};
     const firstScan = new Promise<void>((resolve) => {
       releaseFirstScan = () => {
@@ -113,7 +114,7 @@ describe('createWatchedFolderSync', () => {
       broadcastState: async () => {
         order.push('broadcast');
       },
-      listWatchedFolders: async () => [],
+      listWatchedFolders: async () => trackedFolders,
       now: () => '2026-03-16T12:00:00.000Z',
       saveFolderContents: async () => {
         order.push('save');
@@ -141,5 +142,45 @@ describe('createWatchedFolderSync', () => {
     await Promise.all([firstRefresh, secondRefresh]);
 
     expect(order).toEqual(['scan:1', 'save', 'broadcast', 'scan:2', 'save', 'broadcast']);
+  });
+
+  it('drops queued refresh results after a watched folder is removed', async () => {
+    const order: string[] = [];
+    let watchedFolders = [watchedFolder('/Movies/Removed')];
+    let releaseScan = () => {};
+    let scanStarted = false;
+    const blockedScan = new Promise<void>((resolve) => {
+      releaseScan = resolve;
+    });
+    const watchedFolderSync = createWatchedFolderSync({
+      broadcastState: async () => {
+        order.push('broadcast');
+      },
+      listWatchedFolders: async () => watchedFolders,
+      now: () => '2026-03-16T12:30:00.000Z',
+      saveFolderContents: async () => {
+        order.push('save');
+      },
+      scanFolder: async () => {
+        scanStarted = true;
+        order.push('scan');
+        await blockedScan;
+        return [scannedItem('/Movies/Removed/Flow.mkv')];
+      },
+      watchFolder: async () => {}
+    });
+
+    const refreshPromise = watchedFolderSync.queueRefresh('/Movies/Removed');
+
+    await vi.waitFor(() => {
+      expect(scanStarted).toBe(true);
+    });
+
+    watchedFolders = [];
+    watchedFolderSync.forgetFolder('/Movies/Removed');
+    releaseScan();
+    await refreshPromise;
+
+    expect(order).toEqual(['scan']);
   });
 });

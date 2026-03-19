@@ -14,17 +14,53 @@ interface WatchedFolderSyncOptions {
 
 export function createWatchedFolderSync(options: WatchedFolderSyncOptions) {
   const refreshesByFolder = new Map<string, Promise<void>>();
+  const refreshVersionsByFolder = new Map<string, number>();
 
-  async function refreshFolder(folderPath: string): Promise<void> {
+  function readRefreshVersion(folderPath: string): number {
+    return refreshVersionsByFolder.get(folderPath) ?? 0;
+  }
+
+  async function refreshFolder(folderPath: string, allowUntrackedFolder: boolean, refreshVersion: number): Promise<void> {
     const scannedAt = options.now();
-    const items = await options.scanFolder(folderPath);
+    let items: ScannedFolderItem[] = [];
+
+    try {
+      items = await options.scanFolder(folderPath);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+
+      if (code !== 'ENOENT') {
+        throw error;
+      }
+    }
+
+    if (readRefreshVersion(folderPath) !== refreshVersion) {
+      return;
+    }
+
+    if (!allowUntrackedFolder) {
+      const watchedFolders = await options.listWatchedFolders();
+
+      if (!watchedFolders.some((folder) => folder.path === folderPath)) {
+        return;
+      }
+    }
+
     await options.saveFolderContents(folderPath, items, scannedAt);
+
+    if (readRefreshVersion(folderPath) !== refreshVersion) {
+      return;
+    }
+
     await options.broadcastState();
   }
 
-  function queueRefresh(folderPath: string): Promise<void> {
+  function queueFolderRefresh(folderPath: string, allowUntrackedFolder: boolean): Promise<void> {
+    const refreshVersion = readRefreshVersion(folderPath);
     const previousRefresh = refreshesByFolder.get(folderPath) ?? Promise.resolve();
-    const nextRefresh = previousRefresh.catch(() => undefined).then(async () => refreshFolder(folderPath));
+    const nextRefresh = previousRefresh
+      .catch(() => undefined)
+      .then(async () => refreshFolder(folderPath, allowUntrackedFolder, refreshVersion));
 
     refreshesByFolder.set(folderPath, nextRefresh);
 
@@ -33,6 +69,10 @@ export function createWatchedFolderSync(options: WatchedFolderSyncOptions) {
         refreshesByFolder.delete(folderPath);
       }
     });
+  }
+
+  function queueRefresh(folderPath: string): Promise<void> {
+    return queueFolderRefresh(folderPath, false);
   }
 
   async function refreshWatchedFolders(): Promise<void> {
@@ -49,11 +89,16 @@ export function createWatchedFolderSync(options: WatchedFolderSyncOptions) {
 
   async function watchAndRefreshFolder(folderPath: string): Promise<void> {
     await options.watchFolder(folderPath);
-    await queueRefresh(folderPath);
+    await queueFolderRefresh(folderPath, true);
+  }
+
+  function forgetFolder(folderPath: string): void {
+    refreshVersionsByFolder.set(folderPath, readRefreshVersion(folderPath) + 1);
   }
 
   return {
     catchUpWatchedFolders,
+    forgetFolder,
     queueRefresh,
     refreshWatchedFolders,
     watchAndRefreshFolder

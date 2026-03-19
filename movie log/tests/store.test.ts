@@ -1,6 +1,6 @@
 // ABOUTME: Verifies that the desktop app persists watch history and watched folders on disk.
 // ABOUTME: Uses real temporary files so the store behavior matches the local desktop runtime.
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -91,7 +91,7 @@ describe('createHistoryStore', () => {
     expect(secondStats.mtimeMs).toBe(firstStats.mtimeMs);
   });
 
-  it('does not add duplicate history entries for the same source path', async () => {
+  it('keeps separate history entries when the same source path is logged twice', async () => {
     const store = createHistoryStore(dataDirectory);
 
     await store.addHistoryEntry(
@@ -103,8 +103,78 @@ describe('createHistoryStore', () => {
 
     const state = await store.readState();
 
-    expect(state.history).toHaveLength(1);
-    expect(state.history[0]?.watchedAt).toBe('2026-03-12T08:00:00.000Z');
+    expect(state.history).toHaveLength(2);
+    expect(state.history.map((entry) => entry.watchedAt)).toEqual([
+      '2026-03-13T08:00:00.000Z',
+      '2026-03-12T08:00:00.000Z'
+    ]);
+  });
+
+  it('preserves overlapping manual and watched-folder writes', async () => {
+    const store = createHistoryStore(dataDirectory);
+
+    await store.readState();
+    await store.addWatchedFolder('/Users/seankim/Movies');
+
+    const manualEntries = Array.from({ length: 20 }, (_, index) =>
+      createEntryFromPath(`/Users/seankim/Manual/Drop ${index + 1}.mkv`, 'drop', `2026-03-12T08:${index.toString().padStart(2, '0')}:00.000Z`, 'file')
+    );
+
+    await Promise.all([
+      ...manualEntries.map((entry) => store.addHistoryEntry(entry)),
+      store.syncWatchedFolderContents(
+        '/Users/seankim/Movies',
+        [scannedItem('/Users/seankim/Movies/Flow.mkv', 'dev:1')],
+        '2026-03-12T09:00:00.000Z'
+      )
+    ]);
+
+    const state = await store.readState();
+
+    expect(state.history).toHaveLength(21);
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual(
+      expect.arrayContaining([
+        '/Users/seankim/Movies/Flow.mkv',
+        ...manualEntries.map((entry) => entry.sourcePath)
+      ])
+    );
+    expect(state.libraryItems.map((item) => item.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
+  });
+
+  it('recovers from an unreadable json file without crashing startup', async () => {
+    const dataFilePath = join(dataDirectory, 'movie-log.json');
+    const unreadableContents = '{"history": [';
+    await writeFile(dataFilePath, unreadableContents, 'utf8');
+
+    const store = createHistoryStore(dataDirectory);
+    const state = await store.readState();
+    const recoveredJson = JSON.parse(await readFile(dataFilePath, 'utf8')) as {
+      history: unknown[];
+      historyPolicy: string;
+      knownPathsByFolder: Record<string, string[]>;
+      libraryItems: unknown[];
+      seenKeysByFolder: Record<string, string[]>;
+      watchedFolders: unknown[];
+    };
+    const preservedFileName = (await readdir(dataDirectory)).find((fileName) => /^movie-log\.invalid\..+\.json$/.test(fileName));
+
+    expect(preservedFileName).toBeDefined();
+    const preservedEntries = await readFile(join(dataDirectory, preservedFileName ?? ''), 'utf8');
+
+    expect(state).toEqual({
+      history: [],
+      libraryItems: [],
+      watchedFolders: []
+    });
+    expect(recoveredJson).toEqual({
+      history: [],
+      historyPolicy: 'append-only',
+      knownPathsByFolder: {},
+      libraryItems: [],
+      seenKeysByFolder: {},
+      watchedFolders: []
+    });
+    expect(preservedEntries).toBe(unreadableContents);
   });
 
   it('persists the current contents of a watched folder after a scan', async () => {
@@ -230,7 +300,7 @@ describe('createHistoryStore', () => {
     ]);
   });
 
-  it('updates the scanned snapshot without adding history when a watched-folder file is renamed', async () => {
+  it('updates history paths when a watched-folder file is renamed in place', async () => {
     const store = createHistoryStore(dataDirectory);
 
     await store.addWatchedFolder('/Users/seankim/Movies');
@@ -248,11 +318,11 @@ describe('createHistoryStore', () => {
     const state = await store.readState();
 
     expect(renamedScan).toEqual([]);
-    expect(state.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow (1).mkv']);
     expect(state.libraryItems.map((item) => item.sourcePath)).toEqual(['/Users/seankim/Movies/Flow (1).mkv']);
   });
 
-  it('updates the scanned snapshot without adding history when a watched-folder folder moves in place', async () => {
+  it('updates history paths when a watched-folder folder moves in place', async () => {
     const store = createHistoryStore(dataDirectory);
 
     await store.addWatchedFolder('/Users/seankim/Movies');
@@ -270,7 +340,7 @@ describe('createHistoryStore', () => {
     const state = await store.readState();
 
     expect(movedScan).toEqual([]);
-    expect(state.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Severance']);
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Severance Archive']);
     expect(state.libraryItems.map((item) => item.sourcePath)).toEqual(['/Users/seankim/Movies/Severance Archive']);
   });
 
