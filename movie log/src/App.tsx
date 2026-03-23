@@ -149,22 +149,24 @@ export function MovieLogWorkspace({
                 <p className="workspace-status">{ledgerSummary}</p>
               </div>
               <div className="band-tools">
-                <p className="band-axis">Watch / Search / Scan</p>
-                <div className="band-tools-stack">
-                  <div className="drop-hint">
-                    <p className="section-label">Manual Drop</p>
-                    <p className="drop-copy">Drop media here</p>
+                <div className="band-tools-frame">
+                  <div className="band-tools-stack">
+                    <div className="drop-hint">
+                      <p className="section-label">Manual Drop</p>
+                      <p className="drop-copy">Drop media here</p>
+                    </div>
+                    <label className="workspace-search">
+                      <span className="visually-hidden">Search history</span>
+                      <input
+                        onChange={(event) => onSearchQueryChange(event.target.value)}
+                        placeholder="Search title or path"
+                        type="search"
+                        value={searchQuery}
+                      />
+                    </label>
                   </div>
-                  <label className="workspace-search">
-                    <span className="visually-hidden">Search history</span>
-                    <input
-                      onChange={(event) => onSearchQueryChange(event.target.value)}
-                      placeholder="Search title or path"
-                      type="search"
-                      value={searchQuery}
-                    />
-                  </label>
                 </div>
+                <p className="band-axis">Watch / Search / Scan</p>
               </div>
             </header>
 
@@ -235,11 +237,13 @@ export function MovieLogWorkspace({
                 <p className="workspace-status">{archiveSummary}</p>
               </div>
               <div className="band-tools band-tools-reference">
-                <p className="band-axis">Note / Store / Contents</p>
-                <div className="band-tools-stack">
-                  <p className="section-label">Storage</p>
-                  <p className="drop-copy">Readable note and JSON store paths.</p>
+                <div className="band-tools-frame">
+                  <div className="band-tools-stack">
+                    <p className="section-label">Storage</p>
+                    <p className="drop-copy">Readable note and JSON store paths.</p>
+                  </div>
                 </div>
+                <p className="band-axis">Note / Store / Contents</p>
               </div>
             </header>
 

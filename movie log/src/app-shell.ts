@@ -12,6 +12,13 @@ export function AppShell({ archiveStage, statusSpine }: AppShellProps) {
     'main',
     { className: 'workspace-frame' },
     createElement('aside', { className: 'control-rail' }, createElement('div', { className: 'control-rail-inner' }, statusSpine)),
-    createElement('section', { className: 'workspace-stage' }, createElement('div', { className: 'workspace-stage-inner' }, archiveStage))
+    createElement(
+      'section',
+      { className: 'workspace-stage' },
+      createElement('div', { 'aria-hidden': 'true', className: 'signal-canopy' }),
+      createElement('div', { 'aria-hidden': 'true', className: 'flare-field' }),
+      createElement('div', { 'aria-hidden': 'true', className: 'stage-spine' }),
+      createElement('div', { className: 'workspace-stage-inner' }, archiveStage)
+    )
   );
 }
