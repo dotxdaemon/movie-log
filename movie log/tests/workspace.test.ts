@@ -43,7 +43,7 @@ const state: MovieLogState = {
 function noop(): void {}
 
 describe('MovieLogWorkspace', () => {
-  it('renders the log view as a poster-led arrival index and keeps reference material out of the main workspace', () => {
+  it('renders the log view as a dense workspace band above the records list', () => {
     const markup = renderToStaticMarkup(
       createElement(MovieLogWorkspace, {
         activeView: 'log',
@@ -68,17 +68,20 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(markup).toContain('Arrival Index');
+    expect(markup).toContain('workspace-band');
+    expect(markup).toContain('Search title or path');
     expect(markup).toContain('Watch Routes');
+    expect(markup).toContain('Watch Ledger');
     expect(markup).toContain('Show in Finder');
     expect(markup).toContain('More');
-    expect(markup).toContain('WATCH / SEARCH / SCAN');
+    expect(markup).not.toContain('Arrival Index');
+    expect(markup).not.toContain('WATCH / SEARCH / SCAN');
     expect(markup).not.toContain('Readable Note');
     expect(markup).not.toContain('App Store');
     expect(markup).not.toContain('Current top-level contents');
   });
 
-  it('renders the details view with archive files and reference paths', () => {
+  it('renders the details view inside the same controlled workspace shell', () => {
     const markup = renderToStaticMarkup(
       createElement(MovieLogWorkspace, {
         activeView: 'details',
@@ -103,11 +106,15 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(markup).toContain('Back to Log');
     expect(markup).toContain('Archive Files');
     expect(markup).toContain('Readable Note');
     expect(markup).toContain('Data Store');
-    expect(markup).toContain('NOTE / STORE / CONTENTS');
+    expect(markup).toContain('Log');
+    expect(markup).toContain('Details');
+    expect(markup).toContain('workspace-band');
+    expect(markup).not.toContain('Local Archive');
+    expect(markup).not.toContain('NOTE / STORE / CONTENTS');
+    expect(markup).not.toContain('Back to Log');
     expect(markup).not.toContain('Nothing logged yet');
   });
 });
