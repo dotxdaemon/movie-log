@@ -145,6 +145,43 @@ describe('createFolderMonitor', () => {
     expect(changedFolders).toEqual([missingPath]);
   });
 
+  it('clears the stored snapshot and reattaches after a watched folder disappears and returns', async () => {
+    const inboxPath = join(rootDirectory, 'Media Inbox');
+    const firstPath = join(inboxPath, 'Before.mkv');
+    const secondPath = join(inboxPath, 'After.mkv');
+    await mkdir(inboxPath);
+    await writeFile(firstPath, 'movie');
+
+    const changedFolders: string[] = [];
+    const knownByFolder = new Map<string, string[]>([[inboxPath, [firstPath]]]);
+    const monitor = createFolderMonitor({
+      loadKnownPaths: async (folderPath) => knownByFolder.get(folderPath) ?? [],
+      saveKnownPaths: async (folderPath, knownPaths) => {
+        knownByFolder.set(folderPath, knownPaths);
+      },
+      onChange: async (folderPath) => {
+        changedFolders.push(folderPath);
+      },
+      settleMs: 25
+    });
+
+    await monitor.watchFolder(inboxPath);
+    await delay(50);
+    await rm(inboxPath, { recursive: true, force: true });
+    await waitForFlag(() => (knownByFolder.get(inboxPath) ?? [firstPath]).length === 0, 'the watched folder to clear after removal');
+
+    await mkdir(inboxPath);
+    await delay(50);
+    await writeFile(secondPath, 'movie');
+    await waitForFlag(
+      () => (knownByFolder.get(inboxPath) ?? []).length === 1 && knownByFolder.get(inboxPath)?.[0] === secondPath,
+      'the watched folder to reattach after it returns'
+    );
+    await monitor.dispose();
+
+    expect(changedFolders).toEqual([inboxPath, inboxPath]);
+  });
+
   it('does not keep rescanning a watched folder while it is idle', async () => {
     const inboxPath = join(rootDirectory, 'Media Inbox');
     await mkdir(inboxPath);
