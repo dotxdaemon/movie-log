@@ -23,9 +23,9 @@
   --color-line-strong: #b59b84;
   --color-danger: #8a312f;
 
-  --radius-panel: 1.5rem;
+  --radius-panel: 1.25rem;
   --radius-soft: 1.125rem;
-  --shadow-panel: 0 18px 36px rgba(40, 27, 20, 0.08);
+  --shadow-panel: 0 14px 30px rgba(40, 27, 20, 0.06);
   --shadow-float: 0 10px 26px rgba(40, 27, 20, 0.12);
 }
 
@@ -45,9 +45,9 @@
     min-height: 100dvh;
     margin: 0;
     background:
-      radial-gradient(circle at 12% 10%, rgba(184, 93, 51, 0.12), transparent 24%),
-      radial-gradient(circle at 88% 0%, rgba(54, 91, 85, 0.08), transparent 22%),
-      linear-gradient(180deg, rgba(255, 250, 243, 0.6), rgba(233, 223, 208, 0.4)),
+      radial-gradient(circle at 14% 0%, rgba(184, 93, 51, 0.1), transparent 28%),
+      radial-gradient(circle at 86% 0%, rgba(54, 91, 85, 0.06), transparent 24%),
+      linear-gradient(180deg, rgba(255, 250, 243, 0.7), rgba(233, 223, 208, 0.45)),
       var(--color-paper);
     color: var(--color-ink);
     font-family: var(--font-sans);
@@ -62,22 +62,14 @@
     position: fixed;
     inset: 0;
     pointer-events: none;
-    opacity: 0.45;
+    opacity: 0.22;
     background:
-      linear-gradient(
-        90deg,
-        transparent 0,
-        transparent calc(100% - 4.75rem),
-        rgba(184, 93, 51, 0.12) calc(100% - 4.75rem),
-        rgba(184, 93, 51, 0.12) calc(100% - 4.62rem),
-        transparent calc(100% - 4.62rem)
-      ),
       repeating-linear-gradient(
         180deg,
         rgba(92, 75, 60, 0.05) 0,
         rgba(92, 75, 60, 0.05) 1px,
         transparent 1px,
-        transparent 42px
+        transparent 46px
       );
   }
 
@@ -127,11 +119,23 @@
 
 @layer utilities {
   .surface-paper {
-    background: linear-gradient(180deg, rgba(255, 250, 243, 0.94), rgba(244, 235, 223, 0.9));
+    background: linear-gradient(180deg, rgba(255, 250, 243, 0.96), rgba(246, 237, 225, 0.92));
   }
 
   .surface-muted {
     background: linear-gradient(180deg, rgba(244, 235, 223, 0.95), rgba(236, 225, 209, 0.9));
+  }
+
+  .surface-sheet {
+    background:
+      linear-gradient(180deg, rgba(255, 250, 243, 0.98), rgba(246, 237, 225, 0.94)),
+      repeating-linear-gradient(
+        180deg,
+        transparent 0,
+        transparent 38px,
+        rgba(92, 75, 60, 0.045) 38px,
+        rgba(92, 75, 60, 0.045) 39px
+      );
   }
 
   .surface-grid {

@@ -63,16 +63,16 @@ const VIEW_ITEMS: ViewItem[] = [
 ]
 
 const FIELD_INPUT_STYLES =
-  'mt-2 w-full rounded-[1rem] border border-line/70 bg-paper-strong px-3.5 py-3 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-accent focus:ring-2 focus:ring-accent/15'
+  'mt-2 w-full rounded-[0.95rem] border border-line/55 bg-paper-strong/92 px-3.5 py-3 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-accent/70 focus:ring-2 focus:ring-accent/10'
 
 const PRIMARY_BUTTON_STYLES =
-  'inline-flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-paper-strong shadow-[0_8px_18px_rgba(151,69,34,0.22)] transition hover:bg-accent-strong'
+  'inline-flex items-center justify-center rounded-[0.95rem] bg-accent px-[1.15rem] py-[0.72rem] text-sm font-semibold text-paper-strong shadow-[0_10px_18px_rgba(151,69,34,0.18)] transition hover:bg-accent-strong'
 
 const SECONDARY_BUTTON_STYLES =
-  'inline-flex items-center justify-center rounded-full border border-line/80 bg-paper-strong px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-line-strong hover:bg-paper-soft'
+  'inline-flex items-center justify-center rounded-[0.95rem] border border-line/65 bg-paper-strong/90 px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-line-strong hover:bg-paper-soft/80'
 
 const INLINE_LINK_STYLES =
-  'inline-flex items-center gap-1 text-[12px] font-medium text-accent underline decoration-line/55 decoration-1 underline-offset-4 transition hover:text-accent-strong hover:decoration-accent-strong'
+  'inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-accent transition hover:text-accent-strong'
 
 function App({ initialView = 'dashboard' }: AppProps) {
   const [initialState] = useState(loadState)
@@ -1182,10 +1182,10 @@ function AppNav({ activeView, ariaLabel, mobile, onSelect }: AppNavProps) {
   return (
     <nav
       className={mobile
-        ? 'fixed left-4 right-4 z-30 flex items-center gap-0.5 rounded-[0.88rem] border border-line/45 bg-paper/88 px-1 py-1 shadow-[0_8px_18px_rgba(40,27,20,0.08)] backdrop-blur-[10px] md:hidden'
-        : 'hidden items-center gap-0.5 rounded-[0.85rem] bg-paper-soft/70 p-0.5 lg:inline-flex'}
+        ? 'fixed left-4 right-4 z-30 flex items-center gap-1 rounded-[1.02rem] border border-line/28 bg-paper-strong/76 px-1.5 py-1.5 shadow-[0_10px_24px_rgba(40,27,20,0.08)] backdrop-blur-[16px] md:hidden'
+        : 'hidden items-center gap-4 lg:inline-flex'}
       aria-label={ariaLabel}
-      data-nav-tone={mobile ? 'integrated' : undefined}
+      data-nav-tone={mobile ? 'quiet' : undefined}
       style={mobile ? { bottom: 'max(env(safe-area-inset-bottom), 0.75rem)' } : undefined}
     >
       {VIEW_ITEMS.map((item) => {
@@ -1198,12 +1198,12 @@ function AppNav({ activeView, ariaLabel, mobile, onSelect }: AppNavProps) {
             className={joinClassNames(
               'group flex min-w-0 items-center justify-center font-medium transition',
               mobile
-                ? 'flex-1 rounded-[0.72rem] px-1 py-2 text-center text-[10.5px] leading-none text-ink-faint'
-                : 'rounded-[0.72rem] px-3 py-1.5 text-[13px] text-ink-soft',
+                ? 'flex-1 rounded-[0.78rem] px-1.5 py-2 text-center text-[10.5px] leading-none text-ink-faint'
+                : 'border-b border-transparent px-0 py-1 text-[13px] text-ink-faint hover:text-ink-soft',
               active &&
                 (mobile
-                  ? 'bg-paper-strong/82 text-accent ring-1 ring-line/35'
-                  : 'bg-paper-strong/85 text-ink ring-1 ring-line/30'),
+                  ? 'bg-paper/65 text-ink'
+                  : 'border-accent/55 text-ink'),
             )}
             aria-current={active ? 'page' : undefined}
             onClick={() => onSelect(item.view)}
@@ -1237,39 +1237,49 @@ function TrainingConsole({
 }: CurrentFocusCardProps) {
   return (
     <section
-      className="mx-auto w-full max-w-4xl rounded-[0.98rem] bg-paper-strong/84 px-5 py-5 shadow-[0_8px_22px_rgba(40,27,20,0.06)] ring-1 ring-line/32 sm:px-7 sm:py-6"
+      className="surface-sheet relative mx-auto w-full max-w-4xl overflow-hidden rounded-[1.08rem] border border-line/38 px-5 py-5 shadow-[0_18px_36px_rgba(40,27,20,0.06)] sm:px-7 sm:py-7"
       data-section="training-console"
+      data-console-tone="sheet"
       data-focus-layout="coaching"
     >
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.28fr)_minmax(220px,0.72fr)] lg:items-start">
-        <div className="space-y-4" data-focus-item="issue">
-          <div className="space-y-2">
-            <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-accent">
+      <div className="pointer-events-none absolute inset-y-0 left-7 hidden w-px bg-line/22 sm:block" />
+
+      <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1.3fr)_minmax(240px,0.7fr)] lg:gap-8">
+        <div className="space-y-5 sm:pl-5" data-focus-item="issue">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.26em] text-accent">
               After the set
             </p>
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">
+            {focusOpponent && (
+              <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-faint">
+                vs {focusOpponent}
+              </p>
+            )}
+          </div>
+          <div className="space-y-3">
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-faint">
               Habit to stop
             </p>
+            <h2 className="max-w-xl text-[2.7rem] leading-[0.92] text-ink sm:text-[3.45rem]">
+              {currentFocusIssue}
+            </h2>
           </div>
-          <h2 className="max-w-xl text-[2.45rem] leading-[0.9] text-ink sm:text-[3.05rem]">
-            {currentFocusIssue}
-          </h2>
         </div>
 
-        <div className="space-y-5 border-t border-line/40 pt-5 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0">
-          <div className="space-y-2" data-focus-item="rule">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">
+        <div className="space-y-5 border-t border-line/28 pt-5 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-1">
+          <div className="space-y-2.5" data-focus-item="rule">
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-faint">
               Rule to follow
             </p>
-            <p className="text-[1.02rem] font-semibold leading-7 text-ink">
+            <p className="text-[1.04rem] font-semibold leading-7 text-ink">
               {currentFocusRule}
             </p>
           </div>
-          <div className="space-y-2" data-focus-item="drill">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">
+          <div className="space-y-2.5 border-t border-line/28 pt-5" data-focus-item="drill">
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-faint">
               Drill to run
             </p>
-            <p className="text-[1.02rem] font-semibold leading-7 text-ink">
+            <p className="text-[1.04rem] font-semibold leading-7 text-ink">
               {currentFocusDrill.title}
             </p>
             <p className="text-sm leading-6 text-ink-soft">
@@ -1290,42 +1300,40 @@ function TrainingConsole({
         </div>
       </div>
 
-      <section className="mt-6 border-t border-line/40 pt-4" data-section="recent-notes">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-ink-faint">
-              Recent notes
-            </p>
-            <button
-              type="button"
-              className={INLINE_LINK_STYLES}
-              data-log-link="inline"
-              onClick={onOpenLog}
-            >
-              Full log
-            </button>
-          </div>
+      <section className="mt-7 border-t border-line/28 pt-4" data-section="recent-notes">
+        <div className="flex items-end justify-between gap-3">
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-ink-faint">
+            Recent notes
+          </p>
+          <button
+            type="button"
+            className={INLINE_LINK_STYLES}
+            data-log-link="inline"
+            onClick={onOpenLog}
+          >
+            Full log
+          </button>
         </div>
 
         <div className="mt-3">
           {recentEntries.length > 0 ? (
-            <ul className="divide-y divide-line/55">
+            <ul className="divide-y divide-line/30">
               {recentEntries.map((entry) => (
                 <li key={entry.id} className="py-3 first:pt-0 last:pb-0">
                   <button
                     type="button"
-                    className="grid w-full gap-1.5 rounded-[0.75rem] px-1 py-2 text-left transition hover:bg-paper-soft/40"
+                    className="grid w-full gap-1.5 py-1 text-left transition hover:text-ink"
                     onClick={() => onOpenMatchup(entry.opponentCharacter)}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <span className="text-sm font-semibold text-ink">{entry.opponentCharacter}</span>
                       <span className="text-[12px] text-ink-faint">{formatDate(entry.date)}</span>
                     </div>
-                    <p className="text-sm leading-6 text-ink-soft">
+                    <p className="text-[13px] leading-6 text-ink-soft">
                       {entry.oneRuleNextTime ?? entry.deathCauseText ?? 'No takeaway logged'}
                     </p>
                     {entry.notes && (
-                      <p className="text-sm leading-6 text-ink-faint">{entry.notes}</p>
+                      <p className="text-[12.5px] leading-6 text-ink-faint">{entry.notes}</p>
                     )}
                   </button>
                 </li>
@@ -1359,25 +1367,28 @@ function DashboardHeader({
   if (activeView === 'dashboard') {
     return (
       <section
-        className="flex items-end justify-between gap-4 pb-3"
+        className="grid gap-4 border-b border-line/35 pb-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"
         data-section="dashboard-topbar"
-        data-topbar-tone="notebook"
+        data-topbar-tone="editorial"
       >
-        <div className="min-w-0">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-accent">
-            Smash Matchup Lab
-          </p>
-          <div className="mt-1.5 space-y-1">
-            <h1 className="font-display text-[1.6rem] leading-[0.92] text-ink sm:text-[1.85rem]">
+        <div className="min-w-0 space-y-2">
+          <div className="flex items-center gap-3">
+            <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-accent">
+              Smash Matchup Lab
+            </p>
+            <span className="hidden h-px w-10 bg-line/55 sm:block" />
+          </div>
+          <div className="space-y-1">
+            <h1 className="font-display text-[1.72rem] leading-[0.9] text-ink sm:text-[1.98rem]">
               Smash Log
             </h1>
-            <p className="text-sm text-ink-soft">
-            Log the set. Get the next step.
+            <p className="max-w-sm text-[0.94rem] leading-6 text-ink-soft">
+              Log the set. Get the next step.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col gap-2.5 lg:items-end">
           <AppNav
             activeView={activeView}
             ariaLabel="Notebook navigation"
@@ -1386,7 +1397,7 @@ function DashboardHeader({
           />
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded-[0.95rem] bg-accent px-5 py-3 text-sm font-semibold text-paper-strong shadow-[0_10px_22px_rgba(151,69,34,0.22)] transition hover:bg-accent-strong"
+            className="inline-flex items-center justify-center rounded-[0.98rem] bg-accent px-5 py-3 text-sm font-semibold text-paper-strong shadow-[0_12px_20px_rgba(151,69,34,0.18)] transition hover:bg-accent-strong"
             onClick={onOpenEntry}
           >
             Log Set
@@ -1398,48 +1409,44 @@ function DashboardHeader({
 
   return (
     <section
-      className="border-b border-line/60 pb-4"
+      className="grid gap-4 border-b border-line/35 pb-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"
       data-section="page-header"
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-[0.8rem] bg-accent-soft/70 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-accent">
-              Smash Log
-            </span>
-            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink-faint">
-              Smash Matchup Lab
-            </p>
-          </div>
-          <div className="space-y-1">
-            <h1 className="max-w-3xl font-display text-[1.85rem] leading-[0.92] text-ink sm:text-[2.2rem] lg:text-[2.6rem]">
-              {VIEW_ITEMS.find((item) => item.view === activeView)?.title}
-            </h1>
-            <p className="max-w-lg text-sm leading-6 text-ink-soft sm:text-[0.95rem]">
-              {shellPurpose}
-            </p>
-          </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-accent">
+            Smash Matchup Lab
+          </p>
+          <span className="hidden h-px w-10 bg-line/55 sm:block" />
         </div>
+        <div className="space-y-1">
+          <h1 className="max-w-3xl font-display text-[1.9rem] leading-[0.9] text-ink sm:text-[2.2rem] lg:text-[2.55rem]">
+            {VIEW_ITEMS.find((item) => item.view === activeView)?.title}
+          </h1>
+          <p className="max-w-lg text-sm leading-6 text-ink-soft sm:text-[0.95rem]">
+            {shellPurpose}
+          </p>
+        </div>
+      </div>
 
-        <div className="flex flex-col gap-3 lg:items-end">
-          <AppNav
-            activeView={activeView}
-            ariaLabel="Notebook navigation"
-            mobile={false}
-            onSelect={onSelectView}
-          />
-          {activeView !== 'entry' && (
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                className="inline-flex items-center justify-center rounded-[0.95rem] bg-accent px-5 py-3 text-sm font-semibold text-paper-strong shadow-[0_10px_22px_rgba(151,69,34,0.22)] transition hover:bg-accent-strong"
-                onClick={onOpenEntry}
-              >
-                Log Set
-              </button>
-            </div>
-          )}
-        </div>
+      <div className="flex flex-col gap-2.5 lg:items-end">
+        <AppNav
+          activeView={activeView}
+          ariaLabel="Notebook navigation"
+          mobile={false}
+          onSelect={onSelectView}
+        />
+        {activeView !== 'entry' && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-[0.98rem] bg-accent px-5 py-3 text-sm font-semibold text-paper-strong shadow-[0_12px_20px_rgba(151,69,34,0.18)] transition hover:bg-accent-strong"
+              onClick={onOpenEntry}
+            >
+              Log Set
+            </button>
+          </div>
+        )}
       </div>
     </section>
   )
@@ -1561,10 +1568,10 @@ function FormBlock({
   title: string
 }) {
   return (
-    <section className="space-y-3 border-t border-line/55 pt-4 first:border-t-0 first:pt-0">
+    <section className="space-y-3 border-t border-line/35 pt-4 first:border-t-0 first:pt-0">
       <div className="space-y-1">
-        <h3 className="text-[1.2rem] leading-tight text-ink">{title}</h3>
-        <p className="text-[13px] leading-6 text-ink-soft">{description}</p>
+        <h3 className="text-[1.15rem] leading-tight text-ink">{title}</h3>
+        <p className="text-[12.5px] leading-6 text-ink-soft">{description}</p>
       </div>
       <div className="space-y-4">{children}</div>
     </section>
@@ -1582,13 +1589,13 @@ function FieldShell({
 }) {
   return (
     <label className="block text-sm font-medium text-ink-soft">
-      <span className="flex items-center gap-2">
+      <span className="flex items-center justify-between gap-3">
+        <span>{label}</span>
         {shortcut && (
-          <span className="rounded-full bg-paper-muted px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-faint">
             {shortcut}
           </span>
         )}
-        <span>{label}</span>
       </span>
       {children}
     </label>
@@ -1606,7 +1613,7 @@ function FilterField({ children, label }: { children: ReactNode; label: string }
 
 function FocusLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="space-y-1 rounded-[1rem] border border-line/70 bg-paper-soft px-4 py-3">
+    <div className="space-y-1 border-l-2 border-line/55 pl-4">
       <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">{label}</p>
       <p className="text-sm font-semibold leading-6 text-ink">{value}</p>
     </div>
@@ -1621,7 +1628,7 @@ function SectionCard({ children, className, ...props }: SectionCardProps) {
   return (
     <section
       className={joinClassNames(
-        'rounded-panel border border-line/75 surface-paper shadow-panel',
+        'rounded-panel border border-line/55 surface-paper shadow-[0_12px_26px_rgba(40,27,20,0.05)]',
         className,
       )}
       {...props}
