@@ -80,6 +80,60 @@ describe('App notebook shell', () => {
     expect(entryMarkup).toContain('>Log Set</h2>')
     expect(entryMarkup).not.toContain('data-section="dashboard-topbar"')
   })
+
+  it('renders a recovery state instead of an empty notebook when saved data is invalid', () => {
+    globalThis.localStorage.setItem(
+      'smash-matchup-lab.v1',
+      JSON.stringify({
+        version: 1,
+        entries: [{ id: 'broken', situationTags: null }],
+        pinnedDrills: [],
+      }),
+    )
+
+    const markup = renderToStaticMarkup(<App />)
+
+    expect(markup).toContain('data-section="storage-recovery"')
+    expect(markup).toContain('Saved notebook could not be loaded')
+    expect(markup).not.toContain('No notes yet')
+  })
+
+  it('renders saved note text in the dashboard loop and the notes view', () => {
+    globalThis.localStorage.setItem(
+      'smash-matchup-lab.v1',
+      JSON.stringify({
+        version: 1,
+        entries: [
+          {
+            id: 'entry-1',
+            date: '2026-03-23T12:00:00.000Z',
+            opponentCharacter: 'Mario',
+            situationTags: ['corner'],
+            deathCauseText: 'jumped from corner',
+            oneRuleNextTime: 'Hold shield first',
+            notes: 'Watch for panic jump from corner.',
+          },
+        ],
+        pinnedDrills: [],
+      }),
+    )
+
+    const dashboardMarkup = renderToStaticMarkup(<App />)
+    const logMarkup = renderToStaticMarkup(<App initialView="log" />)
+
+    expect(dashboardMarkup).toContain('Watch for panic jump from corner.')
+    expect(logMarkup).toContain('Watch for panic jump from corner.')
+    expect(logMarkup).toContain(
+      'Filter by opponent, tag, stage, date, habit, rule, or note text without leaving the notebook.',
+    )
+  })
+
+  it('keeps the entry screen focused on the log form instead of extra utility chrome', () => {
+    const markup = renderToStaticMarkup(<App initialView="entry" />)
+
+    expect(markup).not.toContain('View Full Log')
+    expect(markup).not.toContain('Keyboard flow')
+  })
 })
 
 function createStorageMock(): Storage {

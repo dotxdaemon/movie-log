@@ -157,3 +157,13 @@
   - Keep recording what Sean asked for, what failed, and what actually fixed it.
   - When the same issue is reported more than once, search the journal first before touching code.
   - For visual bug reports, capture before/after screenshots at the same viewport every time.
+
+## 2026-03-23
+
+- Request: Implement the full fix plan for storage safety, truthful persistence, notes visibility/search, local-date consistency, base-aware PWA paths, and the last notebook UI cleanup without changing the simplified product structure.
+- Previous attempt: The last shipped notebook UI looked cleaner, but storage hydration still trusted malformed records, saves still relied on a follow-up effect, freeform notes still disappeared from the product, date filters and weekly trends still used UTC semantics, and the PWA still assumed a root deployment path.
+- Attempt: Added failing tests for storage hydration and recovery rendering, note visibility and search, local-day filtering, weekly trend grouping, coherent current-focus summaries, base-aware service-worker registration, and the entry-screen chrome regression.
+- Error: The first storage validator pass compiled in tests but failed `tsc -b` because the enum checks were still feeding generic strings into literal-tuple `includes()` calls.
+- Error: The first base-path HTML change broke Vite build resolution because `%BASE_URL%src/main.tsx` is not treated as a source entry the way `/src/main.tsx` is.
+- Result: Storage now returns explicit hydration states, malformed or future payloads render a recovery state without being overwritten, notebook writes happen through one immediate commit path, notes render in recent/history views and search correctly, local date filters and weekly trends align with displayed local dates, dashboard focus uses one recent summary, PWA runtime paths work under a subpath build, and the entry screen no longer carries the extra `View Full Log` utility action or the standalone keyboard-help panel.
+- Verification: `npm test`, `npm run lint`, `npm run typecheck`, `npm run build`, and a subpath build check with `npm run build -- --base=/smash/` all passed; local screenshots were captured for the normal notebook state and the storage recovery state.

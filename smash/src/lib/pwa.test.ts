@@ -21,6 +21,24 @@ describe('registerAppServiceWorker', () => {
     expect(calls).toEqual(['/sw.js'])
   })
 
+  it('registers a base-aware service worker path in production', async () => {
+    const calls: string[] = []
+
+    await registerAppServiceWorker({
+      baseUrl: '/smash/',
+      isProduction: true,
+      navigatorLike: {
+        serviceWorker: {
+          register: async (scriptUrl: string) => {
+            calls.push(scriptUrl)
+          },
+        },
+      },
+    })
+
+    expect(calls).toEqual(['/smash/sw.js'])
+  })
+
   it('does not register when not in production', async () => {
     const calls: string[] = []
 

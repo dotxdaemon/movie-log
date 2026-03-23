@@ -18,6 +18,7 @@ interface WorstMatchupsOptions {
 interface TodayFocus {
   opponentCharacter: string
   rule: string
+  summary: MatchupSummary
 }
 
 const TAG_ORDER = new Map(SITUATION_TAGS.map((tag, index) => [tag, index]))
@@ -141,6 +142,7 @@ export function getTodayFocus(entries: MatchEntry[]): TodayFocus | undefined {
   return {
     opponentCharacter: worst.opponentCharacter,
     rule: summary.focusRule,
+    summary,
   }
 }
 

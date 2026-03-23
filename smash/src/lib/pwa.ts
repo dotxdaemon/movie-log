@@ -9,6 +9,7 @@ interface NavigatorLike {
 }
 
 interface RegisterOptions {
+  baseUrl?: string
   isProduction?: boolean
   navigatorLike?: NavigatorLike
 }
@@ -16,6 +17,7 @@ interface RegisterOptions {
 export async function registerAppServiceWorker(
   options: RegisterOptions = {},
 ): Promise<void> {
+  const baseUrl = normalizeBaseUrl(options.baseUrl ?? import.meta.env.BASE_URL)
   const isProduction = options.isProduction ?? import.meta.env.PROD
   if (!isProduction) {
     return
@@ -26,7 +28,7 @@ export async function registerAppServiceWorker(
     return
   }
 
-  await navigatorLike.serviceWorker.register('/sw.js')
+  await navigatorLike.serviceWorker.register(`${baseUrl}sw.js`)
 }
 
 function getNavigatorLike(): NavigatorLike {
@@ -35,4 +37,12 @@ function getNavigatorLike(): NavigatorLike {
   }
 
   return navigator as unknown as NavigatorLike
+}
+
+function normalizeBaseUrl(value: string): string {
+  if (!value) {
+    return '/'
+  }
+
+  return value.endsWith('/') ? value : `${value}/`
 }

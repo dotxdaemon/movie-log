@@ -102,4 +102,37 @@ describe('getTodayFocus', () => {
     expect(todayFocus?.opponentCharacter).toBe('ZSS')
     expect(todayFocus?.rule).toBe('No jump from ledge unless you saw them commit')
   })
+
+  it('keeps the issue, rule, and drill on the same recent matchup summary', () => {
+    const todayFocus = getTodayFocus([
+      {
+        id: 'old-1',
+        date: '2026-01-02T10:00:00.000Z',
+        opponentCharacter: 'ZSS',
+        situationTags: ['ledge'],
+        deathCauseText: 'jumped from ledge',
+        deathCauseCategory: 'ledge option',
+      },
+      {
+        id: 'recent-1',
+        date: '2026-02-19T10:00:00.000Z',
+        opponentCharacter: 'ZSS',
+        situationTags: ['platform'],
+        deathCauseText: 'airdodged into platform trap',
+        deathCauseCategory: 'landing habit',
+      },
+      {
+        id: 'recent-2',
+        date: '2026-02-20T09:00:00.000Z',
+        opponentCharacter: 'ZSS',
+        situationTags: ['landing'],
+        deathCauseText: 'same landing timing',
+        deathCauseCategory: 'landing habit',
+      },
+    ])
+
+    expect(todayFocus?.summary.topDeathCauseCategory).toBe('landing habit')
+    expect(todayFocus?.summary.focusRule).toBe(todayFocus?.rule)
+    expect(todayFocus?.summary.nextDrill.categories).toContain('landing habit')
+  })
 })

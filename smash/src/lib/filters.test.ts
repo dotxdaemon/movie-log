@@ -13,6 +13,7 @@ const entries: MatchEntry[] = [
     situationTags: ['ledge', 'disadvantage'],
     deathCauseText: 'jumped from ledge into fair',
     deathCauseCategory: 'ledge option',
+    oneRuleNextTime: 'No jump from ledge until they commit',
   },
   {
     id: '2',
@@ -22,6 +23,7 @@ const entries: MatchEntry[] = [
     situationTags: ['neutral'],
     deathCauseText: 'unsafe nair on shield',
     deathCauseCategory: 'unsafe aerial on shield',
+    notes: 'Panic jump after corner shield was the real issue.',
   },
   {
     id: '3',
@@ -31,6 +33,7 @@ const entries: MatchEntry[] = [
     situationTags: ['platform'],
     deathCauseText: 'got hit trying to land',
     deathCauseCategory: 'landing habit',
+    whatWorked: 'Held center and reset before landing.',
   },
 ]
 
@@ -40,8 +43,8 @@ describe('filterEntries', () => {
       opponentCharacter: 'ZSS',
       tag: 'ledge',
       stage: 'PS2',
-      startDate: '2026-02-01T00:00:00.000Z',
-      endDate: '2026-02-01T23:59:59.000Z',
+      startDate: '2026-02-01',
+      endDate: '2026-02-01',
       deathCauseSearch: 'fair',
     })
 
@@ -52,5 +55,41 @@ describe('filterEntries', () => {
     const filtered = filterEntries(entries, {})
 
     expect(filtered).toHaveLength(3)
+  })
+
+  it('searches note text, what worked, and next-set rules in addition to death cause', () => {
+    const noteMatch = filterEntries(entries, {
+      deathCauseSearch: 'panic jump',
+    })
+    const whatWorkedMatch = filterEntries(entries, {
+      deathCauseSearch: 'held center',
+    })
+    const ruleMatch = filterEntries(entries, {
+      deathCauseSearch: 'no jump from ledge',
+    })
+
+    expect(noteMatch.map((entry) => entry.id)).toEqual(['2'])
+    expect(whatWorkedMatch.map((entry) => entry.id)).toEqual(['3'])
+    expect(ruleMatch.map((entry) => entry.id)).toEqual(['1'])
+  })
+
+  it('matches the displayed local calendar day around UTC midnight', () => {
+    const filtered = filterEntries(
+      [
+        {
+          id: 'late-night',
+          date: '2026-03-23T01:30:00.000Z',
+          opponentCharacter: 'Mario',
+          situationTags: ['corner'],
+        },
+      ],
+      {
+        startDate: '2026-03-22',
+        endDate: '2026-03-22',
+      },
+      'America/Denver',
+    )
+
+    expect(filtered.map((entry) => entry.id)).toEqual(['late-night'])
   })
 })

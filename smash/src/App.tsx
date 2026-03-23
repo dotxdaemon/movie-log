@@ -19,7 +19,13 @@ import {
 import { ALL_DRILLS } from './lib/drills'
 import { createEntry, type EntryInput } from './lib/entries'
 import { filterEntries, type EntryFilters } from './lib/filters'
-import { loadState, saveState } from './lib/storage'
+import { formatDateKey, toLocalDateKey } from './lib/local-date'
+import {
+  commitState,
+  loadState,
+  type LoadStateStatus,
+  type SavedState,
+} from './lib/storage'
 import { buildWeeklyTrend } from './lib/trends'
 import {
   DEATH_CAUSE_CATEGORIES,
@@ -65,17 +71,14 @@ const PRIMARY_BUTTON_STYLES =
 const SECONDARY_BUTTON_STYLES =
   'inline-flex items-center justify-center rounded-full border border-line/80 bg-paper-strong px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-line-strong hover:bg-paper-soft'
 
-const QUIET_BUTTON_STYLES =
-  'inline-flex items-center justify-center rounded-[0.9rem] border border-line/60 bg-paper-soft/70 px-3.5 py-2 text-sm font-medium text-ink-soft transition hover:border-line-strong hover:bg-paper-strong hover:text-ink'
-
 const INLINE_LINK_STYLES =
   'inline-flex items-center gap-1 text-[12px] font-medium text-accent underline decoration-line/55 decoration-1 underline-offset-4 transition hover:text-accent-strong hover:decoration-accent-strong'
 
 function App({ initialView = 'dashboard' }: AppProps) {
   const [initialState] = useState(loadState)
-  const [entries, setEntries] = useState<MatchEntry[]>(initialState.entries)
+  const [entries, setEntries] = useState<MatchEntry[]>(initialState.state.entries)
   const [pinnedDrills, setPinnedDrills] = useState<string[]>(
-    initialState.pinnedDrills,
+    initialState.state.pinnedDrills,
   )
   const [activeView, setActiveView] = useState<View>(initialView)
   const [selectedOpponent, setSelectedOpponent] = useState<string>('')
@@ -87,15 +90,13 @@ function App({ initialView = 'dashboard' }: AppProps) {
   const [formError, setFormError] = useState<string>('')
   const [saveStatus, setSaveStatus] = useState<string>('')
   const [tagCursor, setTagCursor] = useState(0)
+  const notebookRef = useRef<SavedState>(initialState.state)
   const opponentInputRef = useRef<HTMLInputElement>(null)
   const tagPickerRef = useRef<HTMLDivElement>(null)
   const deathCauseRef = useRef<HTMLInputElement>(null)
   const whatWorkedRef = useRef<HTMLInputElement>(null)
   const ruleRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    saveState({ entries, pinnedDrills })
-  }, [entries, pinnedDrills])
+  const storageRecoveryStatus = getStorageRecoveryStatus(initialState.status)
 
   const sortedEntries = useMemo(
     () => [...entries].sort((a, b) => b.date.localeCompare(a.date)),
@@ -134,14 +135,6 @@ function App({ initialView = 'dashboard' }: AppProps) {
   }, [entries])
 
   const todayFocus = useMemo(() => getTodayFocus(entries), [entries])
-
-  const todayFocusSummary = useMemo(() => {
-    if (!todayFocus) {
-      return undefined
-    }
-
-    return summarizeMatchup(entries, todayFocus.opponentCharacter)
-  }, [entries, todayFocus])
 
   const matchupEntries = useMemo(() => {
     if (!selectedOpponent) {
@@ -208,8 +201,8 @@ function App({ initialView = 'dashboard' }: AppProps) {
   )
 
   const currentFocusIssue =
-    (todayFocusSummary?.topDeathCauseCategory && todayFocus
-      ? `${todayFocusSummary.topDeathCauseCategory} vs ${todayFocus.opponentCharacter}`
+    (todayFocus?.summary.topDeathCauseCategory && todayFocus
+      ? `${todayFocus.summary.topDeathCauseCategory} vs ${todayFocus.opponentCharacter}`
       : undefined) ??
     (latestInsight?.topDeathCauseCategory
       ? `${latestInsight.topDeathCauseCategory} vs ${latestInsight.opponentCharacter}`
@@ -223,7 +216,7 @@ function App({ initialView = 'dashboard' }: AppProps) {
     'Log your first set to turn a vague problem into one clear next rule.'
 
   const currentFocusDrill =
-    todayFocusSummary?.nextDrill ??
+    todayFocus?.summary.nextDrill ??
     latestInsight?.nextDrill ?? {
       title: 'No drill yet',
       description: 'Your notes will turn into a drill suggestion after the first set log.',
@@ -240,7 +233,7 @@ function App({ initialView = 'dashboard' }: AppProps) {
       case 'matchup':
         return 'Review one opponent page for recurring deaths, tags, rules, clips, and drills.'
       case 'log':
-        return 'Search every note by opponent, tag, stage, date, or death-cause text.'
+        return 'Search notes by opponent, tag, stage, date, habit, rule, or note text.'
       case 'drills':
         return 'Keep the practice reps you want visible before the next session starts.'
     }
@@ -361,10 +354,19 @@ function App({ initialView = 'dashboard' }: AppProps) {
 
     try {
       const entry = createEntry(draft)
-      const nextEntries = [entry, ...entries]
-      setEntries(nextEntries)
+      const nextState = commitNotebook(
+        (current) => ({
+          ...current,
+          entries: [entry, ...current.entries],
+        }),
+        (message) => setFormError(message),
+      )
 
-      const summary = summarizeMatchup(nextEntries, entry.opponentCharacter)
+      if (!nextState) {
+        return
+      }
+
+      const summary = summarizeMatchup(nextState.entries, entry.opponentCharacter)
       setLatestInsight(summary)
       setSelectedOpponent(entry.opponentCharacter)
 
@@ -373,7 +375,7 @@ function App({ initialView = 'dashboard' }: AppProps) {
         yourCharacter: draft.yourCharacter,
       })
       setActiveView('entry')
-      setSaveStatus(`Saved entry for ${entry.opponentCharacter}.`)
+      setSaveStatus(`Saved note for ${entry.opponentCharacter}.`)
 
       focusSoon(opponentInputRef)
     } catch (error) {
@@ -389,13 +391,37 @@ function App({ initialView = 'dashboard' }: AppProps) {
   }
 
   function onToggleDrillPin(title: string) {
-    setPinnedDrills((current) => {
-      if (current.includes(title)) {
-        return current.filter((item) => item !== title)
-      }
+    setSaveStatus('')
+    commitNotebook(
+      (current) => ({
+        ...current,
+        pinnedDrills: current.pinnedDrills.includes(title)
+          ? current.pinnedDrills.filter((item) => item !== title)
+          : [...current.pinnedDrills, title],
+      }),
+      () => setSaveStatus('Unable to save drill changes right now.'),
+    )
+  }
 
-      return [...current, title]
-    })
+  function commitNotebook(
+    update: (current: SavedState) => SavedState,
+    onError: (message: string) => void,
+  ): SavedState | undefined {
+    if (storageRecoveryStatus) {
+      onError(getStorageRecoveryMessage(storageRecoveryStatus))
+      return undefined
+    }
+
+    const result = commitState(notebookRef.current, update)
+    if (!result.ok) {
+      onError('Unable to save this notebook right now.')
+      return undefined
+    }
+
+    notebookRef.current = result.state
+    setEntries(result.state.entries)
+    setPinnedDrills(result.state.pinnedDrills)
+    return result.state
   }
 
   return (
@@ -419,13 +445,29 @@ function App({ initialView = 'dashboard' }: AppProps) {
           setActiveView('entry')
           focusSoon(opponentInputRef)
         }}
-        onOpenLog={() => setActiveView('log')}
         onSelectView={setActiveView}
         shellPurpose={shellPurpose}
       />
 
       <main id="main-content" className="flex flex-col gap-5" tabIndex={-1}>
-        {activeView === 'dashboard' && (
+        {storageRecoveryStatus ? (
+          <SectionCard
+            className="mx-auto w-full max-w-3xl px-5 py-6 sm:px-6 sm:py-7"
+            data-section="storage-recovery"
+          >
+            <SectionHeading
+              eyebrow="Storage"
+              title={<h2 className="text-[1.9rem] leading-tight text-ink">Saved notebook could not be loaded</h2>}
+              description={getStorageRecoveryMessage(storageRecoveryStatus)}
+            />
+            <div className="mt-5 border-l-2 border-danger/50 pl-4">
+              <p className="text-sm leading-6 text-ink-soft">
+                The existing local notebook was preserved and was not overwritten.
+                Clear site data for this app when you are ready to start fresh.
+              </p>
+            </div>
+          </SectionCard>
+        ) : activeView === 'dashboard' && (
           <DashboardPage
             currentFocusDrill={currentFocusDrill}
             currentFocusIssue={currentFocusIssue}
@@ -706,20 +748,6 @@ function App({ initialView = 'dashboard' }: AppProps) {
                   )}
                 </div>
               </SectionCard>
-
-              <SectionCard className="px-4 py-5 sm:px-5 sm:py-6">
-                <SectionHeading
-                  eyebrow="Keyboard flow"
-                  title={<h3 className="text-[1.45rem] leading-tight text-ink">Shortcuts</h3>}
-                  description="Use the logging flow like a terminal command instead of a long form."
-                />
-                <ul className="mt-4 space-y-3 text-sm text-ink-soft">
-                  <li><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">C</span> Choose opponent</li>
-                  <li><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">T</span> Tag the situation</li>
-                  <li><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">D</span> Capture what killed you</li>
-                  <li><span className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">R</span> Write the next-set rule</li>
-                </ul>
-              </SectionCard>
             </div>
           </section>
         )}
@@ -915,7 +943,7 @@ function App({ initialView = 'dashboard' }: AppProps) {
               <SectionHeading
                 eyebrow="Notes"
                 title={<h2 id="log-title" className="text-[1.9rem] leading-tight text-ink">Search notes</h2>}
-                description="Filter by opponent, tag, stage, date, or death-cause text without leaving the notebook."
+                description="Filter by opponent, tag, stage, date, habit, rule, or note text without leaving the notebook."
               />
 
               <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -980,7 +1008,7 @@ function App({ initialView = 'dashboard' }: AppProps) {
                       setFilters((current) => ({
                         ...current,
                         startDate: event.target.value
-                          ? `${event.target.value}T00:00:00.000Z`
+                          ? event.target.value
                           : undefined,
                       }))
                     }
@@ -996,7 +1024,7 @@ function App({ initialView = 'dashboard' }: AppProps) {
                       setFilters((current) => ({
                         ...current,
                         endDate: event.target.value
-                          ? `${event.target.value}T23:59:59.999Z`
+                          ? event.target.value
                           : undefined,
                       }))
                     }
@@ -1043,6 +1071,9 @@ function App({ initialView = 'dashboard' }: AppProps) {
                             {entry.opponentCharacter}
                           </button>
                           <p className="text-sm leading-6 text-ink-soft">{entry.deathCauseText ?? 'No death cause logged'}</p>
+                          {entry.notes && (
+                            <p className="text-sm leading-6 text-ink-faint">{entry.notes}</p>
+                          )}
                           <div className="flex flex-wrap gap-2 text-[12px] text-ink-faint">
                             {entry.deathCauseCategory && <span>{entry.deathCauseCategory}</span>}
                             {entry.situationTags.length > 0 && <span>{entry.situationTags.join(', ')}</span>}
@@ -1293,6 +1324,9 @@ function TrainingConsole({
                     <p className="text-sm leading-6 text-ink-soft">
                       {entry.oneRuleNextTime ?? entry.deathCauseText ?? 'No takeaway logged'}
                     </p>
+                    {entry.notes && (
+                      <p className="text-sm leading-6 text-ink-faint">{entry.notes}</p>
+                    )}
                   </button>
                 </li>
               ))}
@@ -1312,7 +1346,6 @@ function TrainingConsole({
 interface DashboardHeaderProps {
   activeView: View
   onOpenEntry: () => void
-  onOpenLog: () => void
   onSelectView: (view: View) => void
   shellPurpose: string
 }
@@ -1320,7 +1353,6 @@ interface DashboardHeaderProps {
 function DashboardHeader({
   activeView,
   onOpenEntry,
-  onOpenLog,
   onSelectView,
   shellPurpose,
 }: DashboardHeaderProps) {
@@ -1396,18 +1428,17 @@ function DashboardHeader({
             mobile={false}
             onSelect={onSelectView}
           />
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-[0.95rem] bg-accent px-5 py-3 text-sm font-semibold text-paper-strong shadow-[0_10px_22px_rgba(151,69,34,0.22)] transition hover:bg-accent-strong"
-              onClick={onOpenEntry}
-            >
-              Log Set
-            </button>
-            <button type="button" className={QUIET_BUTTON_STYLES} onClick={onOpenLog}>
-              View Full Log
-            </button>
-          </div>
+          {activeView !== 'entry' && (
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                className="inline-flex items-center justify-center rounded-[0.95rem] bg-accent px-5 py-3 text-sm font-semibold text-paper-strong shadow-[0_10px_22px_rgba(151,69,34,0.22)] transition hover:bg-accent-strong"
+                onClick={onOpenEntry}
+              >
+                Log Set
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </section>
@@ -1530,10 +1561,10 @@ function FormBlock({
   title: string
 }) {
   return (
-    <section className="space-y-4 border-t border-line/70 pt-5 first:border-t-0 first:pt-0">
-      <div className="space-y-1.5">
+    <section className="space-y-3 border-t border-line/55 pt-4 first:border-t-0 first:pt-0">
+      <div className="space-y-1">
         <h3 className="text-[1.2rem] leading-tight text-ink">{title}</h3>
-        <p className="text-sm leading-6 text-ink-soft">{description}</p>
+        <p className="text-[13px] leading-6 text-ink-soft">{description}</p>
       </div>
       <div className="space-y-4">{children}</div>
     </section>
@@ -1655,10 +1686,7 @@ function formatDate(value: string): string {
 }
 
 function formatWeek(value: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(value))
+  return formatDateKey(value)
 }
 
 function toDateInput(value?: string): string {
@@ -1666,7 +1694,34 @@ function toDateInput(value?: string): string {
     return ''
   }
 
-  return value.slice(0, 10)
+  if (value.length === 10) {
+    return value
+  }
+
+  return toLocalDateKey(value)
+}
+
+function getStorageRecoveryStatus(
+  status: LoadStateStatus,
+): Exclude<LoadStateStatus, 'empty' | 'ready'> | undefined {
+  if (status === 'empty' || status === 'ready') {
+    return undefined
+  }
+
+  return status
+}
+
+function getStorageRecoveryMessage(
+  status: Exclude<LoadStateStatus, 'empty' | 'ready'>,
+): string {
+  switch (status) {
+    case 'future-version':
+      return 'This browser has notebook data from a newer app version, so Smash Log is keeping it untouched.'
+    case 'parse-error':
+      return 'The saved notebook could not be parsed, so Smash Log is leaving the stored data untouched.'
+    case 'invalid':
+      return 'The saved notebook shape is incomplete or malformed, so Smash Log is leaving the stored data untouched.'
+  }
 }
 
 export default App

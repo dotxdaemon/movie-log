@@ -1,12 +1,13 @@
 // ABOUTME: Caches core app shell assets and serves offline fallback responses.
 // ABOUTME: Keeps PWA behavior lightweight with navigation-safe cache handling.
 const CACHE_NAME = 'smash-matchup-lab-v1'
+const BASE_URL = getBaseUrl(self.location.pathname)
 const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/icons/pwa-icon.svg',
-  '/icons/pwa-maskable.svg',
+  BASE_URL,
+  `${BASE_URL}index.html`,
+  `${BASE_URL}manifest.webmanifest`,
+  `${BASE_URL}icons/pwa-icon.svg`,
+  `${BASE_URL}icons/pwa-maskable.svg`,
 ]
 
 self.addEventListener('install', (event) => {
@@ -47,7 +48,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request).catch(async () => {
         const cache = await caches.open(CACHE_NAME)
-        return cache.match('/index.html')
+        return cache.match(`${BASE_URL}index.html`)
       }),
     )
     return
@@ -69,3 +70,12 @@ self.addEventListener('fetch', (event) => {
     }),
   )
 })
+
+function getBaseUrl(pathname) {
+  const lastSlash = pathname.lastIndexOf('/')
+  if (lastSlash === -1) {
+    return '/'
+  }
+
+  return pathname.slice(0, lastSlash + 1)
+}

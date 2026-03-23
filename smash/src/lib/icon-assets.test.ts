@@ -81,9 +81,10 @@ describe('icon assets', () => {
     const icon = readProjectFile('../../public/icons/pwa-icon.svg')
     const maskableIcon = readProjectFile('../../public/icons/pwa-maskable.svg')
 
-    expect(html).toContain('href="/icons/pwa-icon.svg"')
-    expect(manifest).toContain('"src": "/icons/pwa-icon.svg"')
-    expect(manifest).toContain('"src": "/icons/pwa-maskable.svg"')
+    expect(html).toContain('href="%BASE_URL%icons/pwa-icon.svg"')
+    expect(html).toContain('href="%BASE_URL%manifest.webmanifest"')
+    expect(manifest).toContain('"src": "./icons/pwa-icon.svg"')
+    expect(manifest).toContain('"src": "./icons/pwa-maskable.svg"')
     expect(icon).toContain('aria-label="Palutena stock logo icon"')
     expect(maskableIcon).toContain('aria-label="Palutena stock logo maskable icon"')
     expect(icon).not.toContain('<rect width="512" height="512" fill=')
