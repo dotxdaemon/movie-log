@@ -43,7 +43,7 @@ const state: MovieLogState = {
 function noop(): void {}
 
 describe('MovieLogWorkspace', () => {
-  it('renders the log view by default and keeps reference material out of the main workspace', () => {
+  it('renders the log view as a poster-led arrival index and keeps reference material out of the main workspace', () => {
     const markup = renderToStaticMarkup(
       createElement(MovieLogWorkspace, {
         activeView: 'log',
@@ -68,16 +68,17 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(markup).toContain('History');
+    expect(markup).toContain('Arrival Index');
+    expect(markup).toContain('Watch Routes');
     expect(markup).toContain('Show in Finder');
     expect(markup).toContain('More');
-    expect(markup).toContain('WATCH / DROP / ARRIVE');
+    expect(markup).toContain('WATCH / SEARCH / SCAN');
     expect(markup).not.toContain('Readable Note');
     expect(markup).not.toContain('App Store');
     expect(markup).not.toContain('Current top-level contents');
   });
 
-  it('renders the details view with current contents and reference paths', () => {
+  it('renders the details view with archive files and reference paths', () => {
     const markup = renderToStaticMarkup(
       createElement(MovieLogWorkspace, {
         activeView: 'details',
@@ -103,9 +104,9 @@ describe('MovieLogWorkspace', () => {
     );
 
     expect(markup).toContain('Back to Log');
-    expect(markup).toContain('Current top-level contents');
+    expect(markup).toContain('Archive Files');
     expect(markup).toContain('Readable Note');
-    expect(markup).toContain('App Store');
+    expect(markup).toContain('Data Store');
     expect(markup).toContain('NOTE / STORE / CONTENTS');
     expect(markup).not.toContain('Nothing logged yet');
   });

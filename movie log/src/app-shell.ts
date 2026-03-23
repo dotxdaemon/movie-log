@@ -1,4 +1,4 @@
-// ABOUTME: Renders the shared Movie Log workspace frame as a status spine beside an archive stage.
+// ABOUTME: Renders the shared Movie Log workspace frame as a control slab beside a poster stage.
 // ABOUTME: Keeps the shell structure testable without importing browser-only renderer code into Node checks.
 import { createElement, type ReactNode } from 'react';
 
@@ -11,20 +11,20 @@ export function AppShell({ archiveStage, statusSpine }: AppShellProps) {
   return createElement(
     'main',
     { className: 'workspace-frame' },
-    createElement('aside', { className: 'status-spine' }, createElement('div', { className: 'status-spine-inner' }, statusSpine)),
+    createElement('aside', { className: 'control-slab' }, createElement('div', { className: 'control-slab-inner' }, statusSpine)),
     createElement(
       'section',
-      { className: 'archive-stage' },
+      { className: 'poster-stage' },
       createElement(
         'div',
-        { 'aria-hidden': 'true', className: 'archive-signal-field' },
-        createElement('span', { className: 'signal-core' }),
-        createElement('span', { className: 'signal-grid' }),
-        createElement('span', { className: 'signal-block signal-block-top' }),
-        createElement('span', { className: 'signal-block signal-block-side' }),
-        createElement('span', { className: 'signal-block signal-block-low' })
+        { 'aria-hidden': 'true', className: 'poster-forms' },
+        createElement('span', { className: 'poster-bar poster-bar-top' }),
+        createElement('span', { className: 'poster-bar poster-bar-side' }),
+        createElement('span', { className: 'poster-bar poster-bar-low' }),
+        createElement('span', { className: 'poster-grid' }),
+        createElement('span', { className: 'poster-axis-mark' })
       ),
-      createElement('div', { className: 'archive-stage-inner' }, archiveStage)
+      createElement('div', { className: 'poster-stage-inner' }, archiveStage)
     )
   );
 }

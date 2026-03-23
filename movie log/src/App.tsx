@@ -136,19 +136,19 @@ export function MovieLogWorkspace({
     <AppShell
       archiveStage={
         activeView === 'log' ? (
-          <div className="archive-view">
-            <header className="archive-header">
-              <div className="archive-heading-block">
-                <p className="archive-kicker">History</p>
-                <p className="archive-brand">Movie Log</p>
-                <h2 className="archive-title">Arrival Ledger</h2>
-                <p className="archive-summary">{ledgerSummary}</p>
+          <div className="poster-view">
+            <header className="poster-header">
+              <div className="poster-title-block">
+                <p className="poster-overline">Arrival Index</p>
+                <p className="poster-brand">Movie Log</p>
+                <h2 className="poster-title">Watch Ledger</h2>
+                <p className="poster-summary">{ledgerSummary}</p>
               </div>
-              <p className="archive-signal">WATCH / DROP / ARRIVE</p>
+              <p className="poster-axis">WATCH / SEARCH / SCAN</p>
             </header>
 
             <section
-              className={dropActive ? 'control-strip control-strip-active' : 'control-strip'}
+              className={dropActive ? 'ledger-plane ledger-plane-active' : 'ledger-plane'}
               onDragEnter={() => onDropActiveChange(true)}
               onDragLeave={() => onDropActiveChange(false)}
               onDragOver={(event) => {
@@ -157,25 +157,28 @@ export function MovieLogWorkspace({
               }}
               onDrop={onDrop}
             >
-              <div className="drop-signal">
-                <span className="drop-signal-label">Drop</span>
-                <span className="drop-signal-text">Media file or folder</span>
+              <div className="plane-toolbar">
+                <div className="drop-panel">
+                  <span className="poster-overline">Manual Drop</span>
+                  <div className="drop-panel-copy">
+                    <strong>Drop media here</strong>
+                    <p>Folders and files land directly in the running index.</p>
+                  </div>
+                </div>
+
+                <label className="toolbar-search">
+                  <span className="visually-hidden">Search history</span>
+                  <input
+                    onChange={(event) => onSearchQueryChange(event.target.value)}
+                    placeholder="Search title or path"
+                    type="search"
+                    value={searchQuery}
+                  />
+                </label>
               </div>
 
-              <label className="search-field">
-                <span className="visually-hidden">Search history</span>
-                <input
-                  onChange={(event) => onSearchQueryChange(event.target.value)}
-                  placeholder="Search title or path"
-                  type="search"
-                  value={searchQuery}
-                />
-              </label>
-            </section>
+              {statusBanner}
 
-            {statusBanner}
-
-            <section className="archive-sheet">
               {filteredHistory.length === 0 ? (
                 <div className="blank-slate blank-slate-records">
                   <p className="blank-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
@@ -219,39 +222,46 @@ export function MovieLogWorkspace({
             </section>
           </div>
         ) : (
-          <div className="archive-view">
-            <header className="archive-header archive-header-details">
-              <div className="archive-heading-block">
-                <p className="archive-kicker">Details</p>
-                <p className="archive-brand">Movie Log</p>
-                <h2 className="archive-title">Archive Details</h2>
-                <p className="archive-summary">
+          <div className="poster-view poster-view-details">
+            <header className="poster-header poster-header-details">
+              <div className="poster-title-block">
+                <p className="poster-overline">Local Archive</p>
+                <p className="poster-brand">Movie Log</p>
+                <h2 className="poster-title">Archive Files</h2>
+                <p className="poster-summary">
                   {formatCount(state.libraryItems.length, 'item')} in current contents. The readable note and app store live
                   here, off the main ledger.
                 </p>
               </div>
-              <div className="archive-aside">
-                <p className="archive-signal">NOTE / STORE / CONTENTS</p>
+              <div className="poster-aside">
+                <p className="poster-axis">NOTE / STORE / CONTENTS</p>
                 <button className="stage-link" onClick={onActivateLog} type="button">
                   Back to Log
                 </button>
               </div>
             </header>
 
-            {statusBanner}
+            <section className="ledger-plane ledger-plane-details">
+              {statusBanner}
 
-            <section className="archive-sheet archive-sheet-details">
-              <FolderSnapshotPanel
-                items={state.libraryItems}
-                onCopyPath={onCopyPath}
-                onOpenInFinder={onOpenInFinder}
-                onOpenItem={onOpenItem}
-                timestampLabel={(isoTime) => timestampFormatter.format(new Date(isoTime))}
-              />
+              <section className="detail-panel">
+                <div className="plane-section-head">
+                  <p className="poster-overline">Archive Files</p>
+                  <h3>Archive Files</h3>
+                </div>
+                <FolderSnapshotPanel
+                  compact
+                  items={state.libraryItems}
+                  onCopyPath={onCopyPath}
+                  onOpenInFinder={onOpenInFinder}
+                  onOpenItem={onOpenItem}
+                  timestampLabel={(isoTime) => timestampFormatter.format(new Date(isoTime))}
+                />
+              </section>
 
-              <section className="details-section">
-                <div className="details-heading">
-                  <p className="archive-kicker">Readable Note</p>
+              <section className="detail-panel">
+                <div className="plane-section-head">
+                  <p className="poster-overline">Readable Note</p>
                   <h3>Readable Note</h3>
                 </div>
                 <p className="details-copy">The append-only note mirrors the archive ledger on disk.</p>
@@ -266,10 +276,10 @@ export function MovieLogWorkspace({
                 </div>
               </section>
 
-              <section className="details-section">
-                <div className="details-heading">
-                  <p className="archive-kicker">App Store</p>
-                  <h3>App Store</h3>
+              <section className="detail-panel">
+                <div className="plane-section-head">
+                  <p className="poster-overline">Data Store</p>
+                  <h3>Data Store</h3>
                 </div>
                 <p className="details-copy">The local JSON store stays out of the main working surface.</p>
                 <p className="path-line">{logFilePath}</p>
@@ -287,19 +297,19 @@ export function MovieLogWorkspace({
         )
       }
       statusSpine={
-        <div className="spine-stack">
-          <div className="spine-head">
-            <p className="spine-kicker">Cinematic archive</p>
-            <h1 className="app-title">Movie Log</h1>
-            <p className="spine-note">Watched arrivals settle here before they disappear back into the filesystem.</p>
+        <div className="control-stack">
+          <div className="control-head">
+            <p className="control-overline">Cinematic archive</p>
+            <h1 className="control-title">Movie Log</h1>
+            <p className="control-note">Tracks watched arrivals, scan routes, and the files still alive in the archive.</p>
           </div>
 
-          <div className="spine-actions">
-            <button className="spine-primary" onClick={() => void onAddWatchedFolders()} type="button">
+          <div className="control-actions">
+            <button className="slab-primary" onClick={() => void onAddWatchedFolders()} type="button">
               Add Folder
             </button>
             <button
-              className="spine-secondary"
+              className="slab-secondary"
               disabled={state.watchedFolders.length === 0 || scanInProgress}
               onClick={() => void onScanNow()}
               type="button"
@@ -308,7 +318,7 @@ export function MovieLogWorkspace({
             </button>
             <button
               aria-pressed={activeView === 'details'}
-              className={activeView === 'details' ? 'spine-link spine-link-active' : 'spine-link'}
+              className={activeView === 'details' ? 'slab-switch slab-switch-active' : 'slab-switch'}
               onClick={onActivateDetails}
               type="button"
             >
@@ -316,12 +326,10 @@ export function MovieLogWorkspace({
             </button>
           </div>
 
-          <section className="spine-section">
-            <div className="spine-section-head">
-              <div>
-                <h2>Watched folders</h2>
-                <p className="spine-section-note">{watchedFolderSummary}</p>
-              </div>
+          <section className="control-section">
+            <div className="control-section-head">
+              <h2>Watch Routes</h2>
+              <p className="control-section-note">{watchedFolderSummary}</p>
             </div>
 
             {state.watchedFolders.length === 0 ? (
@@ -330,19 +338,19 @@ export function MovieLogWorkspace({
                 <p className="blank-copy">Add one to watch new arrivals land in the ledger.</p>
               </div>
             ) : (
-              <ul className="spine-list">
+              <ul className="folder-list">
                 {state.watchedFolders.map((folder) => (
-                  <li className="spine-row" key={folder.id}>
-                    <div className="spine-copy">
-                      <strong className="spine-title">{folder.name}</strong>
-                      <p className="spine-meta">
+                  <li className="folder-row" key={folder.id}>
+                    <div className="folder-copy">
+                      <strong className="folder-title">{folder.name}</strong>
+                      <p className="folder-meta">
                         {folder.lastScannedAt
                           ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}`
                           : 'Waiting for scan or arrival'}
                       </p>
                       <p className="path-line">{folder.path}</p>
                     </div>
-                    <button className="spine-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
+                    <button className="folder-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
                       Remove
                     </button>
                   </li>
