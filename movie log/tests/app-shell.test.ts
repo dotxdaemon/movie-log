@@ -16,6 +16,8 @@ describe('App shell', () => {
 
     expect(markup).toContain('workspace-frame');
     expect(markup).toContain('status-spine');
+    expect(markup).toContain('archive-signal-field');
+    expect(markup).toContain('archive-stage-inner');
     expect(markup).toContain('archive-stage');
     expect(markup).not.toContain('utility-rail');
     expect(markup).not.toContain('records-pane');

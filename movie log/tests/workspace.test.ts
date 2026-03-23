@@ -71,6 +71,7 @@ describe('MovieLogWorkspace', () => {
     expect(markup).toContain('History');
     expect(markup).toContain('Show in Finder');
     expect(markup).toContain('More');
+    expect(markup).toContain('WATCH / DROP / ARRIVE');
     expect(markup).not.toContain('Readable Note');
     expect(markup).not.toContain('App Store');
     expect(markup).not.toContain('Current top-level contents');
@@ -105,6 +106,7 @@ describe('MovieLogWorkspace', () => {
     expect(markup).toContain('Current top-level contents');
     expect(markup).toContain('Readable Note');
     expect(markup).toContain('App Store');
+    expect(markup).toContain('NOTE / STORE / CONTENTS');
     expect(markup).not.toContain('Nothing logged yet');
   });
 });

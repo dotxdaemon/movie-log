@@ -138,11 +138,13 @@ export function MovieLogWorkspace({
         activeView === 'log' ? (
           <div className="archive-view">
             <header className="archive-header">
-              <div className="archive-copy">
+              <div className="archive-heading-block">
                 <p className="archive-kicker">History</p>
+                <p className="archive-brand">Movie Log</p>
                 <h2 className="archive-title">Arrival Ledger</h2>
                 <p className="archive-summary">{ledgerSummary}</p>
               </div>
+              <p className="archive-signal">WATCH / DROP / ARRIVE</p>
             </header>
 
             <section
@@ -219,17 +221,21 @@ export function MovieLogWorkspace({
         ) : (
           <div className="archive-view">
             <header className="archive-header archive-header-details">
-              <div className="archive-copy">
+              <div className="archive-heading-block">
                 <p className="archive-kicker">Details</p>
+                <p className="archive-brand">Movie Log</p>
                 <h2 className="archive-title">Archive Details</h2>
                 <p className="archive-summary">
                   {formatCount(state.libraryItems.length, 'item')} in current contents. The readable note and app store live
                   here, off the main ledger.
                 </p>
               </div>
-              <button className="stage-link" onClick={onActivateLog} type="button">
-                Back to Log
-              </button>
+              <div className="archive-aside">
+                <p className="archive-signal">NOTE / STORE / CONTENTS</p>
+                <button className="stage-link" onClick={onActivateLog} type="button">
+                  Back to Log
+                </button>
+              </div>
             </header>
 
             {statusBanner}
