@@ -138,6 +138,24 @@
       );
   }
 
+  .surface-folio {
+    background:
+      linear-gradient(
+        90deg,
+        rgba(255, 250, 243, 0.98) 0%,
+        rgba(255, 250, 243, 0.98) 67%,
+        rgba(239, 228, 213, 0.78) 67%,
+        rgba(239, 228, 213, 0.78) 100%
+      ),
+      repeating-linear-gradient(
+        180deg,
+        transparent 0,
+        transparent 40px,
+        rgba(92, 75, 60, 0.04) 40px,
+        rgba(92, 75, 60, 0.04) 41px
+      );
+  }
+
   .surface-grid {
     background-image:
       linear-gradient(90deg, rgba(92, 75, 60, 0.05) 1px, transparent 1px),

@@ -1182,10 +1182,10 @@ function AppNav({ activeView, ariaLabel, mobile, onSelect }: AppNavProps) {
   return (
     <nav
       className={mobile
-        ? 'fixed left-4 right-4 z-30 flex items-center gap-1 rounded-[1.02rem] border border-line/28 bg-paper-strong/76 px-1.5 py-1.5 shadow-[0_10px_24px_rgba(40,27,20,0.08)] backdrop-blur-[16px] md:hidden'
-        : 'hidden items-center gap-4 lg:inline-flex'}
+        ? 'fixed left-4 right-4 z-30 flex items-center gap-2 rounded-[1.02rem] border border-line/18 bg-paper-strong/58 px-2 py-1.5 shadow-[0_8px_18px_rgba(40,27,20,0.05)] backdrop-blur-[16px] md:hidden'
+        : 'hidden items-center gap-5 lg:inline-flex'}
       aria-label={ariaLabel}
-      data-nav-tone={mobile ? 'quiet' : undefined}
+      data-nav-tone={mobile ? 'bare' : undefined}
       style={mobile ? { bottom: 'max(env(safe-area-inset-bottom), 0.75rem)' } : undefined}
     >
       {VIEW_ITEMS.map((item) => {
@@ -1196,19 +1196,25 @@ function AppNav({ activeView, ariaLabel, mobile, onSelect }: AppNavProps) {
             key={item.view}
             type="button"
             className={joinClassNames(
-              'group flex min-w-0 items-center justify-center font-medium transition',
+              'group flex min-w-0 flex-col items-center justify-center font-medium transition',
               mobile
-                ? 'flex-1 rounded-[0.78rem] px-1.5 py-2 text-center text-[10.5px] leading-none text-ink-faint'
-                : 'border-b border-transparent px-0 py-1 text-[13px] text-ink-faint hover:text-ink-soft',
+                ? 'flex-1 px-0.5 py-1.5 text-center text-[10.5px] leading-none text-ink-faint'
+                : 'px-0 py-1 text-[13px] text-ink-faint hover:text-ink-soft',
               active &&
                 (mobile
-                  ? 'bg-paper/65 text-ink'
-                  : 'border-accent/55 text-ink'),
+                  ? 'text-ink'
+                  : 'text-ink'),
             )}
             aria-current={active ? 'page' : undefined}
             onClick={() => onSelect(item.view)}
           >
             <span className="nav-button__title whitespace-nowrap">{item.title}</span>
+            <span
+              className={joinClassNames(
+                'mt-1 h-px bg-accent/65 transition-all duration-200',
+                active ? 'w-4' : 'w-0 group-hover:w-3 group-hover:bg-line/60',
+              )}
+            />
           </button>
         )
       })}
@@ -1237,15 +1243,16 @@ function TrainingConsole({
 }: CurrentFocusCardProps) {
   return (
     <section
-      className="surface-sheet relative mx-auto w-full max-w-4xl overflow-hidden rounded-[1.08rem] border border-line/38 px-5 py-5 shadow-[0_18px_36px_rgba(40,27,20,0.06)] sm:px-7 sm:py-7"
+      className="surface-folio relative mx-auto w-full max-w-[72rem] overflow-hidden rounded-[1.12rem] border border-line/28 px-5 py-5 shadow-[0_20px_40px_rgba(40,27,20,0.06)] sm:px-7 sm:py-7"
       data-section="training-console"
-      data-console-tone="sheet"
+      data-console-tone="folio"
+      data-console-layout="spread"
       data-focus-layout="coaching"
     >
-      <div className="pointer-events-none absolute inset-y-0 left-7 hidden w-px bg-line/22 sm:block" />
+      <div className="pointer-events-none absolute inset-y-0 left-7 hidden w-px bg-line/24 sm:block" />
 
-      <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1.3fr)_minmax(240px,0.7fr)] lg:gap-8">
-        <div className="space-y-5 sm:pl-5" data-focus-item="issue">
+      <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.62fr)] lg:gap-10">
+        <div className="space-y-5 sm:pl-5 lg:pr-6" data-focus-item="issue">
           <div className="flex flex-wrap items-center gap-3">
             <p className="font-mono text-[10.5px] uppercase tracking-[0.26em] text-accent">
               After the set
@@ -1260,13 +1267,13 @@ function TrainingConsole({
             <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-faint">
               Habit to stop
             </p>
-            <h2 className="max-w-xl text-[2.7rem] leading-[0.92] text-ink sm:text-[3.45rem]">
+            <h2 className="max-w-[10ch] text-[clamp(2.95rem,5.3vw,5.15rem)] leading-[0.9] text-ink">
               {currentFocusIssue}
             </h2>
           </div>
         </div>
 
-        <div className="space-y-5 border-t border-line/28 pt-5 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-1">
+        <div className="space-y-5 border-t border-line/24 pt-5 lg:border-t-0 lg:pt-2">
           <div className="space-y-2.5" data-focus-item="rule">
             <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-faint">
               Rule to follow
@@ -1275,7 +1282,7 @@ function TrainingConsole({
               {currentFocusRule}
             </p>
           </div>
-          <div className="space-y-2.5 border-t border-line/28 pt-5" data-focus-item="drill">
+          <div className="space-y-2.5 border-t border-line/24 pt-5" data-focus-item="drill">
             <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-faint">
               Drill to run
             </p>
@@ -1300,7 +1307,11 @@ function TrainingConsole({
         </div>
       </div>
 
-      <section className="mt-7 border-t border-line/28 pt-4" data-section="recent-notes">
+      <section
+        className="-mx-5 mt-7 border-t border-line/24 bg-paper/34 px-5 pb-4 pt-4 sm:-mx-7 sm:px-7"
+        data-section="recent-notes"
+        data-notes-tone="ledger"
+      >
         <div className="flex items-end justify-between gap-3">
           <p className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-ink-faint">
             Recent notes
@@ -1367,19 +1378,20 @@ function DashboardHeader({
   if (activeView === 'dashboard') {
     return (
       <section
-        className="grid gap-4 border-b border-line/35 pb-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"
+        className="grid gap-4 border-b border-line/32 pb-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"
         data-section="dashboard-topbar"
-        data-topbar-tone="editorial"
+        data-topbar-tone="folio"
+        data-topbar-layout="rail"
       >
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 border-l border-accent/35 pl-4 sm:pl-5">
           <div className="flex items-center gap-3">
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-accent">
               Smash Matchup Lab
             </p>
             <span className="hidden h-px w-10 bg-line/55 sm:block" />
           </div>
-          <div className="space-y-1">
-            <h1 className="font-display text-[1.72rem] leading-[0.9] text-ink sm:text-[1.98rem]">
+          <div className="mt-2 space-y-1">
+            <h1 className="font-display text-[1.8rem] leading-[0.88] text-ink sm:text-[2.08rem]">
               Smash Log
             </h1>
             <p className="max-w-sm text-[0.94rem] leading-6 text-ink-soft">
@@ -1409,18 +1421,18 @@ function DashboardHeader({
 
   return (
     <section
-      className="grid gap-4 border-b border-line/35 pb-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"
+      className="grid gap-4 border-b border-line/32 pb-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end"
       data-section="page-header"
     >
-      <div className="space-y-2">
+      <div className="border-l border-accent/35 pl-4 sm:pl-5">
         <div className="flex items-center gap-3">
           <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-accent">
             Smash Matchup Lab
           </p>
           <span className="hidden h-px w-10 bg-line/55 sm:block" />
         </div>
-        <div className="space-y-1">
-          <h1 className="max-w-3xl font-display text-[1.9rem] leading-[0.9] text-ink sm:text-[2.2rem] lg:text-[2.55rem]">
+        <div className="mt-2 space-y-1">
+          <h1 className="max-w-3xl font-display text-[1.95rem] leading-[0.88] text-ink sm:text-[2.25rem] lg:text-[2.6rem]">
             {VIEW_ITEMS.find((item) => item.view === activeView)?.title}
           </h1>
           <p className="max-w-lg text-sm leading-6 text-ink-soft sm:text-[0.95rem]">
