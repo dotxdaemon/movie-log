@@ -140,6 +140,7 @@ export function MovieLogWorkspace({
           <div className="records-view">
             <header className="workspace-band">
               <div className="band-mark">
+                <div aria-hidden="true" className="rail-mark" />
                 <p className="section-label">Movie Log</p>
                 <h2 className="workspace-title">Watch Ledger</h2>
               </div>
@@ -148,19 +149,22 @@ export function MovieLogWorkspace({
                 <p className="workspace-status">{ledgerSummary}</p>
               </div>
               <div className="band-tools">
-                <div className="drop-hint">
-                  <p className="section-label">Manual Drop</p>
-                  <p className="drop-copy">Drop media here</p>
+                <p className="band-axis">Watch / Search / Scan</p>
+                <div className="band-tools-stack">
+                  <div className="drop-hint">
+                    <p className="section-label">Manual Drop</p>
+                    <p className="drop-copy">Drop media here</p>
+                  </div>
+                  <label className="workspace-search">
+                    <span className="visually-hidden">Search history</span>
+                    <input
+                      onChange={(event) => onSearchQueryChange(event.target.value)}
+                      placeholder="Search title or path"
+                      type="search"
+                      value={searchQuery}
+                    />
+                  </label>
                 </div>
-                <label className="workspace-search">
-                  <span className="visually-hidden">Search history</span>
-                  <input
-                    onChange={(event) => onSearchQueryChange(event.target.value)}
-                    placeholder="Search title or path"
-                    type="search"
-                    value={searchQuery}
-                  />
-                </label>
               </div>
             </header>
 
@@ -222,6 +226,7 @@ export function MovieLogWorkspace({
           <div className="records-view records-view-details">
             <header className="workspace-band">
               <div className="band-mark">
+                <div aria-hidden="true" className="rail-mark" />
                 <p className="section-label">Movie Log</p>
                 <h2 className="workspace-title">Archive Files</h2>
               </div>
@@ -230,8 +235,11 @@ export function MovieLogWorkspace({
                 <p className="workspace-status">{archiveSummary}</p>
               </div>
               <div className="band-tools band-tools-reference">
-                <p className="section-label">Storage</p>
-                <p className="drop-copy">Readable note and JSON store paths.</p>
+                <p className="band-axis">Note / Store / Contents</p>
+                <div className="band-tools-stack">
+                  <p className="section-label">Storage</p>
+                  <p className="drop-copy">Readable note and JSON store paths.</p>
+                </div>
               </div>
             </header>
 
@@ -293,6 +301,7 @@ export function MovieLogWorkspace({
       statusSpine={
         <div className="rail-stack">
           <div className="rail-head">
+            <div aria-hidden="true" className="rail-mark" />
             <p className="section-label">Movie Log</p>
             <p className="rail-note">Watched folders, scan controls, and view changes stay on this side of the workspace.</p>
           </div>

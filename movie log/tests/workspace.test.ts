@@ -69,13 +69,15 @@ describe('MovieLogWorkspace', () => {
     );
 
     expect(markup).toContain('workspace-band');
+    expect(markup).toContain('rail-mark');
+    expect(markup).toContain('band-axis');
     expect(markup).toContain('Search title or path');
     expect(markup).toContain('Watch Routes');
     expect(markup).toContain('Watch Ledger');
+    expect(markup).toContain('Watch / Search / Scan');
     expect(markup).toContain('Show in Finder');
     expect(markup).toContain('More');
     expect(markup).not.toContain('Arrival Index');
-    expect(markup).not.toContain('WATCH / SEARCH / SCAN');
     expect(markup).not.toContain('Readable Note');
     expect(markup).not.toContain('App Store');
     expect(markup).not.toContain('Current top-level contents');
@@ -112,8 +114,9 @@ describe('MovieLogWorkspace', () => {
     expect(markup).toContain('Log');
     expect(markup).toContain('Details');
     expect(markup).toContain('workspace-band');
+    expect(markup).toContain('band-axis');
+    expect(markup).toContain('Note / Store / Contents');
     expect(markup).not.toContain('Local Archive');
-    expect(markup).not.toContain('NOTE / STORE / CONTENTS');
     expect(markup).not.toContain('Back to Log');
     expect(markup).not.toContain('Nothing logged yet');
   });

@@ -74,6 +74,7 @@ button:disabled {
 }
 
 .control-rail {
+  position: relative;
   border-right: 1px solid var(--coal-line);
   background:
     linear-gradient(180deg, rgba(255, 104, 39, 0.08), transparent 12%),
@@ -96,6 +97,7 @@ button:disabled {
 .band-mark,
 .band-status,
 .band-tools,
+.band-tools-stack,
 .detail-section-head,
 .route-copy,
 .record-copy,
@@ -132,6 +134,13 @@ button:disabled {
 .workspace-title {
   font-size: clamp(1.7rem, 3.1vw, 2.35rem);
   line-height: 0.9;
+}
+
+.rail-mark {
+  width: 84px;
+  height: 30px;
+  background: linear-gradient(90deg, var(--ember) 0 86%, transparent 86% 100%);
+  clip-path: polygon(0 24%, 18% 24%, 18% 0, 30% 0, 30% 24%, 100% 24%, 100% 100%, 0 100%);
 }
 
 .rail-note,
@@ -271,13 +280,46 @@ button:disabled {
 }
 
 .workspace-stage {
+  position: relative;
   background:
+    radial-gradient(circle at top right, rgba(255, 104, 39, 0.08), transparent 32%),
     linear-gradient(180deg, rgba(255, 104, 39, 0.05), transparent 10%),
     linear-gradient(180deg, #090505 0%, #060404 100%);
 }
 
+.workspace-stage::before,
+.workspace-stage::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.workspace-stage::before {
+  top: 76px;
+  right: 80px;
+  width: 228px;
+  height: 128px;
+  background:
+    radial-gradient(circle, rgba(255, 158, 99, 0.22) 0 1px, transparent 1px 100%),
+    linear-gradient(180deg, rgba(255, 104, 39, 0.14), transparent 76%);
+  background-size: 12px 12px, 100% 100%;
+  opacity: 0.42;
+}
+
+.workspace-stage::after {
+  top: 26px;
+  right: 32px;
+  width: 248px;
+  height: 74px;
+  background: linear-gradient(90deg, rgba(255, 104, 39, 0.94) 0 82%, rgba(255, 104, 39, 0.74) 82% 100%);
+  clip-path: polygon(18% 0, 100% 0, 100% 100%, 44% 100%, 44% 76%, 0 76%, 0 38%);
+  opacity: 0.92;
+}
+
 .workspace-stage-inner {
   min-height: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .records-view {
@@ -298,7 +340,21 @@ button:disabled {
 }
 
 .band-tools {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
   justify-items: stretch;
+}
+
+.band-axis {
+  margin: 0;
+  color: var(--ember-soft);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
 }
 
 .drop-hint {
@@ -335,6 +391,7 @@ button:disabled {
   padding: 10px 24px 18px;
   border: 1px solid rgba(242, 231, 212, 0.06);
   background:
+    radial-gradient(circle at 24% 12%, rgba(242, 231, 212, 0.06), transparent 18%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 22%),
     linear-gradient(180deg, rgba(20, 9, 7, 0.96) 0%, rgba(11, 6, 5, 0.98) 100%);
 }
@@ -347,6 +404,21 @@ button:disabled {
   right: 24px;
   height: 2px;
   background: linear-gradient(90deg, var(--ember) 0 14%, rgba(255, 104, 39, 0.18) 14% 100%);
+}
+
+.records-surface::after {
+  content: '';
+  position: absolute;
+  top: 20px;
+  right: 26px;
+  width: 164px;
+  height: 88px;
+  background:
+    radial-gradient(circle, rgba(255, 158, 99, 0.16) 0 1px, transparent 1px 100%),
+    linear-gradient(180deg, rgba(255, 104, 39, 0.08), transparent 76%);
+  background-size: 10px 10px, 100% 100%;
+  opacity: 0.24;
+  pointer-events: none;
 }
 
 .records-surface-active {
@@ -509,6 +581,15 @@ button:disabled {
     grid-template-columns: 1fr;
     align-items: start;
   }
+
+  .band-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .band-axis {
+    writing-mode: horizontal-tb;
+    transform: none;
+  }
 }
 
 @media (max-width: 760px) {
@@ -527,6 +608,12 @@ button:disabled {
   .records-surface::before {
     left: 16px;
     right: 16px;
+  }
+
+  .workspace-stage::before,
+  .workspace-stage::after,
+  .records-surface::after {
+    display: none;
   }
 
   .route-row,
