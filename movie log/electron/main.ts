@@ -7,13 +7,14 @@ import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createFolderMonitor } from './folder-monitor.js';
 import { addWatchedFolderPath, logPathsFromDrop } from './main-actions.js';
+import { handleMovieLogWindowsClosed, showMovieLog } from './app-lifecycle.js';
 import { prepareAppRuntime } from './runtime.js';
 import { scanFolderContents } from './folder-scan.js';
 import { createStatusItem } from './status-item.js';
 import { createHistoryStore } from './store.js';
 import { createWatchedFolderSync } from './watched-folder-sync.js';
 import { revealWindow } from './window-visibility.js';
-import { closeMovieLog, handleWindowCloseRequest, handleWindowsClosed } from './window-close.js';
+import { closeMovieLog, handleWindowCloseRequest } from './window-close.js';
 import { createEntryFromPath } from '../shared/history.js';
 import { isTrackableMediaItem } from '../shared/media-items.js';
 import type { EntryKind, MovieLogState, WatchEntry } from '../shared/types.js';
@@ -164,15 +165,19 @@ async function createWindow(): Promise<void> {
 }
 
 async function showMainWindow(): Promise<void> {
-  await startBackgroundWork();
+  await showMovieLog({
+    createWindow,
+    hasWindow: mainWindow !== null,
+    revealWindow: () => {
+      if (!mainWindow) {
+        return;
+      }
 
-  if (!mainWindow) {
-    await createWindow();
-    return;
-  }
-
-  const activeDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-  revealWindow(mainWindow, activeDisplay.workArea);
+      const activeDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+      revealWindow(mainWindow, activeDisplay.workArea);
+    },
+    startBackgroundWork
+  });
 }
 
 function registerIpcHandlers(): void {
@@ -309,7 +314,7 @@ app.on('before-quit', () => {
 });
 
 app.on('window-all-closed', () => {
-  void handleWindowsClosed({
+  void handleMovieLogWindowsClosed({
     closeMovieLog: () =>
       closeMovieLog({
         disposeFolderMonitor: () => folderMonitor.dispose(),

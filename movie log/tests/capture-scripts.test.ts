@@ -19,4 +19,11 @@ describe('capture pipeline', () => {
     expect(mainProcess).not.toContain("latestText.includes('severance')");
     expect(mainProcess).not.toContain("latestText.includes('the brutalist')");
   });
+
+  it('fails closed on stale packaged screenshots and stops any resident packaged app first', () => {
+    expect(packagedCaptureScript).toContain('pkill');
+    expect(packagedCaptureScript).toContain('rm(capturePath');
+    expect(packagedCaptureScript).toContain('stat(capturePath');
+    expect(packagedCaptureScript).toContain('captureStartedAt');
+  });
 });

@@ -183,4 +183,42 @@ describe('createWatchedFolderSync', () => {
 
     expect(order).toEqual(['scan']);
   });
+
+  it('reuses an in-flight refresh when Scan Now runs for the same watched folder', async () => {
+    const order: string[] = [];
+    let releaseScan = () => {};
+    let scanStarted = false;
+    const blockedScan = new Promise<void>((resolve) => {
+      releaseScan = resolve;
+    });
+    const watchedFolderSync = createWatchedFolderSync({
+      broadcastState: async () => {
+        order.push('broadcast');
+      },
+      listWatchedFolders: async () => [watchedFolder('/Movies/Scan')],
+      now: () => '2026-03-16T13:00:00.000Z',
+      saveFolderContents: async () => {
+        order.push('save');
+      },
+      scanFolder: async () => {
+        scanStarted = true;
+        order.push('scan');
+        await blockedScan;
+        return [scannedItem('/Movies/Scan/Flow.mkv')];
+      },
+      watchFolder: async () => {}
+    });
+
+    const liveRefresh = watchedFolderSync.queueRefresh('/Movies/Scan');
+
+    await vi.waitFor(() => {
+      expect(scanStarted).toBe(true);
+    });
+
+    const scanNowRefresh = watchedFolderSync.refreshWatchedFolders();
+    releaseScan();
+    await Promise.all([liveRefresh, scanNowRefresh]);
+
+    expect(order).toEqual(['scan', 'save', 'broadcast']);
+  });
 });
