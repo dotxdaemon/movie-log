@@ -73,18 +73,19 @@ async function captureIfRequested(): Promise<void> {
   }
 
   let isReady = false;
+  let latestReadyState = '';
   let latestText = '';
 
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    latestText = await mainWindow.webContents.executeJavaScript(`
-      document.body ? document.body.innerText.toLowerCase() : ''
-    `);
-    isReady =
-      latestText.includes('movie log') &&
-      latestText.includes('watched folders') &&
-      latestText.includes('history') &&
-      latestText.includes('media inbox') &&
-      (latestText.includes('severance') || latestText.includes('the brutalist'));
+    const snapshot = (await mainWindow.webContents.executeJavaScript(`
+      ({
+        bodyText: document.body ? document.body.innerText.toLowerCase() : '',
+        readyState: document.documentElement?.dataset?.movieLogCaptureReady ?? ''
+      })
+    `)) as { bodyText: string; readyState: string };
+    latestText = snapshot.bodyText;
+    latestReadyState = snapshot.readyState;
+    isReady = latestReadyState === 'true';
 
     if (isReady) {
       break;
@@ -94,7 +95,9 @@ async function captureIfRequested(): Promise<void> {
   }
 
   if (!isReady) {
-    throw new Error(`Renderer content never became ready for capture. Latest body text: ${latestText || '[empty]'}`);
+    throw new Error(
+      `Renderer content never became ready for capture. Ready state: ${latestReadyState || '[unset]'} Latest body text: ${latestText || '[empty]'}`
+    );
   }
 
   await new Promise((resolve) => setTimeout(resolve, 300));

@@ -392,6 +392,7 @@ export default function App() {
 
   useEffect(() => {
     let isMounted = true;
+    document.documentElement.dataset.movieLogCaptureReady = 'false';
 
     const loadAppData = async () => {
       const [nextState, nextLogFilePath, nextNoteFilePath] = await Promise.all([
@@ -407,6 +408,7 @@ export default function App() {
       updateState(nextState, setState);
       setLogFilePath(nextLogFilePath);
       setNoteFilePath(nextNoteFilePath);
+      document.documentElement.dataset.movieLogCaptureReady = 'true';
     };
 
     void loadAppData();
@@ -417,6 +419,7 @@ export default function App() {
 
     return () => {
       isMounted = false;
+      delete document.documentElement.dataset.movieLogCaptureReady;
       unsubscribe();
     };
   }, []);
