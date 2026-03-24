@@ -72,17 +72,22 @@ describe('MovieLogWorkspace', () => {
     expect(markup).toContain('ledger-pane');
     expect(markup).toContain('archive-inspector');
     expect(markup).toContain('inspector-switcher');
-    expect(markup).toContain('rail-mark');
-    expect(markup).toContain('band-axis');
+    expect(markup).toContain('wordmark-stack');
+    expect(markup).toContain('search-band');
+    expect(markup).toContain('history-ledger');
+    expect(markup).toContain('archive-spine-head');
+    expect(markup).toContain('route-strip');
     expect(markup).toContain('Search title or path');
     expect(markup).toContain('Watch Routes');
-    expect(markup).toContain('Watch Ledger');
+    expect(markup).toContain('Movie Log');
+    expect(markup).toContain('Arrival Ledger');
     expect(markup).toContain('Archive Index');
     expect(markup).toContain('Current Contents');
     expect(markup).toContain('Readable Note');
     expect(markup).toContain('Data Store');
     expect(markup).toContain('Show in Finder');
     expect(markup).toContain('More');
+    expect(markup).not.toContain('Watch Ledger');
     expect(markup).not.toContain('records-view-details');
     expect(markup).not.toContain('aria-label="Workspace view"');
     expect(markup).not.toContain('view-switcher');
@@ -113,10 +118,12 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(markup).toContain('Watch Ledger');
+    expect(markup).toContain('Movie Log');
+    expect(markup).toContain('Arrival Ledger');
     expect(markup).toContain('Readable Note');
     expect(markup).toContain('Open Note');
     expect(markup).toContain('Copy Note Path');
+    expect(markup).not.toContain('Watch Ledger');
     expect(markup).not.toContain('records-view-details');
     expect(markup).not.toContain('Archive Files');
   });

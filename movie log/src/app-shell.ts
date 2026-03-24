@@ -15,10 +15,10 @@ export function AppShell({ archiveStage, statusSpine }: AppShellProps) {
     createElement(
       'section',
       { className: 'workspace-stage' },
-      createElement('div', { 'aria-hidden': 'true', className: 'signal-grid' }),
-      createElement('div', { 'aria-hidden': 'true', className: 'signal-canopy' }),
-      createElement('div', { 'aria-hidden': 'true', className: 'flare-field' }),
-      createElement('div', { 'aria-hidden': 'true', className: 'stage-spine' }),
+      createElement('div', { 'aria-hidden': 'true', className: 'signal-lattice' }),
+      createElement('div', { 'aria-hidden': 'true', className: 'canopy-stack' }),
+      createElement('div', { 'aria-hidden': 'true', className: 'ember-cloud' }),
+      createElement('div', { 'aria-hidden': 'true', className: 'signal-spine' }),
       createElement('div', { className: 'workspace-stage-inner' }, archiveStage)
     )
   );

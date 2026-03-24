@@ -191,35 +191,30 @@ export function MovieLogWorkspace({
       archiveStage={
         <div className="records-view">
           <header className="workspace-band">
-            <div className="band-mark">
-              <div aria-hidden="true" className="rail-mark" />
-              <p className="section-label">Movie Log</p>
-              <h2 className="workspace-title">Watch Ledger</h2>
-              <p className="band-copy">A severe archive surface for history, arrivals, and the local record.</p>
+            <div className="wordmark-stack">
+              <p className="section-label">Arrival Ledger</p>
+              <h2 className="workspace-title">Movie Log</h2>
+              <p className="band-copy">Watched history, scan routes, and archive state in one authored surface.</p>
             </div>
-            <div className="band-status">
-              <p className="section-label">Status</p>
+            <div className="status-strip">
+              <p className="section-label">Archive Status</p>
               <p className="workspace-status">{ledgerSummary}</p>
+              <p className="status-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
             </div>
-            <div className="band-tools">
-              <div className="band-tools-frame">
-                <div className="band-tools-stack">
-                  <div className="drop-hint">
-                    <p className="section-label">Manual Drop</p>
-                    <p className="drop-copy">Drop media here</p>
-                  </div>
-                  <label className="workspace-search">
-                    <span className="visually-hidden">Search history</span>
-                    <input
-                      onChange={(event) => onSearchQueryChange(event.target.value)}
-                      placeholder="Search title or path"
-                      type="search"
-                      value={searchQuery}
-                    />
-                  </label>
-                </div>
+            <div className="search-band">
+              <div className="search-band-head">
+                <p className="section-label">Scan / Search / Drop</p>
+                <p className="drop-copy">Drop media directly into the ledger or search the archive path.</p>
               </div>
-              <p className="band-axis">Watch / Search / Scan</p>
+              <label className="workspace-search">
+                <span className="visually-hidden">Search history</span>
+                <input
+                  onChange={(event) => onSearchQueryChange(event.target.value)}
+                  placeholder="Search title or path"
+                  type="search"
+                  value={searchQuery}
+                />
+              </label>
             </div>
           </header>
 
@@ -236,7 +231,7 @@ export function MovieLogWorkspace({
               }}
               onDrop={onDrop}
             >
-              <div className="ledger-head">
+              <div className="ledger-head history-ledger">
                 <div className="ledger-head-copy">
                   <p className="section-label">History</p>
                   <p className="ledger-note">Recent arrivals and watched-folder captures stay readable here.</p>
@@ -287,7 +282,7 @@ export function MovieLogWorkspace({
             </section>
 
             <aside className="archive-inspector">
-              <div className="archive-inspector-head">
+              <div className="archive-spine-head">
                 <p className="section-label">Archive Index</p>
                 <h3 className="archive-title">{activeInspector.title}</h3>
                 <p className="details-copy">{inspectorSummary}</p>
@@ -348,31 +343,33 @@ export function MovieLogWorkspace({
               <p className="rail-section-note">{watchedFolderSummary}</p>
             </div>
 
-            {state.watchedFolders.length === 0 ? (
-              <div className="blank-slate blank-slate-compact">
-                <p className="blank-title">No watched folders</p>
-                <p className="blank-copy">Add one to watch new arrivals land in the ledger.</p>
-              </div>
-            ) : (
-              <ul className="route-list">
-                {state.watchedFolders.map((folder) => (
-                  <li className="route-row" key={folder.id}>
-                    <div className="route-copy">
-                      <strong className="route-title">{folder.name}</strong>
-                      <p className="route-meta">
-                        {folder.lastScannedAt
-                          ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}`
-                          : 'Waiting for scan or arrival'}
-                      </p>
-                      <p className="path-line">{folder.path}</p>
-                    </div>
-                    <button className="route-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div className="route-strip">
+              {state.watchedFolders.length === 0 ? (
+                <div className="blank-slate blank-slate-compact">
+                  <p className="blank-title">No watched folders</p>
+                  <p className="blank-copy">Add one to watch new arrivals land in the ledger.</p>
+                </div>
+              ) : (
+                <ul className="route-list">
+                  {state.watchedFolders.map((folder) => (
+                    <li className="route-row" key={folder.id}>
+                      <div className="route-copy">
+                        <strong className="route-title">{folder.name}</strong>
+                        <p className="route-meta">
+                          {folder.lastScannedAt
+                            ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}`
+                            : 'Waiting for scan or arrival'}
+                        </p>
+                        <p className="path-line">{folder.path}</p>
+                      </div>
+                      <button className="route-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </section>
         </div>
       }
