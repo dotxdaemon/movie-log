@@ -43,20 +43,19 @@ const state: MovieLogState = {
 function noop(): void {}
 
 describe('MovieLogWorkspace', () => {
-  it('renders the log view as a dense workspace band above the records list', () => {
+  it('renders the ledger as a permanent workspace beside an integrated archive inspector', () => {
     const markup = renderToStaticMarkup(
       createElement(MovieLogWorkspace, {
-        activeView: 'log',
+        activeInspectorTab: 'contents',
         dropActive: false,
         errorMessage: '',
         logFilePath: '/Users/seankim/Library/Application Support/Movie Log/movie-log/movie-log.json',
         noteFilePath: '/Users/seankim/Library/Application Support/Movie Log/movie-log/movie-log-note.md',
-        onActivateDetails: noop,
-        onActivateLog: noop,
         onAddWatchedFolders: async () => {},
         onCopyPath: async () => {},
         onDrop: noop,
         onDropActiveChange: noop,
+        onSelectInspectorTab: noop,
         onOpenInFinder: async () => {},
         onOpenItem: async () => {},
         onRemoveWatchedFolder: async () => {},
@@ -69,34 +68,40 @@ describe('MovieLogWorkspace', () => {
     );
 
     expect(markup).toContain('workspace-band');
+    expect(markup).toContain('workspace-body');
+    expect(markup).toContain('ledger-pane');
+    expect(markup).toContain('archive-inspector');
+    expect(markup).toContain('inspector-switcher');
     expect(markup).toContain('rail-mark');
     expect(markup).toContain('band-axis');
     expect(markup).toContain('Search title or path');
     expect(markup).toContain('Watch Routes');
     expect(markup).toContain('Watch Ledger');
-    expect(markup).toContain('Watch / Search / Scan');
+    expect(markup).toContain('Archive Index');
+    expect(markup).toContain('Current Contents');
+    expect(markup).toContain('Readable Note');
+    expect(markup).toContain('Data Store');
     expect(markup).toContain('Show in Finder');
     expect(markup).toContain('More');
-    expect(markup).not.toContain('Arrival Index');
-    expect(markup).not.toContain('Readable Note');
-    expect(markup).not.toContain('App Store');
-    expect(markup).not.toContain('Current top-level contents');
+    expect(markup).not.toContain('records-view-details');
+    expect(markup).not.toContain('aria-label="Workspace view"');
+    expect(markup).not.toContain('view-switcher');
+    expect(markup).not.toContain('Archive Files');
   });
 
-  it('renders the details view inside the same controlled workspace shell', () => {
+  it('can switch the integrated archive inspector without leaving the ledger', () => {
     const markup = renderToStaticMarkup(
       createElement(MovieLogWorkspace, {
-        activeView: 'details',
+        activeInspectorTab: 'note',
         dropActive: false,
         errorMessage: '',
         logFilePath: '/Users/seankim/Library/Application Support/Movie Log/movie-log/movie-log.json',
         noteFilePath: '/Users/seankim/Library/Application Support/Movie Log/movie-log/movie-log-note.md',
-        onActivateDetails: noop,
-        onActivateLog: noop,
         onAddWatchedFolders: async () => {},
         onCopyPath: async () => {},
         onDrop: noop,
         onDropActiveChange: noop,
+        onSelectInspectorTab: noop,
         onOpenInFinder: async () => {},
         onOpenItem: async () => {},
         onRemoveWatchedFolder: async () => {},
@@ -108,16 +113,11 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(markup).toContain('Archive Files');
+    expect(markup).toContain('Watch Ledger');
     expect(markup).toContain('Readable Note');
-    expect(markup).toContain('Data Store');
-    expect(markup).toContain('Log');
-    expect(markup).toContain('Details');
-    expect(markup).toContain('workspace-band');
-    expect(markup).toContain('band-axis');
-    expect(markup).toContain('Note / Store / Contents');
-    expect(markup).not.toContain('Local Archive');
-    expect(markup).not.toContain('Back to Log');
-    expect(markup).not.toContain('Nothing logged yet');
+    expect(markup).toContain('Open Note');
+    expect(markup).toContain('Copy Note Path');
+    expect(markup).not.toContain('records-view-details');
+    expect(markup).not.toContain('Archive Files');
   });
 });

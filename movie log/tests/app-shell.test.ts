@@ -16,6 +16,7 @@ describe('App shell', () => {
 
     expect(markup).toContain('workspace-frame');
     expect(markup).toContain('control-rail');
+    expect(markup).toContain('signal-grid');
     expect(markup).toContain('signal-canopy');
     expect(markup).toContain('flare-field');
     expect(markup).toContain('stage-spine');

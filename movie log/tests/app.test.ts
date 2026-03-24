@@ -28,7 +28,7 @@ describe('FolderSnapshotPanel', () => {
       })
     );
 
-    expect(markup).toContain('Current top-level contents');
+    expect(markup).toContain('Current Contents');
     expect(markup).toContain('City.of.God.2002.BluRay.1080p.x265.10bit.MNHD-FRDS');
     expect(markup).toContain('/Volumes/blve/movies/City.of.God.2002.BluRay.1080p.x265.10bit.MNHD-FRDS.mkv');
   });

@@ -82,7 +82,9 @@ async function captureIfRequested(): Promise<void> {
     isReady =
       latestText.includes('movie log') &&
       latestText.includes('watched folders') &&
-      latestText.includes('history');
+      latestText.includes('history') &&
+      latestText.includes('media inbox') &&
+      (latestText.includes('severance') || latestText.includes('the brutalist'));
 
     if (isReady) {
       break;

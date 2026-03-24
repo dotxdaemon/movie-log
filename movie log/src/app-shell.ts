@@ -15,6 +15,7 @@ export function AppShell({ archiveStage, statusSpine }: AppShellProps) {
     createElement(
       'section',
       { className: 'workspace-stage' },
+      createElement('div', { 'aria-hidden': 'true', className: 'signal-grid' }),
       createElement('div', { 'aria-hidden': 'true', className: 'signal-canopy' }),
       createElement('div', { 'aria-hidden': 'true', className: 'flare-field' }),
       createElement('div', { 'aria-hidden': 'true', className: 'stage-spine' }),

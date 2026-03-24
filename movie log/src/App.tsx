@@ -1,5 +1,5 @@
 // ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
-// ABOUTME: Shows a controlled archive workspace with watched-folder controls beside history and file details.
+// ABOUTME: Keeps one poster-driven workspace with watched-folder controls, a permanent ledger, and an archive inspector.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import { FolderSnapshotPanel } from './folder-snapshot-panel.js';
@@ -16,16 +16,20 @@ const timestampFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short'
 });
 
-type ActiveView = 'details' | 'log';
+type InspectorTab = 'contents' | 'note' | 'store';
+
+const inspectorTabs = [
+  { id: 'contents', label: 'Contents', title: 'Current Contents' },
+  { id: 'note', label: 'Note', title: 'Readable Note' },
+  { id: 'store', label: 'Store', title: 'Data Store' }
+] as const;
 
 interface MovieLogWorkspaceProps {
-  activeView: ActiveView;
+  activeInspectorTab: InspectorTab;
   dropActive: boolean;
   errorMessage: string;
   logFilePath: string;
   noteFilePath: string;
-  onActivateDetails(): void;
-  onActivateLog(): void;
   onAddWatchedFolders(): Promise<void>;
   onCopyPath(itemPath: string): Promise<void>;
   onDrop(event: DragEvent<HTMLElement>): Promise<void> | void;
@@ -35,6 +39,7 @@ interface MovieLogWorkspaceProps {
   onRemoveWatchedFolder(folderId: string): Promise<void>;
   onScanNow(): Promise<void>;
   onSearchQueryChange(value: string): void;
+  onSelectInspectorTab(tab: InspectorTab): void;
   scanInProgress: boolean;
   searchQuery: string;
   state: MovieLogState;
@@ -101,14 +106,24 @@ function createLedgerSummary(
   return `${formatCount(state.history.length, 'entry', 'entries')} recorded. ${watchedFolderStatus}`;
 }
 
+function createInspectorSummary(activeInspectorTab: InspectorTab, state: MovieLogState): string {
+  if (activeInspectorTab === 'contents') {
+    return `${formatCount(state.libraryItems.length, 'item')} in the current archive index.`;
+  }
+
+  if (activeInspectorTab === 'note') {
+    return 'The readable note mirrors the append-only ledger on disk.';
+  }
+
+  return 'The local JSON store stays outside the main ledger surface.';
+}
+
 export function MovieLogWorkspace({
-  activeView,
+  activeInspectorTab,
   dropActive,
   errorMessage,
   logFilePath,
   noteFilePath,
-  onActivateDetails,
-  onActivateLog,
   onAddWatchedFolders,
   onCopyPath,
   onDrop,
@@ -118,13 +133,15 @@ export function MovieLogWorkspace({
   onRemoveWatchedFolder,
   onScanNow,
   onSearchQueryChange,
+  onSelectInspectorTab,
   scanInProgress,
   searchQuery,
   state
 }: MovieLogWorkspaceProps) {
   const filteredHistory = state.history.filter((entry) => matchesSearch(entry, searchQuery));
   const ledgerSummary = createLedgerSummary(state, filteredHistory, searchQuery, scanInProgress);
-  const archiveSummary = `${formatCount(state.libraryItems.length, 'item')} in current contents. The readable note and data store live here, off the main ledger.`;
+  const inspectorSummary = createInspectorSummary(activeInspectorTab, state);
+  const activeInspector = inspectorTabs.find((tab) => tab.id === activeInspectorTab) ?? inspectorTabs[0];
   const watchedFolderSummary =
     state.watchedFolders.length === 0 ? 'None active' : `${formatCount(state.watchedFolders.length, 'folder')} active`;
   const statusBanner = errorMessage ? (
@@ -133,45 +150,84 @@ export function MovieLogWorkspace({
     </section>
   ) : null;
 
+  const archivePanel =
+    activeInspectorTab === 'contents' ? (
+      <FolderSnapshotPanel
+        compact
+        items={state.libraryItems}
+        onCopyPath={onCopyPath}
+        onOpenInFinder={onOpenInFinder}
+        onOpenItem={onOpenItem}
+        timestampLabel={(isoTime) => timestampFormatter.format(new Date(isoTime))}
+      />
+    ) : activeInspectorTab === 'note' ? (
+      <section className="reference-panel">
+        <p className="path-line">{noteFilePath}</p>
+        <div className="details-actions">
+          <button className="finder-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
+            Open Note
+          </button>
+          <button className="text-button" disabled={!noteFilePath} onClick={() => void onCopyPath(noteFilePath)} type="button">
+            Copy Note Path
+          </button>
+        </div>
+      </section>
+    ) : (
+      <section className="reference-panel">
+        <p className="path-line">{logFilePath}</p>
+        <div className="details-actions">
+          <button className="finder-button" disabled={!logFilePath} onClick={() => void onOpenInFinder(logFilePath)} type="button">
+            Show in Finder
+          </button>
+          <button className="text-button" disabled={!logFilePath} onClick={() => void onCopyPath(logFilePath)} type="button">
+            Copy Store Path
+          </button>
+        </div>
+      </section>
+    );
+
   return (
     <AppShell
       archiveStage={
-        activeView === 'log' ? (
-          <div className="records-view">
-            <header className="workspace-band">
-              <div className="band-mark">
-                <div aria-hidden="true" className="rail-mark" />
-                <p className="section-label">Movie Log</p>
-                <h2 className="workspace-title">Watch Ledger</h2>
-              </div>
-              <div className="band-status">
-                <p className="section-label">Status</p>
-                <p className="workspace-status">{ledgerSummary}</p>
-              </div>
-              <div className="band-tools">
-                <div className="band-tools-frame">
-                  <div className="band-tools-stack">
-                    <div className="drop-hint">
-                      <p className="section-label">Manual Drop</p>
-                      <p className="drop-copy">Drop media here</p>
-                    </div>
-                    <label className="workspace-search">
-                      <span className="visually-hidden">Search history</span>
-                      <input
-                        onChange={(event) => onSearchQueryChange(event.target.value)}
-                        placeholder="Search title or path"
-                        type="search"
-                        value={searchQuery}
-                      />
-                    </label>
+        <div className="records-view">
+          <header className="workspace-band">
+            <div className="band-mark">
+              <div aria-hidden="true" className="rail-mark" />
+              <p className="section-label">Movie Log</p>
+              <h2 className="workspace-title">Watch Ledger</h2>
+              <p className="band-copy">A severe archive surface for history, arrivals, and the local record.</p>
+            </div>
+            <div className="band-status">
+              <p className="section-label">Status</p>
+              <p className="workspace-status">{ledgerSummary}</p>
+            </div>
+            <div className="band-tools">
+              <div className="band-tools-frame">
+                <div className="band-tools-stack">
+                  <div className="drop-hint">
+                    <p className="section-label">Manual Drop</p>
+                    <p className="drop-copy">Drop media here</p>
                   </div>
+                  <label className="workspace-search">
+                    <span className="visually-hidden">Search history</span>
+                    <input
+                      onChange={(event) => onSearchQueryChange(event.target.value)}
+                      placeholder="Search title or path"
+                      type="search"
+                      value={searchQuery}
+                    />
+                  </label>
                 </div>
-                <p className="band-axis">Watch / Search / Scan</p>
               </div>
-            </header>
+              <p className="band-axis">Watch / Search / Scan</p>
+            </div>
+          </header>
 
+          {statusBanner}
+
+          <div className="workspace-body">
             <section
-              className={dropActive ? 'records-surface records-surface-active' : 'records-surface'}
+              className={dropActive ? 'ledger-pane ledger-pane-active' : 'ledger-pane'}
               onDragEnter={() => onDropActiveChange(true)}
               onDragLeave={() => onDropActiveChange(false)}
               onDragOver={(event) => {
@@ -180,7 +236,13 @@ export function MovieLogWorkspace({
               }}
               onDrop={onDrop}
             >
-              {statusBanner}
+              <div className="ledger-head">
+                <div className="ledger-head-copy">
+                  <p className="section-label">History</p>
+                  <p className="ledger-note">Recent arrivals and watched-folder captures stay readable here.</p>
+                </div>
+                <p className="ledger-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
+              </div>
 
               {filteredHistory.length === 0 ? (
                 <div className="blank-slate blank-slate-records">
@@ -223,91 +285,25 @@ export function MovieLogWorkspace({
                 </ol>
               )}
             </section>
+
+            <aside className="archive-inspector">
+              <div className="archive-inspector-head">
+                <p className="section-label">Archive Index</p>
+                <h3 className="archive-title">{activeInspector.title}</h3>
+                <p className="details-copy">{inspectorSummary}</p>
+              </div>
+              <div className="archive-inspector-body">{archivePanel}</div>
+              <p className="archive-axis">Contents / Note / Store</p>
+            </aside>
           </div>
-        ) : (
-          <div className="records-view records-view-details">
-            <header className="workspace-band">
-              <div className="band-mark">
-                <div aria-hidden="true" className="rail-mark" />
-                <p className="section-label">Movie Log</p>
-                <h2 className="workspace-title">Archive Files</h2>
-              </div>
-              <div className="band-status">
-                <p className="section-label">Reference</p>
-                <p className="workspace-status">{archiveSummary}</p>
-              </div>
-              <div className="band-tools band-tools-reference">
-                <div className="band-tools-frame">
-                  <div className="band-tools-stack">
-                    <p className="section-label">Storage</p>
-                    <p className="drop-copy">Readable note and JSON store paths.</p>
-                  </div>
-                </div>
-                <p className="band-axis">Note / Store / Contents</p>
-              </div>
-            </header>
-
-            <section className="records-surface records-surface-details">
-              {statusBanner}
-
-              <section className="detail-panel">
-                <div className="detail-section-head">
-                  <p className="section-label">Archive Files</p>
-                  <h3>Archive Files</h3>
-                </div>
-                <FolderSnapshotPanel
-                  compact
-                  items={state.libraryItems}
-                  onCopyPath={onCopyPath}
-                  onOpenInFinder={onOpenInFinder}
-                  onOpenItem={onOpenItem}
-                  timestampLabel={(isoTime) => timestampFormatter.format(new Date(isoTime))}
-                />
-              </section>
-
-              <section className="detail-panel">
-                <div className="detail-section-head">
-                  <p className="section-label">Readable Note</p>
-                  <h3>Readable Note</h3>
-                </div>
-                <p className="details-copy">The append-only note mirrors the archive ledger on disk.</p>
-                <p className="path-line">{noteFilePath}</p>
-                <div className="details-actions">
-                  <button className="finder-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
-                    Open Note
-                  </button>
-                  <button className="text-button" disabled={!noteFilePath} onClick={() => void onCopyPath(noteFilePath)} type="button">
-                    Copy Note Path
-                  </button>
-                </div>
-              </section>
-
-              <section className="detail-panel">
-                <div className="detail-section-head">
-                  <p className="section-label">Data Store</p>
-                  <h3>Data Store</h3>
-                </div>
-                <p className="details-copy">The local JSON store stays out of the main working surface.</p>
-                <p className="path-line">{logFilePath}</p>
-                <div className="details-actions">
-                  <button className="finder-button" disabled={!logFilePath} onClick={() => void onOpenInFinder(logFilePath)} type="button">
-                    Show in Finder
-                  </button>
-                  <button className="text-button" disabled={!logFilePath} onClick={() => void onCopyPath(logFilePath)} type="button">
-                    Copy Store Path
-                  </button>
-                </div>
-              </section>
-            </section>
-          </div>
-        )
+        </div>
       }
       statusSpine={
         <div className="rail-stack">
           <div className="rail-head">
             <div aria-hidden="true" className="rail-mark" />
             <p className="section-label">Movie Log</p>
-            <p className="rail-note">Watched folders, scan controls, and view changes stay on this side of the workspace.</p>
+            <p className="rail-note">Watched folders, scan controls, and archive tabs stay on this side of the workspace.</p>
           </div>
 
           <div className="rail-actions">
@@ -324,24 +320,27 @@ export function MovieLogWorkspace({
             </button>
           </div>
 
-          <div className="view-switcher" aria-label="Workspace view">
-            <button
-              aria-pressed={activeView === 'log'}
-              className={activeView === 'log' ? 'view-switch view-switch-active' : 'view-switch'}
-              onClick={onActivateLog}
-              type="button"
-            >
-              Log
-            </button>
-            <button
-              aria-pressed={activeView === 'details'}
-              className={activeView === 'details' ? 'view-switch view-switch-active' : 'view-switch'}
-              onClick={onActivateDetails}
-              type="button"
-            >
-              Details
-            </button>
-          </div>
+          <section className="rail-section">
+            <div className="rail-section-head">
+              <h2>Archive Index</h2>
+              <p className="rail-section-note">{activeInspector.title}</p>
+            </div>
+            <div className="inspector-switcher" aria-label="Archive index" role="tablist">
+              {inspectorTabs.map((tab) => (
+                <button
+                  aria-label={tab.title}
+                  aria-selected={activeInspectorTab === tab.id}
+                  className={activeInspectorTab === tab.id ? 'inspector-switch inspector-switch-active' : 'inspector-switch'}
+                  key={tab.id}
+                  onClick={() => onSelectInspectorTab(tab.id)}
+                  role="tab"
+                  type="button"
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </section>
 
           <section className="rail-section">
             <div className="rail-section-head">
@@ -382,7 +381,7 @@ export function MovieLogWorkspace({
 }
 
 export default function App() {
-  const [activeView, setActiveView] = useState<ActiveView>('log');
+  const [activeInspectorTab, setActiveInspectorTab] = useState<InspectorTab>('contents');
   const [state, setState] = useState<MovieLogState>(emptyState);
   const [dropActive, setDropActive] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -519,13 +518,11 @@ export default function App() {
 
   return (
     <MovieLogWorkspace
-      activeView={activeView}
+      activeInspectorTab={activeInspectorTab}
       dropActive={dropActive}
       errorMessage={errorMessage}
       logFilePath={logFilePath}
       noteFilePath={noteFilePath}
-      onActivateDetails={() => setActiveView('details')}
-      onActivateLog={() => setActiveView('log')}
       onAddWatchedFolders={handleAddWatchedFolders}
       onCopyPath={handleCopyPath}
       onDrop={handleDrop}
@@ -535,6 +532,7 @@ export default function App() {
       onRemoveWatchedFolder={handleRemoveWatchedFolder}
       onScanNow={handleScanNow}
       onSearchQueryChange={setSearchQuery}
+      onSelectInspectorTab={setActiveInspectorTab}
       scanInProgress={scanInProgress}
       searchQuery={searchQuery}
       state={state}

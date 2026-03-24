@@ -95,7 +95,7 @@ export function FolderSnapshotPanel({
       createElement(
         'div',
         null,
-        createElement('h2', null, 'Current top-level contents')
+        createElement('h2', null, 'Current Contents')
       )
     ),
     body
