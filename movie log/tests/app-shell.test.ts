@@ -16,15 +16,15 @@ describe('App shell', () => {
 
     expect(markup).toContain('workspace-frame');
     expect(markup).toContain('control-rail');
-    expect(markup).toContain('signal-lattice');
-    expect(markup).toContain('canopy-stack');
-    expect(markup).toContain('ember-cloud');
-    expect(markup).toContain('signal-spine');
+    expect(markup).toContain('glitch-band');
+    expect(markup).toContain('perspective-grid');
+    expect(markup).toContain('trace-frame');
+    expect(markup).toContain('index-spine');
     expect(markup).toContain('workspace-stage-inner');
     expect(markup).toContain('workspace-stage');
-    expect(markup).not.toContain('signal-grid');
-    expect(markup).not.toContain('signal-canopy');
-    expect(markup).not.toContain('flare-field');
-    expect(markup).not.toContain('stage-spine');
+    expect(markup).not.toContain('signal-lattice');
+    expect(markup).not.toContain('canopy-stack');
+    expect(markup).not.toContain('ember-cloud');
+    expect(markup).not.toContain('signal-spine');
   });
 });

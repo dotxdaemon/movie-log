@@ -1,4 +1,4 @@
-// ABOUTME: Verifies that the renderer workspace defaults to the arrival ledger and can switch to details.
+// ABOUTME: Verifies that the renderer workspace keeps the ledger visible beside the integrated inspector.
 // ABOUTME: Uses server rendering so the cinematic archive structure can regress without Electron.
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -68,30 +68,31 @@ describe('MovieLogWorkspace', () => {
     );
 
     expect(markup).toContain('workspace-band');
+    expect(markup).toContain('band-frame');
     expect(markup).toContain('workspace-body');
-    expect(markup).toContain('ledger-pane');
-    expect(markup).toContain('archive-inspector');
-    expect(markup).toContain('inspector-switcher');
-    expect(markup).toContain('wordmark-stack');
-    expect(markup).toContain('search-band');
-    expect(markup).toContain('history-ledger');
+    expect(markup).toContain('ledger-field');
+    expect(markup).toContain('inspector-panel');
+    expect(markup).toContain('inspector-tabs');
+    expect(markup).toContain('title-band');
+    expect(markup).toContain('search-panel');
+    expect(markup).toContain('field-ledger');
     expect(markup).toContain('archive-spine-head');
     expect(markup).toContain('route-strip');
-    expect(markup).toContain('Search title or path');
+    expect(markup).toContain('Search titles, paths, or routes');
     expect(markup).toContain('Watch Routes');
     expect(markup).toContain('Movie Log');
-    expect(markup).toContain('Arrival Ledger');
+    expect(markup).toContain('Signal Archive');
     expect(markup).toContain('Archive Index');
     expect(markup).toContain('Current Contents');
     expect(markup).toContain('Readable Note');
     expect(markup).toContain('Data Store');
     expect(markup).toContain('Show in Finder');
     expect(markup).toContain('More');
-    expect(markup).not.toContain('Watch Ledger');
-    expect(markup).not.toContain('records-view-details');
-    expect(markup).not.toContain('aria-label="Workspace view"');
-    expect(markup).not.toContain('view-switcher');
-    expect(markup).not.toContain('Archive Files');
+    expect(markup).not.toContain('wordmark-stack');
+    expect(markup).not.toContain('search-band');
+    expect(markup).not.toContain('ledger-pane');
+    expect(markup).not.toContain('archive-inspector');
+    expect(markup).not.toContain('inspector-switcher');
   });
 
   it('can switch the integrated archive inspector without leaving the ledger', () => {
@@ -119,12 +120,12 @@ describe('MovieLogWorkspace', () => {
     );
 
     expect(markup).toContain('Movie Log');
-    expect(markup).toContain('Arrival Ledger');
+    expect(markup).toContain('Signal Archive');
     expect(markup).toContain('Readable Note');
     expect(markup).toContain('Open Note');
     expect(markup).toContain('Copy Note Path');
-    expect(markup).not.toContain('Watch Ledger');
-    expect(markup).not.toContain('records-view-details');
-    expect(markup).not.toContain('Archive Files');
+    expect(markup).toContain('inspector-tabs');
+    expect(markup).not.toContain('search-band');
+    expect(markup).not.toContain('archive-inspector');
   });
 });

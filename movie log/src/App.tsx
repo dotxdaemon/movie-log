@@ -191,30 +191,34 @@ export function MovieLogWorkspace({
       archiveStage={
         <div className="records-view">
           <header className="workspace-band">
-            <div className="wordmark-stack">
-              <p className="section-label">Arrival Ledger</p>
-              <h2 className="workspace-title">Movie Log</h2>
-              <p className="band-copy">Watched history, scan routes, and archive state in one authored surface.</p>
-            </div>
-            <div className="status-strip">
-              <p className="section-label">Archive Status</p>
-              <p className="workspace-status">{ledgerSummary}</p>
-              <p className="status-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
-            </div>
-            <div className="search-band">
-              <div className="search-band-head">
-                <p className="section-label">Scan / Search / Drop</p>
-                <p className="drop-copy">Drop media directly into the ledger or search the archive path.</p>
+            <div className="band-frame">
+              <div className="title-band">
+                <p className="section-label">Signal Archive</p>
+                <h2 className="workspace-title">Movie Log</h2>
+                <p className="band-copy">History, watch routes, and archive state held on one readable plane.</p>
               </div>
-              <label className="workspace-search">
-                <span className="visually-hidden">Search history</span>
-                <input
-                  onChange={(event) => onSearchQueryChange(event.target.value)}
-                  placeholder="Search title or path"
-                  type="search"
-                  value={searchQuery}
-                />
-              </label>
+
+              <div className="status-panel">
+                <p className="section-label">Current State</p>
+                <p className="workspace-status">{ledgerSummary}</p>
+                <p className="status-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
+              </div>
+
+              <div className="search-panel">
+                <div className="search-panel-head">
+                  <p className="section-label">Search / Drop / Scan</p>
+                  <p className="drop-copy">Search titles, inspect routes, or drop media straight into the log.</p>
+                </div>
+                <label className="workspace-search">
+                  <span className="visually-hidden">Search history</span>
+                  <input
+                    onChange={(event) => onSearchQueryChange(event.target.value)}
+                    placeholder="Search titles, paths, or routes"
+                    type="search"
+                    value={searchQuery}
+                  />
+                </label>
+              </div>
             </div>
           </header>
 
@@ -222,7 +226,7 @@ export function MovieLogWorkspace({
 
           <div className="workspace-body">
             <section
-              className={dropActive ? 'ledger-pane ledger-pane-active' : 'ledger-pane'}
+              className={dropActive ? 'ledger-field ledger-field-active' : 'ledger-field'}
               onDragEnter={() => onDropActiveChange(true)}
               onDragLeave={() => onDropActiveChange(false)}
               onDragOver={(event) => {
@@ -231,7 +235,7 @@ export function MovieLogWorkspace({
               }}
               onDrop={onDrop}
             >
-              <div className="ledger-head history-ledger">
+              <div className="ledger-head field-ledger">
                 <div className="ledger-head-copy">
                   <p className="section-label">History</p>
                   <p className="ledger-note">Recent arrivals and watched-folder captures stay readable here.</p>
@@ -281,14 +285,29 @@ export function MovieLogWorkspace({
               )}
             </section>
 
-            <aside className="archive-inspector">
+            <aside className="inspector-panel">
               <div className="archive-spine-head">
                 <p className="section-label">Archive Index</p>
                 <h3 className="archive-title">{activeInspector.title}</h3>
                 <p className="details-copy">{inspectorSummary}</p>
               </div>
-              <div className="archive-inspector-body">{archivePanel}</div>
-              <p className="archive-axis">Contents / Note / Store</p>
+              <div className="inspector-tabs" aria-label="Archive index" role="tablist">
+                {inspectorTabs.map((tab) => (
+                  <button
+                    aria-label={tab.title}
+                    aria-selected={activeInspectorTab === tab.id}
+                    className={activeInspectorTab === tab.id ? 'inspector-tab inspector-tab-active' : 'inspector-tab'}
+                    key={tab.id}
+                    onClick={() => onSelectInspectorTab(tab.id)}
+                    role="tab"
+                    type="button"
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div className="inspector-panel-body">{archivePanel}</div>
+              <p className="side-tag">Archive / Note / Store</p>
             </aside>
           </div>
         </div>
@@ -298,7 +317,7 @@ export function MovieLogWorkspace({
           <div className="rail-head">
             <div aria-hidden="true" className="rail-mark" />
             <p className="section-label">Movie Log</p>
-            <p className="rail-note">Watched folders, scan controls, and archive tabs stay on this side of the workspace.</p>
+            <p className="rail-note">Watch routes and scan controls stay outside the main record plane.</p>
           </div>
 
           <div className="rail-actions">
@@ -314,28 +333,6 @@ export function MovieLogWorkspace({
               {scanInProgress ? 'Scanning...' : 'Scan Now'}
             </button>
           </div>
-
-          <section className="rail-section">
-            <div className="rail-section-head">
-              <h2>Archive Index</h2>
-              <p className="rail-section-note">{activeInspector.title}</p>
-            </div>
-            <div className="inspector-switcher" aria-label="Archive index" role="tablist">
-              {inspectorTabs.map((tab) => (
-                <button
-                  aria-label={tab.title}
-                  aria-selected={activeInspectorTab === tab.id}
-                  className={activeInspectorTab === tab.id ? 'inspector-switch inspector-switch-active' : 'inspector-switch'}
-                  key={tab.id}
-                  onClick={() => onSelectInspectorTab(tab.id)}
-                  role="tab"
-                  type="button"
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </section>
 
           <section className="rail-section">
             <div className="rail-section-head">
