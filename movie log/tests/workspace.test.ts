@@ -67,32 +67,32 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(markup).toContain('workspace-band');
-    expect(markup).toContain('band-frame');
+    expect(markup).toContain('focus-head');
+    expect(markup).toContain('focus-plane-copy');
     expect(markup).toContain('workspace-body');
-    expect(markup).toContain('ledger-field');
-    expect(markup).toContain('inspector-panel');
-    expect(markup).toContain('inspector-tabs');
-    expect(markup).toContain('title-band');
-    expect(markup).toContain('search-panel');
-    expect(markup).toContain('field-ledger');
-    expect(markup).toContain('archive-spine-head');
-    expect(markup).toContain('route-strip');
-    expect(markup).toContain('Search titles, paths, or routes');
+    expect(markup).toContain('history-ledger');
+    expect(markup).toContain('mirror-panel');
+    expect(markup).toContain('mirror-tabs');
+    expect(markup).toContain('focus-search');
+    expect(markup).toContain('ledger-head');
+    expect(markup).toContain('mirror-head');
+    expect(markup).toContain('route-column');
+    expect(markup).toContain('Search the ledger');
     expect(markup).toContain('Watch Routes');
     expect(markup).toContain('Movie Log');
-    expect(markup).toContain('Signal Archive');
-    expect(markup).toContain('Archive Index');
+    expect(markup).toContain('Ghost Signal');
+    expect(markup).toContain('Archive Mirror');
     expect(markup).toContain('Current Contents');
     expect(markup).toContain('Readable Note');
     expect(markup).toContain('Data Store');
     expect(markup).toContain('Show in Finder');
     expect(markup).toContain('More');
-    expect(markup).not.toContain('wordmark-stack');
-    expect(markup).not.toContain('search-band');
-    expect(markup).not.toContain('ledger-pane');
-    expect(markup).not.toContain('archive-inspector');
-    expect(markup).not.toContain('inspector-switcher');
+    expect(markup).not.toContain('workspace-band');
+    expect(markup).not.toContain('band-frame');
+    expect(markup).not.toContain('title-band');
+    expect(markup).not.toContain('search-panel');
+    expect(markup).not.toContain('inspector-panel');
+    expect(markup).not.toContain('inspector-tabs');
   });
 
   it('can switch the integrated archive inspector without leaving the ledger', () => {
@@ -120,12 +120,13 @@ describe('MovieLogWorkspace', () => {
     );
 
     expect(markup).toContain('Movie Log');
-    expect(markup).toContain('Signal Archive');
+    expect(markup).toContain('Ghost Signal');
     expect(markup).toContain('Readable Note');
     expect(markup).toContain('Open Note');
     expect(markup).toContain('Copy Note Path');
-    expect(markup).toContain('inspector-tabs');
-    expect(markup).not.toContain('search-band');
-    expect(markup).not.toContain('archive-inspector');
+    expect(markup).toContain('mirror-tabs');
+    expect(markup).toContain('mirror-panel');
+    expect(markup).not.toContain('inspector-tabs');
+    expect(markup).not.toContain('inspector-panel');
   });
 });

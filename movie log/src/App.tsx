@@ -86,36 +86,35 @@ function createLedgerSummary(
   searchQuery: string,
   scanInProgress: boolean
 ): string {
-  const watchedFolderStatus =
-    state.watchedFolders.length === 0
-      ? 'No watched folders are active yet.'
-      : `Watching ${formatCount(state.watchedFolders.length, 'folder')} for new arrivals.`;
-
   if (searchQuery) {
-    return `${formatCount(filteredHistory.length, 'entry', 'entries')} of ${formatCount(state.history.length, 'entry', 'entries')} shown. ${watchedFolderStatus}`;
-  }
-
-  if (state.history.length === 0) {
-    return `${watchedFolderStatus} Drop a file or add a watched folder to start the ledger.`;
+    return `${formatCount(filteredHistory.length, 'entry', 'entries')} shown from ${formatCount(state.history.length, 'entry', 'entries')}.`;
   }
 
   if (scanInProgress) {
-    return `${formatCount(state.history.length, 'entry', 'entries')} recorded. Scanning watched folders now.`;
+    return `Scanning ${formatCount(state.watchedFolders.length, 'route')} now.`;
   }
 
-  return `${formatCount(state.history.length, 'entry', 'entries')} recorded. ${watchedFolderStatus}`;
+  if (state.history.length === 0) {
+    return 'No arrivals logged yet.';
+  }
+
+  if (state.watchedFolders.length === 0) {
+    return `${formatCount(state.history.length, 'entry', 'entries')} recorded.`;
+  }
+
+  return `${formatCount(state.history.length, 'entry', 'entries')} recorded across ${formatCount(state.watchedFolders.length, 'route')}.`;
 }
 
 function createInspectorSummary(activeInspectorTab: InspectorTab, state: MovieLogState): string {
   if (activeInspectorTab === 'contents') {
-    return `${formatCount(state.libraryItems.length, 'item')} in the current archive index.`;
+    return `${formatCount(state.libraryItems.length, 'item')} indexed.`;
   }
 
   if (activeInspectorTab === 'note') {
-    return 'The readable note mirrors the append-only ledger on disk.';
+    return 'Readable note on disk.';
   }
 
-  return 'The local JSON store stays outside the main ledger surface.';
+  return 'Local JSON store path.';
 }
 
 export function MovieLogWorkspace({
@@ -190,34 +189,27 @@ export function MovieLogWorkspace({
     <AppShell
       archiveStage={
         <div className="records-view">
-          <header className="workspace-band">
-            <div className="band-frame">
-              <div className="title-band">
-                <p className="section-label">Signal Archive</p>
-                <h2 className="workspace-title">Movie Log</h2>
-                <p className="band-copy">History, watch routes, and archive state held on one readable plane.</p>
-              </div>
+          <header className="focus-head">
+            <div className="focus-plane-copy">
+              <p className="section-label">Ghost Signal</p>
+              <h2 className="workspace-title">Movie Log</h2>
+              <p className="focus-note">Arrival ledger for watched routes and manual drops.</p>
+            </div>
 
-              <div className="status-panel">
+            <div className="focus-side">
+              <label className="focus-search">
+                <span className="visually-hidden">Search history</span>
+                <input
+                  onChange={(event) => onSearchQueryChange(event.target.value)}
+                  placeholder="Search the ledger"
+                  type="search"
+                  value={searchQuery}
+                />
+              </label>
+
+              <div className="focus-state">
                 <p className="section-label">Current State</p>
                 <p className="workspace-status">{ledgerSummary}</p>
-                <p className="status-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
-              </div>
-
-              <div className="search-panel">
-                <div className="search-panel-head">
-                  <p className="section-label">Search / Drop / Scan</p>
-                  <p className="drop-copy">Search titles, inspect routes, or drop media straight into the log.</p>
-                </div>
-                <label className="workspace-search">
-                  <span className="visually-hidden">Search history</span>
-                  <input
-                    onChange={(event) => onSearchQueryChange(event.target.value)}
-                    placeholder="Search titles, paths, or routes"
-                    type="search"
-                    value={searchQuery}
-                  />
-                </label>
               </div>
             </div>
           </header>
@@ -226,7 +218,7 @@ export function MovieLogWorkspace({
 
           <div className="workspace-body">
             <section
-              className={dropActive ? 'ledger-field ledger-field-active' : 'ledger-field'}
+              className={dropActive ? 'history-ledger history-ledger-active' : 'history-ledger'}
               onDragEnter={() => onDropActiveChange(true)}
               onDragLeave={() => onDropActiveChange(false)}
               onDragOver={(event) => {
@@ -235,10 +227,10 @@ export function MovieLogWorkspace({
               }}
               onDrop={onDrop}
             >
-              <div className="ledger-head field-ledger">
+              <div className="ledger-head">
                 <div className="ledger-head-copy">
                   <p className="section-label">History</p>
-                  <p className="ledger-note">Recent arrivals and watched-folder captures stay readable here.</p>
+                  <p className="ledger-note">{searchQuery ? 'Filtered arrivals.' : 'Latest arrivals.'}</p>
                 </div>
                 <p className="ledger-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
               </div>
@@ -285,18 +277,18 @@ export function MovieLogWorkspace({
               )}
             </section>
 
-            <aside className="inspector-panel">
-              <div className="archive-spine-head">
-                <p className="section-label">Archive Index</p>
+            <aside className="mirror-panel">
+              <div className="mirror-head">
+                <p className="section-label">Archive Mirror</p>
                 <h3 className="archive-title">{activeInspector.title}</h3>
                 <p className="details-copy">{inspectorSummary}</p>
               </div>
-              <div className="inspector-tabs" aria-label="Archive index" role="tablist">
+              <div className="mirror-tabs" aria-label="Archive mirror" role="tablist">
                 {inspectorTabs.map((tab) => (
                   <button
                     aria-label={tab.title}
                     aria-selected={activeInspectorTab === tab.id}
-                    className={activeInspectorTab === tab.id ? 'inspector-tab inspector-tab-active' : 'inspector-tab'}
+                    className={activeInspectorTab === tab.id ? 'mirror-tab mirror-tab-active' : 'mirror-tab'}
                     key={tab.id}
                     onClick={() => onSelectInspectorTab(tab.id)}
                     role="tab"
@@ -306,21 +298,21 @@ export function MovieLogWorkspace({
                   </button>
                 ))}
               </div>
-              <div className="inspector-panel-body">{archivePanel}</div>
-              <p className="side-tag">Archive / Note / Store</p>
+              <div className="mirror-panel-body">{archivePanel}</div>
+              <p className="index-spine-tag">Archive Mirror</p>
             </aside>
           </div>
         </div>
       }
       statusSpine={
-        <div className="rail-stack">
-          <div className="rail-head">
+        <div className="route-column">
+          <div className="route-column-head">
             <div aria-hidden="true" className="rail-mark" />
-            <p className="section-label">Movie Log</p>
-            <p className="rail-note">Watch routes and scan controls stay outside the main record plane.</p>
+            <p className="section-label">Watch Routes</p>
+            <p className="rail-section-note">{watchedFolderSummary}</p>
           </div>
 
-          <div className="rail-actions">
+          <div className="route-actions">
             <button className="rail-button rail-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
               Add Folder
             </button>
@@ -334,39 +326,32 @@ export function MovieLogWorkspace({
             </button>
           </div>
 
-          <section className="rail-section">
-            <div className="rail-section-head">
-              <h2>Watch Routes</h2>
-              <p className="rail-section-note">{watchedFolderSummary}</p>
-            </div>
-
-            <div className="route-strip">
-              {state.watchedFolders.length === 0 ? (
-                <div className="blank-slate blank-slate-compact">
-                  <p className="blank-title">No watched folders</p>
-                  <p className="blank-copy">Add one to watch new arrivals land in the ledger.</p>
-                </div>
-              ) : (
-                <ul className="route-list">
-                  {state.watchedFolders.map((folder) => (
-                    <li className="route-row" key={folder.id}>
-                      <div className="route-copy">
-                        <strong className="route-title">{folder.name}</strong>
-                        <p className="route-meta">
-                          {folder.lastScannedAt
-                            ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}`
-                            : 'Waiting for scan or arrival'}
-                        </p>
-                        <p className="path-line">{folder.path}</p>
-                      </div>
-                      <button className="route-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+          <section className="route-listing">
+            {state.watchedFolders.length === 0 ? (
+              <div className="blank-slate blank-slate-compact">
+                <p className="blank-title">No watched folders</p>
+                <p className="blank-copy">Add one route to start the ledger.</p>
+              </div>
+            ) : (
+              <ul className="route-list">
+                {state.watchedFolders.map((folder) => (
+                  <li className="route-row" key={folder.id}>
+                    <div className="route-copy">
+                      <strong className="route-title">{folder.name}</strong>
+                      <p className="route-meta">
+                        {folder.lastScannedAt
+                          ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}`
+                          : 'Waiting for scan or arrival'}
+                      </p>
+                      <p className="path-line">{folder.path}</p>
+                    </div>
+                    <button className="route-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </div>
       }

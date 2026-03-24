@@ -11,15 +11,20 @@ export function AppShell({ archiveStage, statusSpine }: AppShellProps) {
   return createElement(
     'main',
     { className: 'workspace-frame' },
-    createElement('aside', { className: 'control-rail' }, createElement('div', { className: 'control-rail-inner' }, statusSpine)),
+    createElement('aside', { className: 'signal-column' }, createElement('div', { className: 'signal-column-inner' }, statusSpine)),
     createElement(
       'section',
       { className: 'workspace-stage' },
-      createElement('div', { 'aria-hidden': 'true', className: 'glitch-band' }),
-      createElement('div', { 'aria-hidden': 'true', className: 'perspective-grid' }),
-      createElement('div', { 'aria-hidden': 'true', className: 'trace-frame' }),
-      createElement('div', { 'aria-hidden': 'true', className: 'index-spine' }),
-      createElement('div', { className: 'workspace-stage-inner' }, archiveStage)
+      createElement('div', { 'aria-hidden': 'true', className: 'signal-lattice' }),
+      createElement('div', { 'aria-hidden': 'true', className: 'ceiling-grid' }),
+      createElement('div', { 'aria-hidden': 'true', className: 'frame-shell' }),
+      createElement('div', { 'aria-hidden': 'true', className: 'editorial-spine' }),
+      createElement(
+        'div',
+        { className: 'workspace-stage-inner' },
+        createElement('div', { 'aria-hidden': 'true', className: 'fracture-shadow' }),
+        createElement('div', { className: 'focus-plane' }, archiveStage)
+      )
     )
   );
 }
