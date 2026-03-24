@@ -210,3 +210,171 @@ This is the cumulative meta-failure that ties the record together. By the time e
 
 - 2026-03-24: What I just tried previously was a black/orange poster shell that still left the actual working surfaces reading like an ordinary desktop tool with themed edges. Sean is asking for the supplied black/ivory glitch-anime reference to drive the Movie Log redesign directly. The current error is that the renderer still depends on orange heat, boxed utility panels, and conventional workspace framing instead of the reference image's framed black field, pale focal plane, thin grid geometry, vertical side label, restrained neon signals, and readable central composition.
 - 2026-03-24: `npm test` can fail spuriously when it is run in parallel with `npm run lint` and `npm run typecheck` because `tests/folder-monitor.test.ts` has a timing-sensitive wait for the second folder sync to begin. The isolated test passed immediately after the parallel failure, so the safe verification path for this repo is to run the required gates sequentially rather than treating parallel gate execution as equivalent proof.
+
+## 32 Visual Failure Modes Sean Already Called Out
+
+1. Failure mode: the reference is not treated as the primary source of truth.
+What it means in practice: the task starts from generic app habits or remembered vibes instead of the exact image or page Sean supplied, so the result drifts before any code is written.
+Required prevention step: every UI task must start by extracting composition, hierarchy, focal anchor, palette, type attitude, mood, and shape language directly from the exact reference image or page.
+Required proof before claiming success: the final report must list those extracted markers and map each one to a concrete UI decision.
+
+2. Failure mode: the old Movie Log layout remains the governing structure.
+What it means in practice: the redesign keeps the previous rail, header, ledger, or inspector silhouette as the real composition, then adds styling on top of it.
+Required prevention step: before designing, list which inherited shell traits must be removed or neutralized.
+Required proof before claiming success: the closeout must state which old layout traits were deleted and why the new composition no longer reads like the old app.
+
+3. Failure mode: the result reads as a cyber archive utility instead of an anime-led interface.
+What it means in practice: the mood stays cold, mechanical, or tool-like even if the palette or framing borrows from the reference.
+Required prevention step: define the target visual thesis in one sentence before editing, including mood and medium, not just palette.
+Required proof before claiming success: the closeout must explicitly compare the shipped mood to the intended anime-led mood and mark PASS or FAIL.
+
+4. Failure mode: the design effort goes into the margins instead of the working surfaces.
+What it means in practice: the frame, background, ceiling grid, or decorative shell gets the reference treatment while search, rows, controls, and the inspector stay ordinary.
+Required prevention step: require a working-surface-first mapping for search, title band, rows, controls, and inspector before any shell treatment is allowed.
+Required proof before claiming success: the final report must explain how each core working surface carries the reference, not just the frame or background.
+
+5. Failure mode: there is no central focal anchor equivalent to the reference’s subject.
+What it means in practice: the first viewport has no dominant visual center, so the interface feels dispersed and utility-led instead of composed around a single anchor.
+Required prevention step: every redesign must define one dominant focal anchor in the first viewport.
+Required proof before claiming success: the report must identify the focal anchor and explain how the rest of the screen supports it.
+
+6. Failure mode: the eerie, uncanny, intimate mood of the reference is lost.
+What it means in practice: the interface becomes neutral, administrative, or merely stylish instead of carrying the emotional tension of the reference.
+Required prevention step: write a mood target before implementation and reject any composition that feels administrative or neutral by default.
+Required proof before claiming success: the closeout must include a mood check with PASS or FAIL and one sentence defending it.
+
+7. Failure mode: black field plus pale focal form gets translated into separate pale panels instead of one focal presence.
+What it means in practice: light surfaces appear as app cards or slabs instead of a singular focal plane set against the dark field.
+Required prevention step: define how the light/dark relationship works compositionally before component layout begins.
+Required proof before claiming success: the final report must state what the pale focal form is and why it reads as focal instead of panelized.
+
+8. Failure mode: technical marks exist without a subject for them to orbit.
+What it means in practice: grids, labels, signal lines, or other technical cues float around the interface without reinforcing a main subject or product function.
+Required prevention step: no technical marks, labels, grids, or signal lines may be added until the main subject or focal surface is established.
+Required proof before claiming success: each technical mark used in the final result must be tied to the focal anchor or a specific product function.
+
+9. Failure mode: glitch effects are reduced to cheap cyan/magenta garnish.
+What it means in practice: chromatic offsets appear as easy decoration instead of deliberate structural tension at important edges or surfaces.
+Required prevention step: if glitch/chromatic offsets are used, define exactly where and why they appear, and keep them structural, not ornamental.
+Required proof before claiming success: the report must identify the specific edges or surfaces where the effect is used and justify its restraint.
+
+10. Failure mode: accent colors become uncontrolled operational UI color noise.
+What it means in practice: the screen accumulates multiple attention colors that read like utility coding instead of one disciplined atmosphere or signal system.
+Required prevention step: set one dominant accent system before styling and ban extra accents unless explicitly tied to state semantics.
+Required proof before claiming success: the closeout must list the exact accent palette used and confirm there are no competing accent systems.
+
+11. Failure mode: helper copy becomes too verbose.
+What it means in practice: explanatory text fills the screen and weakens scanability, making the interface read like a verbose admin tool instead of a composed visual product.
+Required prevention step: utility copy must be reduced until headings, labels, and one support sentence per area are enough.
+Required proof before claiming success: the final report must identify where helper copy was cut and confirm the first screen is still understandable by scan.
+
+12. Failure mode: generic UX primitives survive unchanged.
+What it means in practice: search, buttons, tabs, side rails, and record actions remain stock patterns with only superficial styling adjustments.
+Required prevention step: search, buttons, tabs, side rails, and record actions must be redesigned as part of the visual system instead of left as stock controls.
+Required proof before claiming success: the report must list the core controls that were re-authored and explain how they were made non-generic.
+
+13. Failure mode: readability degrades into clumsy, heavy, multiline blocks.
+What it means in practice: titles, metadata, and paths become loud or hard to scan under real content, even if the screen looks dramatic in the empty or idealized state.
+Required prevention step: scanning quality is a hard gate; titles, metadata, and paths must be tested against real populated content.
+Required proof before claiming success: the closeout must include a readability checklist for rows, search, and inspector with PASS or FAIL.
+
+14. Failure mode: oversized title treatment overwhelms the interface.
+What it means in practice: the product name or top-line label behaves like a poster headline pasted into the UI and competes with the actual working surface.
+Required prevention step: product naming must be integrated into the composition, not treated like a poster pasted into an app header.
+Required proof before claiming success: the report must state the title’s role, scale, and why it does not outrank the product surface.
+
+15. Failure mode: decorative geometry does no product work.
+What it means in practice: lines, blocks, labels, or shapes consume visual attention without organizing content, clarifying state, or aiding scan.
+Required prevention step: every graphic element must frame content, indicate state, organize the grid, or improve scanning.
+Required proof before claiming success: the final report must list any non-content visual elements and the exact job each one performs.
+
+16. Failure mode: the screen still feels like multiple systems instead of one authored system.
+What it means in practice: the rail, header, ledger, and inspector each feel like separate local designs rather than one unified composition.
+Required prevention step: define one governing grid and one hierarchy for the first viewport before implementing any section styling.
+Required proof before claiming success: the closeout must explain how rail, header, ledger, and inspector belong to one composition rather than adjacent modules.
+
+17. Failure mode: asymmetry and tension collapse back into a balanced app grid.
+What it means in practice: the interface defaults to safe, centered, or evenly weighted utility layout even when the reference depends on imbalance and tension.
+Required prevention step: write an explicit asymmetry plan describing where weight, void, and density sit on the screen.
+Required proof before claiming success: the final report must identify how asymmetry is created and why the screen does not revert to a centered utility layout.
+
+18. Failure mode: boxed-off sidebars survive under new styling.
+What it means in practice: the side rail remains a visually isolated utility block rather than becoming part of the same composition as the main surface.
+Required prevention step: if a side rail exists, it must be compositionally integrated, not visually isolated.
+Required proof before claiming success: the report must explain why the rail no longer reads as a separate boxed sidebar.
+
+19. Failure mode: pale slabs look pasted onto a dark shell.
+What it means in practice: lighter surfaces sit on top of the dark field like inserted cards instead of belonging to the screen-level composition.
+Required prevention step: define how pale surfaces connect to the overall field and forbid isolated slab treatment.
+Required proof before claiming success: the closeout must state why any pale surface reads as part of the composition rather than pasted on top.
+
+20. Failure mode: the screen still resembles a dashboard or internal tool template.
+What it means in practice: even after styling, the result still looks like an admin surface, operational dashboard, or conventional productivity UI.
+Required prevention step: add an explicit anti-goal list before implementation that bans dashboard-card logic, admin layout defaults, and utility-first framing.
+Required proof before claiming success: the final report must include a direct “does this still read like an internal tool?” PASS/FAIL line.
+
+21. Failure mode: the reference’s organic distortion is missing.
+What it means in practice: the result keeps only straight, rigid, rectilinear structure even when the reference depends on bend, smear, fracture, or bodily distortion.
+Required prevention step: if the reference depends on warp, bend, fracture, smear, or bodily distortion, define where that quality enters the UI system without harming readability.
+Required proof before claiming success: the closeout must name the exact surfaces or edges where organic distortion was translated.
+
+22. Failure mode: the layered atmospheric palette is flattened into blunt utility colors.
+What it means in practice: the screen reduces the reference’s tonal layering into simple neutral-plus-accent application coloring.
+Required prevention step: palette planning must include field color, focal color, lowlight tone, and signal tone, not just accent plus neutral.
+Required proof before claiming success: the report must name the atmospheric color layers and where each one appears.
+
+23. Failure mode: vertical labeling exists only as a UI tag instead of an editorial structural accent.
+What it means in practice: vertical type is present, but it behaves like a badge or label instead of carrying compositional weight or orientation.
+Required prevention step: any vertical type must contribute to composition, hierarchy, or orientation at the screen level.
+Required proof before claiming success: the closeout must explain the role of every vertical label and whether it acts as structure rather than garnish.
+
+24. Failure mode: the header remains a set of adjacent modules instead of part of the composition.
+What it means in practice: the top band still reads like a row of separate panels or tools rather than one authored visual event.
+Required prevention step: treat the top band as one authored visual event with one internal hierarchy.
+Required proof before claiming success: the report must explain how the header reads as one composition rather than multiple boxes.
+
+25. Failure mode: search remains an ordinary input inside a panel.
+What it means in practice: search still looks like a default form control inserted into a box instead of an authored part of the first-screen hierarchy.
+Required prevention step: search must be designed as part of the visual system and first-screen hierarchy, not left as stock form chrome.
+Required proof before claiming success: the closeout must identify how search was authored and why it no longer reads as a default input block.
+
+26. Failure mode: controls read as standard desktop controls with custom colors.
+What it means in practice: buttons, toggles, tabs, and action chips stay generic in silhouette and spacing even after palette changes.
+Required prevention step: buttons, toggles, tabs, and action chips must be redrawn through the same shape, typography, and spacing system as the rest of the app.
+Required proof before claiming success: the report must list the control family rules and show they are consistent across surfaces.
+
+27. Failure mode: history rows rely on loud weight instead of elegant rhythm.
+What it means in practice: record rows shout through boldness and wrapping rather than through calm spacing, hierarchy, and scan rhythm.
+Required prevention step: row design must prioritize scanning rhythm, fit, truncation strategy, spacing, and metadata hierarchy before stylization.
+Required proof before claiming success: the closeout must describe the row typography system and why it improves scanning.
+
+28. Failure mode: the inspector remains a conventional dark side panel with tabs.
+What it means in practice: the inspector still behaves like a generic utility appendage and does not participate in the main screen concept.
+Required prevention step: the inspector must be designed as part of the main visual concept, not as a generic utility appendage.
+Required proof before claiming success: the final report must explain how the inspector participates in the overall composition and reference language.
+
+29. Failure mode: admin-tool copywriting survives in headings and labels.
+What it means in practice: naming and helper text still sound like internal operations UI rather than belonging to the intended visual system and tone.
+Required prevention step: UI copy must be rewritten for the intended visual system and product tone, not inherited from utility defaults.
+Required proof before claiming success: the closeout must identify which headings or labels were rewritten and why they no longer read as admin-tool copy.
+
+30. Failure mode: the work is a stronger themed variant instead of a true rebuild.
+What it means in practice: the pass improves style and atmosphere, but the underlying system still reads as the same app with more confident trim.
+Required prevention step: before implementation, state whether the task requires a full visual reinvention or a light polish; if it requires reinvention, preserving the old shell is disallowed.
+Required proof before claiming success: the final report must defend why the pass qualifies as a rebuild rather than an incremental theme.
+
+31. Failure mode: the result is still mostly thin lines, boxes, tags, and accents instead of an anime composition.
+What it means in practice: the screen depends on UI chrome and outline language instead of atmosphere, focal hierarchy, and visual gravity.
+Required prevention step: ban linework-only solutions; the first screen must be driven by composition, focal hierarchy, atmosphere, and visual gravity.
+Required proof before claiming success: the closeout must include a direct PASS/FAIL line for “anime-led composition versus styled utility shell.”
+
+32. Failure mode: the strongest reference-faithful moves still live in the margins instead of the product surface.
+What it means in practice: the most convincing reference cues show up in the frame, background, or shell before they appear in the title band, search, rows, controls, or inspector.
+Required prevention step: add a mandatory final check asking whether the most reference-specific decisions are visible in the title band, search, rows, controls, and inspector before they appear in the background or frame.
+Required proof before claiming success: the final report must identify the top five reference-faithful moves and where they appear; at least three must live on the actual working surface.
+
+## Rejection Reset Rule
+
+- If Sean rejects the visual result, all prior visual proof is invalid.
+- The task reopens from the reference, not from the prior completion claim.
+- No polish pass on the rejected direction is allowed until a new mismatch list is written against the current result.
