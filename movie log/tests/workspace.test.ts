@@ -31,7 +31,7 @@ const state: MovieLogState = {
   ],
   watchedFolders: [
     {
-      addedAt: '2026-03-19T09:00:00.000Z',
+      addedAt: '2026-03-17T09:00:00.000Z',
       id: '/Volumes/blve/movies',
       lastScannedAt: '2026-03-19T10:00:00.000Z',
       name: 'movies',
@@ -87,6 +87,9 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('Note');
     expect(text).toContain('Store');
     expect(text).toContain('Add Folder');
+    const routeText = readText(findByClass(tree, 'signal-route'));
+    expect(routeText).toContain('Added Mar 17');
+    expect(routeText).not.toContain('Seen Mar 19');
     expect(text).toContain('Show in Finder');
     expect(text).toContain('More');
   });

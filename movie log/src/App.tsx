@@ -329,9 +329,7 @@ export function MovieLogWorkspace({
                     <div className="signal-route-copy">
                       <strong className="route-title">{folder.name}</strong>
                       <p className="route-meta">
-                        {folder.lastScannedAt
-                          ? `Seen ${timestampFormatter.format(new Date(folder.lastScannedAt))}`
-                          : 'Waiting'}
+                        {`Added ${timestampFormatter.format(new Date(folder.addedAt))}`}
                       </p>
                     </div>
                     <button className="route-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
