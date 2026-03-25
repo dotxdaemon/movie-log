@@ -15,6 +15,14 @@ const state: MovieLogState = {
       sourcePath: '/Volumes/blve/movies/Flow.mkv',
       title: 'Flow',
       watchedAt: '2026-03-19T10:00:00.000Z'
+    },
+    {
+      id: '2026-03-21T10:00:00.000Z:/Volumes/blve/movies/Flow.mkv',
+      source: 'watch',
+      sourceKind: 'file',
+      sourcePath: '/Volumes/blve/movies/Flow.mkv',
+      title: 'Flow',
+      watchedAt: '2026-03-21T10:00:00.000Z'
     }
   ],
   libraryItems: [
@@ -79,6 +87,7 @@ describe('MovieLogWorkspace', () => {
     expect(findByClass(tree, 'history-stream')).toHaveLength(0);
     expect(findByClass(tree, 'mirror-inspector')).toHaveLength(0);
     expect(findByClass(tree, 'route-dock')).toHaveLength(0);
+    expect(findByClass(tree, 'record-row')).toHaveLength(1);
     const text = readText(tree);
     expect(text).toContain('Movie Log');
     expect(text).toContain('Arrivals');
@@ -90,9 +99,15 @@ describe('MovieLogWorkspace', () => {
     const routeText = readText(findByClass(tree, 'signal-route'));
     expect(routeText).toContain('Added Mar 17');
     expect(routeText).not.toContain('Seen Mar 19');
+    const historyText = readText(findByClass(tree, 'record-row'));
+    expect(historyText).toContain('Mar 19');
+    expect(historyText).not.toContain('Mar 21');
     const archiveText = readText(findByClass(tree, 'snapshot-row'));
     expect(archiveText).toContain('Added Mar 17');
     expect(archiveText).not.toContain('Seen Mar 19');
+    expect(text).toContain('1 entry recorded across 1 route.');
+    expect(text).toContain('1 entry');
+    expect(text).not.toContain('2 entries recorded');
     expect(text).toContain('Show in Finder');
     expect(text).toContain('More');
   });

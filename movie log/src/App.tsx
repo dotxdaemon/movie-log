@@ -80,29 +80,50 @@ function matchesSearch(entry: WatchEntry, searchQuery: string): boolean {
   );
 }
 
+function collapseHistory(entries: WatchEntry[]): WatchEntry[] {
+  const historyByPath = new Map<string, WatchEntry>();
+  const manualEntries: WatchEntry[] = [];
+
+  for (const entry of entries) {
+    if (entry.source !== 'watch') {
+      manualEntries.push(entry);
+      continue;
+    }
+
+    const existing = historyByPath.get(entry.sourcePath);
+
+    if (!existing || entry.watchedAt < existing.watchedAt) {
+      historyByPath.set(entry.sourcePath, entry);
+    }
+  }
+
+  return [...manualEntries, ...historyByPath.values()].sort((left, right) => right.watchedAt.localeCompare(left.watchedAt));
+}
+
 function createLedgerSummary(
-  state: MovieLogState,
+  historyCount: number,
   filteredHistory: WatchEntry[],
   searchQuery: string,
-  scanInProgress: boolean
+  scanInProgress: boolean,
+  watchedFolderCount: number
 ): string {
   if (searchQuery) {
-    return `${formatCount(filteredHistory.length, 'entry', 'entries')} shown from ${formatCount(state.history.length, 'entry', 'entries')}.`;
+    return `${formatCount(filteredHistory.length, 'entry', 'entries')} shown from ${formatCount(historyCount, 'entry', 'entries')}.`;
   }
 
   if (scanInProgress) {
-    return `Scanning ${formatCount(state.watchedFolders.length, 'route')} now.`;
+    return `Scanning ${formatCount(watchedFolderCount, 'route')} now.`;
   }
 
-  if (state.history.length === 0) {
+  if (historyCount === 0) {
     return 'No arrivals logged yet.';
   }
 
-  if (state.watchedFolders.length === 0) {
-    return `${formatCount(state.history.length, 'entry', 'entries')} recorded.`;
+  if (watchedFolderCount === 0) {
+    return `${formatCount(historyCount, 'entry', 'entries')} recorded.`;
   }
 
-  return `${formatCount(state.history.length, 'entry', 'entries')} recorded across ${formatCount(state.watchedFolders.length, 'route')}.`;
+  return `${formatCount(historyCount, 'entry', 'entries')} recorded across ${formatCount(watchedFolderCount, 'route')}.`;
 }
 
 function createInspectorSummary(activeInspectorTab: InspectorTab, state: MovieLogState): string {
@@ -137,8 +158,9 @@ export function MovieLogWorkspace({
   searchQuery,
   state
 }: MovieLogWorkspaceProps) {
-  const filteredHistory = state.history.filter((entry) => matchesSearch(entry, searchQuery));
-  const ledgerSummary = createLedgerSummary(state, filteredHistory, searchQuery, scanInProgress);
+  const history = collapseHistory(state.history);
+  const filteredHistory = history.filter((entry) => matchesSearch(entry, searchQuery));
+  const ledgerSummary = createLedgerSummary(history.length, filteredHistory, searchQuery, scanInProgress, state.watchedFolders.length);
   const inspectorSummary = createInspectorSummary(activeInspectorTab, state);
   const activeInspector = inspectorTabs.find((tab) => tab.id === activeInspectorTab) ?? inspectorTabs[0];
   const watchedFolderSummary =
