@@ -19,7 +19,7 @@ const state: MovieLogState = {
   ],
   libraryItems: [
     {
-      firstSeenAt: '2026-03-19T10:00:00.000Z',
+      firstSeenAt: '2026-03-17T09:00:00.000Z',
       folderId: '/Volumes/blve/movies',
       folderPath: '/Volumes/blve/movies',
       id: 'dev:1',
@@ -90,6 +90,9 @@ describe('MovieLogWorkspace', () => {
     const routeText = readText(findByClass(tree, 'signal-route'));
     expect(routeText).toContain('Added Mar 17');
     expect(routeText).not.toContain('Seen Mar 19');
+    const archiveText = readText(findByClass(tree, 'snapshot-row'));
+    expect(archiveText).toContain('Added Mar 17');
+    expect(archiveText).not.toContain('Seen Mar 19');
     expect(text).toContain('Show in Finder');
     expect(text).toContain('More');
   });

@@ -41,7 +41,7 @@ export function FolderSnapshotPanel({
 	                createElement(
 	                  'p',
 	                  { className: 'secondary-meta' },
-	                  `Seen ${timestampLabel(item.lastSeenAt)} • ${item.sourceKind === 'file' ? 'File' : 'Folder'}`
+	                  `Added ${timestampLabel(item.firstSeenAt)} • ${item.sourceKind === 'file' ? 'File' : 'Folder'}`
 	                ),
 	                createElement('p', { className: 'path-line' }, item.sourcePath)
 	              ),
