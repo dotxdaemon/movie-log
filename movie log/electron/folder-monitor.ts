@@ -211,6 +211,9 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
       }
 
       attachFolderWatcher(folderPath);
+      await new Promise<void>((resolve) => {
+        setImmediate(resolve);
+      });
     },
 
     async unwatchFolder(folderPath: string): Promise<void> {

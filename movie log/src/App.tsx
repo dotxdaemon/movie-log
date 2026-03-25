@@ -1,5 +1,5 @@
 // ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
-// ABOUTME: Keeps one poster-driven workspace with watched-folder controls, a permanent ledger, and an archive inspector.
+// ABOUTME: Keeps one distorted ledger surface with embedded route controls and an overlaid archive echo.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import { FolderSnapshotPanel } from './folder-snapshot-panel.js';
@@ -188,36 +188,28 @@ export function MovieLogWorkspace({
   return (
     <AppShell
       archiveStage={
-        <div className="workspace-composition">
-          <header className="form-head">
-            <div className="title-column">
-              <p className="section-label ghost-kicker">Ghost Ledger</p>
-              <h2 className="workspace-title">Movie Log</h2>
-              <p className="focus-note">Watched folders and manual drops.</p>
+        <div className="sheet-layout">
+          <header className="sheet-head">
+            <div className="title-mark">
+              <p className="section-label">Movie Log</p>
+              <h2 className="sheet-title">Arrivals</h2>
             </div>
 
-            <div className="search-strip">
-              <label className="search-line">
-                <span className="visually-hidden">Search history</span>
-                <input
-                  onChange={(event) => onSearchQueryChange(event.target.value)}
-                  placeholder="Search arrivals"
-                  type="search"
-                  value={searchQuery}
-                />
-              </label>
+            <label className="command-strip">
+              <span className="command-label">Search</span>
+              <input onChange={(event) => onSearchQueryChange(event.target.value)} placeholder="Search ledger" type="search" value={searchQuery} />
+            </label>
 
-              <div className="state-line">
-                <p className="section-label">Ledger</p>
-                <p className="workspace-status">{ledgerSummary}</p>
-              </div>
+            <div className="status-strip">
+              <p className="section-label">Ledger</p>
+              <p className="workspace-status">{ledgerSummary}</p>
             </div>
           </header>
 
           {statusBanner}
 
           <section
-            className={dropActive ? 'history-stream history-stream-active' : 'history-stream'}
+            className={dropActive ? 'ledger-stream ledger-stream-active' : 'ledger-stream'}
             onDragEnter={() => onDropActiveChange(true)}
             onDragLeave={() => onDropActiveChange(false)}
             onDragOver={(event) => {
@@ -226,8 +218,8 @@ export function MovieLogWorkspace({
             }}
             onDrop={onDrop}
           >
-            <div className="history-head">
-              <div className="history-copy">
+            <div className="ledger-head">
+              <div className="ledger-copy">
                 <p className="section-label">History</p>
                 <p className="ledger-note">{searchQuery ? 'Filtered arrivals.' : 'Latest arrivals.'}</p>
               </div>
@@ -276,18 +268,18 @@ export function MovieLogWorkspace({
             )}
           </section>
 
-          <aside className="mirror-inspector">
-            <div className="mirror-head">
+          <aside className="echo-archive">
+            <div className="echo-head">
               <p className="section-label">Echo Archive</p>
               <h3 className="archive-title">{activeInspector.title}</h3>
               <p className="details-copy">{inspectorSummary}</p>
             </div>
-            <div className="mirror-tabs" aria-label="Echo archive" role="tablist">
+            <div className="echo-tabs" aria-label="Echo archive" role="tablist">
               {inspectorTabs.map((tab) => (
                 <button
                   aria-label={tab.title}
                   aria-selected={activeInspectorTab === tab.id}
-                  className={activeInspectorTab === tab.id ? 'mirror-tab mirror-tab-active' : 'mirror-tab'}
+                  className={activeInspectorTab === tab.id ? 'echo-tab echo-tab-active' : 'echo-tab'}
                   key={tab.id}
                   onClick={() => onSelectInspectorTab(tab.id)}
                   role="tab"
@@ -297,25 +289,25 @@ export function MovieLogWorkspace({
                 </button>
               ))}
             </div>
-            <div className="mirror-panel-body">{archivePanel}</div>
-            <p className="mirror-note">Echo Archive</p>
+            <div className="echo-body">{archivePanel}</div>
+            <p className="echo-label">Echo Archive</p>
           </aside>
         </div>
       }
       statusSpine={
-        <div className="route-dock">
-          <div className="route-dock-head">
-            <div aria-hidden="true" className="rail-mark" />
+        <div className="signal-stack">
+          <div className="signal-head">
+            <div aria-hidden="true" className="signal-mark" />
             <p className="section-label">Routes</p>
-            <p className="dock-note">{watchedFolderSummary}</p>
+            <p className="signal-note">{watchedFolderSummary}</p>
           </div>
 
-          <div className="route-actions">
-            <button className="rail-button rail-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
+          <div className="signal-actions">
+            <button className="signal-button signal-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
               Add Folder
             </button>
             <button
-              className="rail-button"
+              className="signal-button"
               disabled={state.watchedFolders.length === 0 || scanInProgress}
               onClick={() => void onScanNow()}
               type="button"
@@ -324,24 +316,23 @@ export function MovieLogWorkspace({
             </button>
           </div>
 
-          <section className="route-listing">
+          <section className="signal-routes">
             {state.watchedFolders.length === 0 ? (
               <div className="blank-slate blank-slate-compact">
                 <p className="blank-title">No routes yet</p>
                 <p className="blank-copy">Add one folder to start the ledger.</p>
               </div>
             ) : (
-              <ul className="route-list">
+              <ul className="signal-route-list">
                 {state.watchedFolders.map((folder) => (
-                  <li className="route-row" key={folder.id}>
-                    <div className="route-copy">
+                  <li className="signal-route" key={folder.id}>
+                    <div className="signal-route-copy">
                       <strong className="route-title">{folder.name}</strong>
                       <p className="route-meta">
                         {folder.lastScannedAt
-                          ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}`
-                          : 'Waiting for scan or arrival'}
+                          ? `Seen ${timestampFormatter.format(new Date(folder.lastScannedAt))}`
+                          : 'Waiting'}
                       </p>
-                      <p className="path-line">{folder.path}</p>
                     </div>
                     <button className="route-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
                       Remove
