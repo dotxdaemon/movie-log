@@ -1,10 +1,10 @@
-// ABOUTME: Verifies that the renderer workspace keeps the ledger visible beside the integrated inspector.
-// ABOUTME: Uses server rendering so the cinematic archive structure can regress without Electron.
+// ABOUTME: Verifies that the renderer workspace resolves into one focal form with overlaid archive context.
+// ABOUTME: Uses a resolved React tree so the redesign can regress without brittle markup snapshots.
 import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { MovieLogWorkspace } from '../src/App.js';
 import type { MovieLogState } from '../shared/types.js';
+import { findByClass, renderTree, readText } from './render-tree.js';
 
 const state: MovieLogState = {
   history: [
@@ -43,8 +43,8 @@ const state: MovieLogState = {
 function noop(): void {}
 
 describe('MovieLogWorkspace', () => {
-  it('renders the ledger as a permanent workspace beside an integrated archive inspector', () => {
-    const markup = renderToStaticMarkup(
+  it('renders one focal form with embedded ledger content and an echo inspector', () => {
+    const tree = renderTree(
       createElement(MovieLogWorkspace, {
         activeInspectorTab: 'contents',
         dropActive: false,
@@ -67,36 +67,29 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(markup).toContain('focus-head');
-    expect(markup).toContain('focus-plane-copy');
-    expect(markup).toContain('workspace-body');
-    expect(markup).toContain('history-ledger');
-    expect(markup).toContain('mirror-panel');
-    expect(markup).toContain('mirror-tabs');
-    expect(markup).toContain('focus-search');
-    expect(markup).toContain('ledger-head');
-    expect(markup).toContain('mirror-head');
-    expect(markup).toContain('route-column');
-    expect(markup).toContain('Search the ledger');
-    expect(markup).toContain('Watch Routes');
-    expect(markup).toContain('Movie Log');
-    expect(markup).toContain('Ghost Signal');
-    expect(markup).toContain('Archive Mirror');
-    expect(markup).toContain('Current Contents');
-    expect(markup).toContain('Readable Note');
-    expect(markup).toContain('Data Store');
-    expect(markup).toContain('Show in Finder');
-    expect(markup).toContain('More');
-    expect(markup).not.toContain('workspace-band');
-    expect(markup).not.toContain('band-frame');
-    expect(markup).not.toContain('title-band');
-    expect(markup).not.toContain('search-panel');
-    expect(markup).not.toContain('inspector-panel');
-    expect(markup).not.toContain('inspector-tabs');
+    expect(findByClass(tree, 'form-head')).toHaveLength(1);
+    expect(findByClass(tree, 'focus-form')).toHaveLength(1);
+    expect(findByClass(tree, 'history-stream')).toHaveLength(1);
+    expect(findByClass(tree, 'mirror-inspector')).toHaveLength(1);
+    expect(findByClass(tree, 'route-dock')).toHaveLength(1);
+    expect(findByClass(tree, 'search-strip')).toHaveLength(1);
+    expect(findByClass(tree, 'focus-head')).toHaveLength(0);
+    expect(findByClass(tree, 'workspace-body')).toHaveLength(0);
+    expect(findByClass(tree, 'mirror-panel')).toHaveLength(0);
+    expect(findByClass(tree, 'route-column')).toHaveLength(0);
+    const text = readText(tree);
+    expect(text).toContain('Movie Log');
+    expect(text).toContain('Ghost Ledger');
+    expect(text).toContain('Echo Archive');
+    expect(text).toContain('Contents');
+    expect(text).toContain('Note');
+    expect(text).toContain('Store');
+    expect(text).toContain('Show in Finder');
+    expect(text).toContain('More');
   });
 
-  it('can switch the integrated archive inspector without leaving the ledger', () => {
-    const markup = renderToStaticMarkup(
+  it('can switch the overlaid archive context without losing the focal form', () => {
+    const tree = renderTree(
       createElement(MovieLogWorkspace, {
         activeInspectorTab: 'note',
         dropActive: false,
@@ -119,14 +112,14 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(markup).toContain('Movie Log');
-    expect(markup).toContain('Ghost Signal');
-    expect(markup).toContain('Readable Note');
-    expect(markup).toContain('Open Note');
-    expect(markup).toContain('Copy Note Path');
-    expect(markup).toContain('mirror-tabs');
-    expect(markup).toContain('mirror-panel');
-    expect(markup).not.toContain('inspector-tabs');
-    expect(markup).not.toContain('inspector-panel');
+    expect(findByClass(tree, 'focus-form')).toHaveLength(1);
+    expect(findByClass(tree, 'mirror-inspector')).toHaveLength(1);
+    expect(findByClass(tree, 'mirror-tabs')).toHaveLength(1);
+    const text = readText(tree);
+    expect(text).toContain('Movie Log');
+    expect(text).toContain('Ghost Ledger');
+    expect(text).toContain('Field Note');
+    expect(text).toContain('Open Note');
+    expect(text).toContain('Copy Note Path');
   });
 });

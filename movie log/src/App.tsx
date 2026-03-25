@@ -19,9 +19,9 @@ const timestampFormatter = new Intl.DateTimeFormat(undefined, {
 type InspectorTab = 'contents' | 'note' | 'store';
 
 const inspectorTabs = [
-  { id: 'contents', label: 'Contents', title: 'Current Contents' },
-  { id: 'note', label: 'Note', title: 'Readable Note' },
-  { id: 'store', label: 'Store', title: 'Data Store' }
+  { id: 'contents', label: 'Contents', title: 'Contents' },
+  { id: 'note', label: 'Note', title: 'Field Note' },
+  { id: 'store', label: 'Store', title: 'Store Path' }
 ] as const;
 
 interface MovieLogWorkspaceProps {
@@ -111,10 +111,10 @@ function createInspectorSummary(activeInspectorTab: InspectorTab, state: MovieLo
   }
 
   if (activeInspectorTab === 'note') {
-    return 'Readable note on disk.';
+    return 'Local note on disk.';
   }
 
-  return 'Local JSON store path.';
+  return 'JSON ledger path.';
 }
 
 export function MovieLogWorkspace({
@@ -188,27 +188,27 @@ export function MovieLogWorkspace({
   return (
     <AppShell
       archiveStage={
-        <div className="records-view">
-          <header className="focus-head">
-            <div className="focus-plane-copy">
-              <p className="section-label">Ghost Signal</p>
+        <div className="workspace-composition">
+          <header className="form-head">
+            <div className="title-column">
+              <p className="section-label ghost-kicker">Ghost Ledger</p>
               <h2 className="workspace-title">Movie Log</h2>
-              <p className="focus-note">Arrival ledger for watched routes and manual drops.</p>
+              <p className="focus-note">Watched folders and manual drops.</p>
             </div>
 
-            <div className="focus-side">
-              <label className="focus-search">
+            <div className="search-strip">
+              <label className="search-line">
                 <span className="visually-hidden">Search history</span>
                 <input
                   onChange={(event) => onSearchQueryChange(event.target.value)}
-                  placeholder="Search the ledger"
+                  placeholder="Search arrivals"
                   type="search"
                   value={searchQuery}
                 />
               </label>
 
-              <div className="focus-state">
-                <p className="section-label">Current State</p>
+              <div className="state-line">
+                <p className="section-label">Ledger</p>
                 <p className="workspace-status">{ledgerSummary}</p>
               </div>
             </div>
@@ -216,100 +216,98 @@ export function MovieLogWorkspace({
 
           {statusBanner}
 
-          <div className="workspace-body">
-            <section
-              className={dropActive ? 'history-ledger history-ledger-active' : 'history-ledger'}
-              onDragEnter={() => onDropActiveChange(true)}
-              onDragLeave={() => onDropActiveChange(false)}
-              onDragOver={(event) => {
-                event.preventDefault();
-                onDropActiveChange(true);
-              }}
-              onDrop={onDrop}
-            >
-              <div className="ledger-head">
-                <div className="ledger-head-copy">
-                  <p className="section-label">History</p>
-                  <p className="ledger-note">{searchQuery ? 'Filtered arrivals.' : 'Latest arrivals.'}</p>
-                </div>
-                <p className="ledger-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
+          <section
+            className={dropActive ? 'history-stream history-stream-active' : 'history-stream'}
+            onDragEnter={() => onDropActiveChange(true)}
+            onDragLeave={() => onDropActiveChange(false)}
+            onDragOver={(event) => {
+              event.preventDefault();
+              onDropActiveChange(true);
+            }}
+            onDrop={onDrop}
+          >
+            <div className="history-head">
+              <div className="history-copy">
+                <p className="section-label">History</p>
+                <p className="ledger-note">{searchQuery ? 'Filtered arrivals.' : 'Latest arrivals.'}</p>
               </div>
+              <p className="ledger-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
+            </div>
 
-              {filteredHistory.length === 0 ? (
-                <div className="blank-slate blank-slate-records">
-                  <p className="blank-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
-                  {!searchQuery ? <p className="blank-copy">New arrivals will appear here.</p> : null}
-                </div>
-              ) : (
-                <ol className="records-list">
-                  {filteredHistory.map((entry) => (
-                    <li className="record-row" key={entry.id}>
-                      <div className="record-copy">
-                        <strong className="record-title">{entry.title}</strong>
-                        <p className="record-meta">
-                          {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
-                          {formatEntryType(entry.sourceKind)}
-                        </p>
-                        <p className="path-line">{entry.sourcePath}</p>
-                      </div>
+            {filteredHistory.length === 0 ? (
+              <div className="blank-slate blank-slate-records">
+                <p className="blank-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
+                {!searchQuery ? <p className="blank-copy">New arrivals will appear here.</p> : null}
+              </div>
+            ) : (
+              <ol className="records-list">
+                {filteredHistory.map((entry) => (
+                  <li className="record-row" key={entry.id}>
+                    <div className="record-copy">
+                      <strong className="record-title">{entry.title}</strong>
+                      <p className="record-meta">
+                        {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
+                        {formatEntryType(entry.sourceKind)}
+                      </p>
+                      <p className="path-line">{entry.sourcePath}</p>
+                    </div>
 
-                      <div className="record-actions">
-                        <button className="finder-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
-                          Show in Finder
-                        </button>
-                        <details className="row-more">
-                          <summary>More</summary>
-                          <div className="row-more-menu">
-                            {entry.sourceKind === 'file' ? (
-                              <button className="text-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
-                                Open
-                              </button>
-                            ) : null}
-                            <button className="text-button" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
-                              Copy Path
+                    <div className="record-actions">
+                      <button className="finder-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
+                        Show in Finder
+                      </button>
+                      <details className="row-more">
+                        <summary>More</summary>
+                        <div className="row-more-menu">
+                          {entry.sourceKind === 'file' ? (
+                            <button className="text-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
+                              Open
                             </button>
-                          </div>
-                        </details>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </section>
-
-            <aside className="mirror-panel">
-              <div className="mirror-head">
-                <p className="section-label">Archive Mirror</p>
-                <h3 className="archive-title">{activeInspector.title}</h3>
-                <p className="details-copy">{inspectorSummary}</p>
-              </div>
-              <div className="mirror-tabs" aria-label="Archive mirror" role="tablist">
-                {inspectorTabs.map((tab) => (
-                  <button
-                    aria-label={tab.title}
-                    aria-selected={activeInspectorTab === tab.id}
-                    className={activeInspectorTab === tab.id ? 'mirror-tab mirror-tab-active' : 'mirror-tab'}
-                    key={tab.id}
-                    onClick={() => onSelectInspectorTab(tab.id)}
-                    role="tab"
-                    type="button"
-                  >
-                    {tab.label}
-                  </button>
+                          ) : null}
+                          <button className="text-button" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
+                            Copy Path
+                          </button>
+                        </div>
+                      </details>
+                    </div>
+                  </li>
                 ))}
-              </div>
-              <div className="mirror-panel-body">{archivePanel}</div>
-              <p className="index-spine-tag">Archive Mirror</p>
-            </aside>
-          </div>
+              </ol>
+            )}
+          </section>
+
+          <aside className="mirror-inspector">
+            <div className="mirror-head">
+              <p className="section-label">Echo Archive</p>
+              <h3 className="archive-title">{activeInspector.title}</h3>
+              <p className="details-copy">{inspectorSummary}</p>
+            </div>
+            <div className="mirror-tabs" aria-label="Echo archive" role="tablist">
+              {inspectorTabs.map((tab) => (
+                <button
+                  aria-label={tab.title}
+                  aria-selected={activeInspectorTab === tab.id}
+                  className={activeInspectorTab === tab.id ? 'mirror-tab mirror-tab-active' : 'mirror-tab'}
+                  key={tab.id}
+                  onClick={() => onSelectInspectorTab(tab.id)}
+                  role="tab"
+                  type="button"
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <div className="mirror-panel-body">{archivePanel}</div>
+            <p className="mirror-note">Echo Archive</p>
+          </aside>
         </div>
       }
       statusSpine={
-        <div className="route-column">
-          <div className="route-column-head">
+        <div className="route-dock">
+          <div className="route-dock-head">
             <div aria-hidden="true" className="rail-mark" />
-            <p className="section-label">Watch Routes</p>
-            <p className="rail-section-note">{watchedFolderSummary}</p>
+            <p className="section-label">Routes</p>
+            <p className="dock-note">{watchedFolderSummary}</p>
           </div>
 
           <div className="route-actions">
@@ -322,15 +320,15 @@ export function MovieLogWorkspace({
               onClick={() => void onScanNow()}
               type="button"
             >
-              {scanInProgress ? 'Scanning...' : 'Scan Now'}
+              {scanInProgress ? 'Scanning...' : 'Scan'}
             </button>
           </div>
 
           <section className="route-listing">
             {state.watchedFolders.length === 0 ? (
               <div className="blank-slate blank-slate-compact">
-                <p className="blank-title">No watched folders</p>
-                <p className="blank-copy">Add one route to start the ledger.</p>
+                <p className="blank-title">No routes yet</p>
+                <p className="blank-copy">Add one folder to start the ledger.</p>
               </div>
             ) : (
               <ul className="route-list">
