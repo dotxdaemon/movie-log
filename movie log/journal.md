@@ -550,3 +550,159 @@ Sean, this happened because I kept solving the wrong layer of the problem.
 
 The shortest honest summary is: I kept treating your history as a timestamp-display problem when it was actually a data-contract problem. Then I validated the wrong store and used the wrong definition of duplicate, which delayed the real fix. The core prevention is to always identify the exact runtime source and the exact business key before I touch code.
 - 2026-03-26: What I just tried previously was replacing the copied Desktop `Movie Log.app` bundle with first a Unix symlink and then a filesystem-written macOS alias file that points at `/Users/seankim/movie log/release/mac/Movie Log.app`. What Sean is asking me to do now is fix the Desktop icon so the actual shortcut no longer appears black and provide proof from the real Desktop, not a text-only artifact. The current error after the previous attempts is that Finder is still rendering the Desktop Movie Log entry with the wrong visual appearance even after the object type changed, so the remaining cause is likely Finder caching or Desktop refresh state rather than the packaged app target itself.
+- 2026-03-26: Sean asked for a general plan to stop the repeated failure pattern, not another issue-specific explanation. The concrete response is a mandatory anti-repeat protocol that forces exact target definition, explicit layer separation, one-hypothesis-plus-one-failing-check work, a business-key gate for identity problems, fail-closed evidence handling, rejection reset, and a stop-before-claim trap check.
+
+## General Anti-Repeat Protocol
+
+This protocol is mandatory for every non-trivial task, regardless of whether the task is code, UI, packaging, data, filesystem, reporting, or tooling.
+
+### 1. Define the exact target before touching anything
+
+Write these three lines in working notes before editing or making claims:
+
+- Exact user-visible symptom or deliverable
+- Canonical object being changed
+- Exact runtime environment or source of truth
+
+Examples of canonical objects:
+
+- event
+- file
+- folder
+- history row
+- watched-folder row
+- packaged app bundle
+- Desktop alias
+- reference image
+- screenshot proof
+
+Examples of runtime environments or sources of truth:
+
+- packaged Movie Log app
+- dev Electron app
+- `/Users/seankim/Library/Application Support/Movie Log/movie-log/movie-log.json`
+- `/Users/seankim/Library/Application Support/Electron/movie-log/movie-log.json`
+- the exact image Sean attached
+- the exact file Sean named
+
+If any of the three lines are ambiguous, stop and ask Sean one clarifying question before proceeding.
+
+### 2. Separate the problem layer before fixing it
+
+State which layer is actually broken:
+
+- storage
+- projection
+- presentation
+- packaging
+- operating-system integration
+- reporting
+
+Do not fix a presentation symptom when the real break is in storage or packaging.
+Do not fix a packaging symptom when the real break is only in reporting.
+If multiple layers are involved, identify the first broken layer and fix that layer first.
+
+### 3. One hypothesis, one failing check, one fix
+
+Before code changes:
+
+1. State one root-cause hypothesis in one sentence.
+2. Add one failing test or one deterministic repro check for the exact symptom.
+3. Confirm that check fails.
+
+Then:
+
+4. Make the smallest change tied only to that hypothesis.
+5. Re-run the same check.
+6. If it still fails, discard that hypothesis and write a new one. Do not stack fixes.
+
+### 4. Define the business key before discussing duplicates, dates, counts, or identity
+
+For any bug involving duplicates, date drift, counting, grouping, or history, write the business key first.
+
+Allowed examples:
+
+- exact record duplicate
+- repeated `sourcePath`
+- repeated visible history row
+- first-added event
+- latest-seen event
+- one row per file
+- one row per folder
+
+Do not start fixing labels, formatting, or sorting until the business key is explicit.
+
+### 5. Fail closed on evidence
+
+Every proof source must be labeled as either direct evidence or proxy evidence.
+
+Direct evidence:
+
+- real runtime behavior in the same environment Sean is using
+- the actual packaged app if Sean is talking about the packaged app
+- the exact file or path Sean named
+- the exact reference image Sean supplied
+- a screenshot of the actual surface Sean is looking at
+
+Proxy evidence:
+
+- unit tests
+- lint
+- typecheck
+- code inspection
+- metadata
+- dev-only stores
+- screenshots of generated proof text
+
+Proxy evidence can support a claim but cannot close a bug Sean is seeing in a different environment.
+
+### 6. Rejection invalidates prior proof
+
+If Sean says the result is still wrong, all prior proof for that symptom is invalid.
+
+Before the next attempt, record:
+
+- what was just tried previously
+- what Sean is asking for now
+- what error remains after the previous attempt
+
+Then restart from reproduction in the correct environment. Do not keep polishing the rejected explanation or proof set.
+
+### 7. No partial-truth reporting
+
+Do not say any of the following unless the exact user-visible requirement is satisfied in the correct environment:
+
+- fixed
+- done
+- exact
+- aligned
+- complete
+- working
+
+Improvement is not completion.
+A green test suite is not visual acceptance.
+A fresh screenshot is not proof if it came from the wrong environment.
+A correct code diff is not proof if the original symptom was not rechecked.
+
+### 8. Explicit closeout is mandatory
+
+For every non-trivial task, state all four of these before claiming success:
+
+- what changed
+- what did not change
+- what direct evidence proves the result
+- what remains uncertain
+
+If there is uncertainty, say it plainly instead of smoothing it over.
+
+### 9. Run the trap check before every completion claim
+
+Answer these questions explicitly:
+
+1. Am I looking at the same environment Sean is looking at?
+2. Am I using the right canonical object and business key?
+3. Am I fixing the first broken layer rather than a downstream symptom?
+4. Does my strongest claim match my strongest evidence?
+5. If Sean saw the result right now, would I still be comfortable using the word `fixed`?
+
+If any answer is no, do not claim completion.
