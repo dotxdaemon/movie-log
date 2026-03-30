@@ -706,3 +706,4 @@ Answer these questions explicitly:
 5. If Sean saw the result right now, would I still be comfortable using the word `fixed`?
 
 If any answer is no, do not claim completion.
+- 2026-03-30: What I just tried previously was testing the repo and identifying three current contract bugs without changing code: persisted watch-history duplication is still only hidden in the renderer, watched-folder identity is still path-based, and startup/resume still do catch-up scans. Sean is now asking me to fix all three. The current errors after that analysis are: `electron/store.ts` still persists and renders raw duplicate watch rows while `src/App.tsx` collapses them only for the UI; watched folders still use `folderPath` as identity so rename/move continuity is brittle; and `electron/watched-folder-sync.ts` plus `electron/main.ts` still trigger startup/resume scans that conflict with the arrival-only watcher contract.
