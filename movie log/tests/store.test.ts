@@ -1,6 +1,6 @@
 // ABOUTME: Verifies that the desktop app persists watch history and watched folders on disk.
 // ABOUTME: Uses real temporary files so the store behavior matches the local desktop runtime.
-import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -91,23 +91,24 @@ describe('createHistoryStore', () => {
     expect(secondStats.mtimeMs).toBe(firstStats.mtimeMs);
   });
 
-  it('keeps separate history entries when the same source path is logged twice', async () => {
+  it('keeps the earliest watched-folder entry when the same source path is logged twice', async () => {
     const store = createHistoryStore(dataDirectory);
+    const notePath = join(dataDirectory, 'movie-log-note.md');
 
-    await store.addHistoryEntry(
-      createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'watch', '2026-03-12T08:00:00.000Z', 'file')
-    );
     await store.addHistoryEntry(
       createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'watch', '2026-03-13T08:00:00.000Z', 'file')
     );
+    await store.addHistoryEntry(
+      createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'watch', '2026-03-12T08:00:00.000Z', 'file')
+    );
 
     const state = await store.readState();
+    const note = await readFile(notePath, 'utf8');
 
-    expect(state.history).toHaveLength(2);
-    expect(state.history.map((entry) => entry.watchedAt)).toEqual([
-      '2026-03-13T08:00:00.000Z',
-      '2026-03-12T08:00:00.000Z'
-    ]);
+    expect(state.history).toHaveLength(1);
+    expect(state.history[0]?.watchedAt).toBe('2026-03-12T08:00:00.000Z');
+    expect(note).toContain('2026-03-12T08:00:00.000Z | Flow | File | Watched Folder | /Users/seankim/Movies/Flow.mkv');
+    expect(note).not.toContain('2026-03-13T08:00:00.000Z');
   });
 
   it('preserves overlapping manual and watched-folder writes', async () => {
@@ -342,6 +343,105 @@ describe('createHistoryStore', () => {
     expect(movedScan).toEqual([]);
     expect(state.history.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Severance Archive']);
     expect(state.libraryItems.map((item) => item.sourcePath)).toEqual(['/Users/seankim/Movies/Severance Archive']);
+  });
+
+  it('preserves watched-folder identity when the same folder is re-added at a new path', async () => {
+    const rootPath = join(dataDirectory, 'Movies');
+    const firstFolderPath = join(rootPath, 'Inbox');
+    const secondFolderPath = join(rootPath, 'Archive');
+    await mkdir(firstFolderPath, { recursive: true });
+
+    const currentState = {
+      history: [createEntryFromPath(`${firstFolderPath}/Flow.mkv`, 'watch', '2026-03-12T08:00:00.000Z', 'file')],
+      historyPolicy: 'append-only',
+      knownPathsByFolder: {
+        [firstFolderPath]: [`${firstFolderPath}/Flow.mkv`]
+      },
+      libraryItems: [
+        {
+          firstSeenAt: '2026-03-12T08:00:00.000Z',
+          folderId: firstFolderPath,
+          folderPath: firstFolderPath,
+          id: 'dev:1',
+          lastSeenAt: '2026-03-12T08:00:00.000Z',
+          sourceKind: 'file',
+          sourcePath: `${firstFolderPath}/Flow.mkv`,
+          title: 'Flow'
+        }
+      ],
+      seenKeysByFolder: {
+        [firstFolderPath]: ['dev:1']
+      },
+      watchedFolders: [
+        {
+          addedAt: '2026-03-12T08:00:00.000Z',
+          id: firstFolderPath,
+          lastScannedAt: '2026-03-12T08:00:00.000Z',
+          name: 'Inbox',
+          path: firstFolderPath
+        }
+      ]
+    };
+    await writeFile(join(dataDirectory, 'movie-log.json'), `${JSON.stringify(currentState, null, 2)}\n`, 'utf8');
+
+    const store = createHistoryStore(dataDirectory);
+    const stableFolderId = `${(await stat(firstFolderPath)).dev}:${(await stat(firstFolderPath)).ino}`;
+    await store.readState();
+    await rename(firstFolderPath, secondFolderPath);
+    const folder = await store.addWatchedFolder(secondFolderPath);
+    const recordedEntries = await store.syncWatchedFolderContents(
+      secondFolderPath,
+      [scannedItem(`${secondFolderPath}/Flow.mkv`, 'dev:1')],
+      '2026-03-13T09:00:00.000Z'
+    );
+    const state = await store.readState();
+    const storedJson = JSON.parse(await readFile(join(dataDirectory, 'movie-log.json'), 'utf8')) as {
+      knownPathsByFolder: Record<string, string[]>;
+      watchedFolders: Array<{ addedAt: string; id: string; path: string }>;
+    };
+
+    expect(folder).toEqual({
+      addedAt: '2026-03-12T08:00:00.000Z',
+      id: stableFolderId,
+      lastScannedAt: '2026-03-12T08:00:00.000Z',
+      name: 'Archive',
+      path: secondFolderPath
+    });
+    expect(recordedEntries).toEqual([]);
+    expect(state.watchedFolders).toEqual([
+      {
+        addedAt: '2026-03-12T08:00:00.000Z',
+        id: stableFolderId,
+        lastScannedAt: '2026-03-13T09:00:00.000Z',
+        name: 'Archive',
+        path: secondFolderPath
+      }
+    ]);
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual([`${secondFolderPath}/Flow.mkv`]);
+    expect(state.libraryItems).toEqual([
+      {
+        firstSeenAt: '2026-03-12T08:00:00.000Z',
+        folderId: stableFolderId,
+        folderPath: secondFolderPath,
+        id: 'dev:1',
+        lastSeenAt: '2026-03-13T09:00:00.000Z',
+        sourceKind: 'file',
+        sourcePath: `${secondFolderPath}/Flow.mkv`,
+        title: 'Flow'
+      }
+    ]);
+    expect(storedJson.knownPathsByFolder).toEqual({
+      [secondFolderPath]: [`${secondFolderPath}/Flow.mkv`]
+    });
+    expect(storedJson.watchedFolders).toEqual([
+      {
+        addedAt: '2026-03-12T08:00:00.000Z',
+        id: stableFolderId,
+        lastScannedAt: '2026-03-13T09:00:00.000Z',
+        name: 'Archive',
+        path: secondFolderPath
+      }
+    ]);
   });
 
   it('backfills unmarked stores into append-only history once when stable item keys are missing', async () => {

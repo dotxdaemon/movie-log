@@ -25,7 +25,7 @@ function scannedItem(sourcePath: string): ScannedFolderItem {
 }
 
 describe('createWatchedFolderSync', () => {
-  it('catches up existing watched folders once when watching starts', async () => {
+  it('starts watching existing watched folders without scanning them', async () => {
     const order: string[] = [];
     const folders = [watchedFolder('/Movies/One'), watchedFolder('/Movies/Two')];
     const watchedFolderSync = createWatchedFolderSync({
@@ -50,18 +50,13 @@ describe('createWatchedFolderSync', () => {
 
     expect(order).toEqual([
       'watch:/Movies/One',
-      'watch:/Movies/Two',
-      'scan:/Movies/One',
-      'scan:/Movies/Two',
-      'save:/Movies/One:2026-03-16T09:00:00.000Z',
-      'save:/Movies/Two:2026-03-16T09:00:00.000Z',
-      'broadcast',
-      'broadcast'
+      'watch:/Movies/Two'
     ]);
   });
 
-  it('catches up watched folders once after watching resumes', async () => {
+  it('does not rescan watched folders after watching resumes', async () => {
     const savedPaths: string[] = [];
+    let watchCount = 0;
     const watchedFolderSync = createWatchedFolderSync({
       broadcastState: async () => {},
       listWatchedFolders: async () => [watchedFolder('/Movies/Resume')],
@@ -70,13 +65,16 @@ describe('createWatchedFolderSync', () => {
         savedPaths.push(folderPath);
       },
       scanFolder: async () => [scannedItem('/Movies/Resume/Flow.mkv')],
-      watchFolder: async () => {}
+      watchFolder: async () => {
+        watchCount += 1;
+      }
     });
 
     await watchedFolderSync.catchUpWatchedFolders();
     await watchedFolderSync.catchUpWatchedFolders();
 
-    expect(savedPaths).toEqual(['/Movies/Resume', '/Movies/Resume']);
+    expect(savedPaths).toEqual([]);
+    expect(watchCount).toBe(2);
   });
 
   it('captures an arrival that lands during add-folder setup', async () => {

@@ -1,6 +1,6 @@
 // ABOUTME: Persists watch history and watched folders as local JSON in the desktop app data directory.
 // ABOUTME: Provides the minimal read and write operations needed by the Electron process and tests.
-import { access, mkdir, open, readFile, rename } from 'node:fs/promises';
+import { access, mkdir, open, readFile, rename, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import type { ScannedFolderItem } from './folder-scan.js';
 import { createEntryFromPath, sortEntriesByWatchedAt } from '../shared/history.js';
@@ -35,7 +35,27 @@ function mergeHistoryEntries(existingEntries: WatchEntry[], incomingEntries: Wat
     return true;
   });
 
-  return sortEntriesByWatchedAt([...uniqueIncomingEntries, ...existingEntries]);
+  return collapseHistoryEntries([...uniqueIncomingEntries, ...existingEntries]);
+}
+
+function collapseHistoryEntries(entries: WatchEntry[]): WatchEntry[] {
+  const watchEntriesByPath = new Map<string, WatchEntry>();
+  const nonWatchEntries: WatchEntry[] = [];
+
+  for (const entry of entries) {
+    if (entry.source !== 'watch') {
+      nonWatchEntries.push(entry);
+      continue;
+    }
+
+    const existing = watchEntriesByPath.get(entry.sourcePath);
+
+    if (!existing || entry.watchedAt < existing.watchedAt) {
+      watchEntriesByPath.set(entry.sourcePath, entry);
+    }
+  }
+
+  return sortEntriesByWatchedAt([...nonWatchEntries, ...watchEntriesByPath.values()]);
 }
 
 function sortLibraryItems(items: LibraryItem[]): LibraryItem[] {
@@ -51,6 +71,25 @@ function cloneState(state: PersistedState): PersistedState {
     seenKeysByFolder: { ...state.seenKeysByFolder },
     watchedFolders: [...state.watchedFolders]
   };
+}
+
+function moveStoredFolderValues(
+  valuesByFolder: Record<string, string[]>,
+  previousPath: string,
+  nextPath: string
+): Record<string, string[]> {
+  if (previousPath === nextPath || !Object.hasOwn(valuesByFolder, previousPath)) {
+    return { ...valuesByFolder };
+  }
+
+  const nextValuesByFolder = { ...valuesByFolder };
+
+  if (!Object.hasOwn(nextValuesByFolder, nextPath)) {
+    nextValuesByFolder[nextPath] = [...(nextValuesByFolder[previousPath] ?? [])];
+  }
+
+  delete nextValuesByFolder[previousPath];
+  return nextValuesByFolder;
 }
 
 function sameValues(left: string[], right: string[]): boolean {
@@ -69,6 +108,21 @@ function buildHistoryFromLibraryItems(items: LibraryItem[]): WatchEntry[] {
   return sortEntriesByWatchedAt(
     items.map((item) => createEntryFromPath(item.sourcePath, 'watch', item.firstSeenAt, item.sourceKind))
   );
+}
+
+async function readFolderId(folderPath: string): Promise<string | null> {
+  try {
+    const folderStats = await stat(folderPath);
+    return `${folderStats.dev}:${folderStats.ino}`;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+
+    if (code === 'ENOENT') {
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 function replaceHistoryEntryPath(
@@ -128,12 +182,57 @@ export function createHistoryStore(dataDirectory: string) {
 
   function normalizeState(state: PersistedState): PersistedState {
     return {
-      history: sortEntriesByWatchedAt(state.history),
+      history: collapseHistoryEntries(state.history),
       historyPolicy: HISTORY_POLICY,
       libraryItems: sortLibraryItems(state.libraryItems),
       knownPathsByFolder: { ...state.knownPathsByFolder },
       seenKeysByFolder: { ...state.seenKeysByFolder },
       watchedFolders: [...state.watchedFolders]
+    };
+  }
+
+  async function stabilizeWatchedFolders(state: PersistedState): Promise<PersistedState> {
+    let changed = false;
+    const folderIdsByPath = new Map<string, string>();
+    const watchedFolders = await Promise.all(
+      state.watchedFolders.map(async (folder) => {
+        const stableFolderId = await readFolderId(folder.path);
+        const nextFolderId = stableFolderId ?? folder.id;
+        folderIdsByPath.set(folder.path, nextFolderId);
+
+        if (nextFolderId === folder.id) {
+          return folder;
+        }
+
+        changed = true;
+        return {
+          ...folder,
+          id: nextFolderId
+        };
+      })
+    );
+    const libraryItems = state.libraryItems.map((item) => {
+      const nextFolderId = folderIdsByPath.get(item.folderPath) ?? item.folderId;
+
+      if (nextFolderId === item.folderId) {
+        return item;
+      }
+
+      changed = true;
+      return {
+        ...item,
+        folderId: nextFolderId
+      };
+    });
+
+    if (!changed) {
+      return state;
+    }
+
+    return {
+      ...state,
+      libraryItems,
+      watchedFolders
     };
   }
 
@@ -184,7 +283,7 @@ export function createHistoryStore(dataDirectory: string) {
     try {
       const stored = await readFile(dataFilePath, 'utf8');
       const parsed = JSON.parse(stored) as Partial<PersistedState>;
-      const state: PersistedState = {
+      const parsedState: PersistedState = {
         history: sortEntriesByWatchedAt(parsed.history ?? []),
         historyPolicy: HISTORY_POLICY,
         libraryItems: sortLibraryItems(parsed.libraryItems ?? []),
@@ -192,6 +291,7 @@ export function createHistoryStore(dataDirectory: string) {
         seenKeysByFolder: parsed.seenKeysByFolder ?? {},
         watchedFolders: parsed.watchedFolders ?? []
       };
+      const state = normalizeState(await stabilizeWatchedFolders(parsedState));
 
       if (parsed.historyPolicy !== HISTORY_POLICY && state.history.length === 0 && state.libraryItems.length > 0) {
         state.history = buildHistoryFromLibraryItems(state.libraryItems);
@@ -199,7 +299,7 @@ export function createHistoryStore(dataDirectory: string) {
         return state;
       }
 
-      if (parsed.historyPolicy !== HISTORY_POLICY) {
+      if (parsed.historyPolicy !== HISTORY_POLICY || JSON.stringify(parsedState) !== JSON.stringify(state)) {
         await writePersistedState(state);
         return state;
       }
@@ -267,17 +367,50 @@ export function createHistoryStore(dataDirectory: string) {
     async addWatchedFolder(folderPath: string): Promise<WatchedFolder> {
       return runSerialized(async () => {
         const state = await readPersistedState();
-        const existing = state.watchedFolders.find((folder) => folder.path === folderPath);
+        const folderId = (await readFolderId(folderPath)) ?? folderPath;
+        const folderName = basename(folderPath) || folderPath;
+        const existing = state.watchedFolders.find((folder) => folder.path === folderPath || folder.id === folderId);
 
         if (existing) {
-          return existing;
+          const nextFolder: WatchedFolder = {
+            ...existing,
+            id: folderId,
+            name: folderName,
+            path: folderPath
+          };
+
+          if (
+            existing.id === nextFolder.id &&
+            existing.name === nextFolder.name &&
+            existing.path === nextFolder.path
+          ) {
+            return existing;
+          }
+
+          state.watchedFolders = state.watchedFolders.map((folder) =>
+            folder.path === existing.path ? nextFolder : folder
+          );
+          state.libraryItems = state.libraryItems.map((item) =>
+            item.folderId === existing.id
+              ? {
+                  ...item,
+                  folderId: folderId
+                }
+              : item
+          );
+          state.knownPathsByFolder = moveStoredFolderValues(state.knownPathsByFolder, existing.path, folderPath);
+          state.seenKeysByFolder = moveStoredFolderValues(state.seenKeysByFolder, existing.path, folderPath);
+          state.knownPathsByFolder[folderPath] = state.knownPathsByFolder[folderPath] ?? [];
+          state.seenKeysByFolder[folderPath] = state.seenKeysByFolder[folderPath] ?? [];
+          await writePersistedState(state);
+          return nextFolder;
         }
 
         const folder: WatchedFolder = {
-          id: folderPath,
+          id: folderId,
           addedAt: new Date().toISOString(),
           lastScannedAt: null,
-          name: basename(folderPath) || folderPath,
+          name: folderName,
           path: folderPath
         };
 
@@ -319,7 +452,7 @@ export function createHistoryStore(dataDirectory: string) {
           return [];
         }
 
-        const currentFolderItems = state.libraryItems.filter((item) => item.folderPath === folderPath);
+        const currentFolderItems = state.libraryItems.filter((item) => item.folderId === folder.id);
         const existingItemsById = new Map(currentFolderItems.map((item) => [item.id, item]));
         const existingItemsByPath = new Map(currentFolderItems.map((item) => [item.sourcePath, item]));
         const existingSeenKeys = state.seenKeysByFolder[folderPath] ?? [];
@@ -373,7 +506,7 @@ export function createHistoryStore(dataDirectory: string) {
 
         state.history = entriesToAdd.length === 0 ? nextHistory : mergeHistoryEntries(nextHistory, entriesToAdd);
         state.libraryItems = sortLibraryItems([
-          ...state.libraryItems.filter((item) => item.folderPath !== folderPath),
+          ...state.libraryItems.filter((item) => item.folderId !== folder.id),
           ...nextItems
         ]);
         state.knownPathsByFolder[folderPath] = nextPaths;
