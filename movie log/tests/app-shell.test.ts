@@ -6,7 +6,7 @@ import { AppShell } from '../src/app-shell.js';
 import { findByClass, renderTree, readText } from './render-tree.js';
 
 describe('App shell', () => {
-  it('renders one portrait stage with an embedded signal cluster and a focal sheet', () => {
+  it('renders one battle stage with a warm crown, pale figure sheet, route rig, and blade field', () => {
     const tree = renderTree(
       createElement(AppShell, {
         archiveStage: createElement('section', { className: 'records-surface' }, 'History'),
@@ -15,19 +15,20 @@ describe('App shell', () => {
     );
 
     expect(findByClass(tree, 'workspace-shell')).toHaveLength(1);
-    expect(findByClass(tree, 'portrait-stage')).toHaveLength(1);
-    expect(findByClass(tree, 'glitch-track')).toHaveLength(1);
-    expect(findByClass(tree, 'ceiling-lattice')).toHaveLength(1);
+    expect(findByClass(tree, 'battle-stage')).toHaveLength(1);
+    expect(findByClass(tree, 'signal-banner')).toHaveLength(1);
+    expect(findByClass(tree, 'ember-crown')).toHaveLength(1);
     expect(findByClass(tree, 'frame-line')).toHaveLength(1);
     expect(findByClass(tree, 'editorial-spine')).toHaveLength(1);
-    expect(findByClass(tree, 'echo-mass')).toHaveLength(1);
-    expect(findByClass(tree, 'signal-cluster')).toHaveLength(1);
-    expect(findByClass(tree, 'focus-sheet')).toHaveLength(1);
-    expect(findByClass(tree, 'poster-stage')).toHaveLength(0);
-    expect(findByClass(tree, 'signal-dock')).toHaveLength(0);
-    expect(findByClass(tree, 'focus-form')).toHaveLength(0);
-    expect(findByClass(tree, 'echo-figure')).toHaveLength(0);
-    expect(findByClass(tree, 'editorial-track')).toHaveLength(0);
+    expect(findByClass(tree, 'blade-field')).toHaveLength(1);
+    expect(findByClass(tree, 'route-rig')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-sheet')).toHaveLength(1);
+    expect(findByClass(tree, 'portrait-stage')).toHaveLength(0);
+    expect(findByClass(tree, 'glitch-track')).toHaveLength(0);
+    expect(findByClass(tree, 'ceiling-lattice')).toHaveLength(0);
+    expect(findByClass(tree, 'echo-mass')).toHaveLength(0);
+    expect(findByClass(tree, 'signal-cluster')).toHaveLength(0);
+    expect(findByClass(tree, 'focus-sheet')).toHaveLength(0);
     expect(readText(tree)).toContain('History');
     expect(readText(tree)).toContain('Status');
   });

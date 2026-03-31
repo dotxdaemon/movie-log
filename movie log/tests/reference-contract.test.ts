@@ -10,13 +10,16 @@ describe('workspace reference contract', () => {
   it('records the required markers and banned old-shell traits for the current workspace', async () => {
     const referenceContract = await readFile(referenceContractPath, 'utf8');
 
-    expect(referenceContract).toContain('control rail');
-    expect(referenceContract).toContain('signal canopy');
-    expect(referenceContract).toContain('ledger');
-    expect(referenceContract).toContain('archive inspector');
+    expect(referenceContract).toContain('ember crown');
+    expect(referenceContract).toContain('figure sheet');
+    expect(referenceContract).toContain('archive shard');
+    expect(referenceContract).toContain('blade field');
+    expect(referenceContract).toContain('editorial spine');
     expect(referenceContract).toContain('warm accent family');
-    expect(referenceContract).toContain('control-slab');
-    expect(referenceContract).toContain('poster-stage');
-    expect(referenceContract).toContain('view-switcher');
+    expect(referenceContract).toContain('portrait-stage');
+    expect(referenceContract).toContain('focus-sheet');
+    expect(referenceContract).toContain('signal-cluster');
+    expect(referenceContract).toContain('echo-archive');
+    expect(referenceContract).toContain('ceiling-lattice');
   });
 });

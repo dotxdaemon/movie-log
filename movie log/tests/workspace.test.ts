@@ -51,7 +51,7 @@ const state: MovieLogState = {
 function noop(): void {}
 
 describe('MovieLogWorkspace', () => {
-  it('renders one focal sheet with a command strip, ledger stream, echo archive, and compact route cluster', () => {
+  it('renders one figure sheet with a command strip, history ledger, archive shard, and tethered route rig', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         activeInspectorTab: 'contents',
@@ -75,23 +75,25 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(findByClass(tree, 'sheet-layout')).toHaveLength(1);
-    expect(findByClass(tree, 'sheet-head')).toHaveLength(1);
-    expect(findByClass(tree, 'title-mark')).toHaveLength(1);
+    expect(findByClass(tree, 'battle-layout')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-head')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-mark')).toHaveLength(1);
     expect(findByClass(tree, 'command-strip')).toHaveLength(1);
-    expect(findByClass(tree, 'ledger-stream')).toHaveLength(1);
-    expect(findByClass(tree, 'echo-archive')).toHaveLength(1);
-    expect(findByClass(tree, 'signal-stack')).toHaveLength(1);
+    expect(findByClass(tree, 'history-ledger')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-shard')).toHaveLength(1);
+    expect(findByClass(tree, 'route-stack')).toHaveLength(1);
     expect(findByClass(tree, 'form-head')).toHaveLength(0);
     expect(findByClass(tree, 'search-strip')).toHaveLength(0);
     expect(findByClass(tree, 'history-stream')).toHaveLength(0);
-    expect(findByClass(tree, 'mirror-inspector')).toHaveLength(0);
-    expect(findByClass(tree, 'route-dock')).toHaveLength(0);
+    expect(findByClass(tree, 'sheet-layout')).toHaveLength(0);
+    expect(findByClass(tree, 'ledger-stream')).toHaveLength(0);
+    expect(findByClass(tree, 'echo-archive')).toHaveLength(0);
+    expect(findByClass(tree, 'signal-stack')).toHaveLength(0);
     expect(findByClass(tree, 'record-row')).toHaveLength(1);
     const text = readText(tree);
     expect(text).toContain('Movie Log');
     expect(text).toContain('Arrivals');
-    expect(text).toContain('Echo Archive');
+    expect(text).toContain('Archive');
     expect(text).toContain('Contents');
     expect(text).toContain('Note');
     expect(text).toContain('Store');
@@ -112,7 +114,7 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('More');
   });
 
-  it('can switch the echo archive context without losing the focal sheet', () => {
+  it('can switch the archive shard context without losing the figure sheet', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         activeInspectorTab: 'note',
@@ -136,9 +138,9 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(findByClass(tree, 'focus-sheet')).toHaveLength(1);
-    expect(findByClass(tree, 'echo-archive')).toHaveLength(1);
-    expect(findByClass(tree, 'echo-tabs')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-sheet')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-shard')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-tabs')).toHaveLength(1);
     const text = readText(tree);
     expect(text).toContain('Movie Log');
     expect(text).toContain('Arrivals');

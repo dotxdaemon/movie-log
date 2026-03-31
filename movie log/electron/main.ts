@@ -112,7 +112,7 @@ async function createWindow(): Promise<void> {
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 820,
-    minWidth: 900,
+    minWidth: 390,
     minHeight: 640,
     backgroundColor: '#121212',
     title: 'Movie Log',

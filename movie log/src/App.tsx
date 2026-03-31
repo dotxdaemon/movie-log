@@ -128,14 +128,14 @@ function createLedgerSummary(
 
 function createInspectorSummary(activeInspectorTab: InspectorTab, state: MovieLogState): string {
   if (activeInspectorTab === 'contents') {
-    return `${formatCount(state.libraryItems.length, 'item')} indexed.`;
+    return `${formatCount(state.libraryItems.length, 'item')} held.`;
   }
 
   if (activeInspectorTab === 'note') {
-    return 'Local note on disk.';
+    return 'Local note.';
   }
 
-  return 'JSON ledger path.';
+  return 'JSON store path.';
 }
 
 export function MovieLogWorkspace({
@@ -210,11 +210,11 @@ export function MovieLogWorkspace({
   return (
     <AppShell
       archiveStage={
-        <div className="sheet-layout">
-          <header className="sheet-head">
-            <div className="title-mark">
+        <div className="battle-layout">
+          <header className="figure-head">
+            <div className="figure-mark">
               <p className="section-label">Movie Log</p>
-              <h2 className="sheet-title">Arrivals</h2>
+              <h2 className="figure-title">Arrivals</h2>
             </div>
 
             <label className="command-strip">
@@ -222,7 +222,7 @@ export function MovieLogWorkspace({
               <input onChange={(event) => onSearchQueryChange(event.target.value)} placeholder="Search ledger" type="search" value={searchQuery} />
             </label>
 
-            <div className="status-strip">
+            <div className="status-mark">
               <p className="section-label">Ledger</p>
               <p className="workspace-status">{ledgerSummary}</p>
             </div>
@@ -231,7 +231,7 @@ export function MovieLogWorkspace({
           {statusBanner}
 
           <section
-            className={dropActive ? 'ledger-stream ledger-stream-active' : 'ledger-stream'}
+            className={dropActive ? 'history-ledger history-ledger-active' : 'history-ledger'}
             onDragEnter={() => onDropActiveChange(true)}
             onDragLeave={() => onDropActiveChange(false)}
             onDragOver={(event) => {
@@ -290,18 +290,18 @@ export function MovieLogWorkspace({
             )}
           </section>
 
-          <aside className="echo-archive">
-            <div className="echo-head">
-              <p className="section-label">Echo Archive</p>
+          <aside className="archive-shard">
+            <div className="archive-head">
+              <p className="section-label">Archive</p>
               <h3 className="archive-title">{activeInspector.title}</h3>
               <p className="details-copy">{inspectorSummary}</p>
             </div>
-            <div className="echo-tabs" aria-label="Echo archive" role="tablist">
+            <div className="archive-tabs" aria-label="Archive" role="tablist">
               {inspectorTabs.map((tab) => (
                 <button
                   aria-label={tab.title}
                   aria-selected={activeInspectorTab === tab.id}
-                  className={activeInspectorTab === tab.id ? 'echo-tab echo-tab-active' : 'echo-tab'}
+                  className={activeInspectorTab === tab.id ? 'archive-tab archive-tab-active' : 'archive-tab'}
                   key={tab.id}
                   onClick={() => onSelectInspectorTab(tab.id)}
                   role="tab"
@@ -311,20 +311,19 @@ export function MovieLogWorkspace({
                 </button>
               ))}
             </div>
-            <div className="echo-body">{archivePanel}</div>
-            <p className="echo-label">Echo Archive</p>
+            <div className="archive-body">{archivePanel}</div>
           </aside>
         </div>
       }
       statusSpine={
-        <div className="signal-stack">
-          <div className="signal-head">
+        <div className="route-stack">
+          <div className="route-head">
             <div aria-hidden="true" className="signal-mark" />
             <p className="section-label">Routes</p>
             <p className="signal-note">{watchedFolderSummary}</p>
           </div>
 
-          <div className="signal-actions">
+          <div className="route-actions">
             <button className="signal-button signal-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
               Add Folder
             </button>
@@ -338,7 +337,7 @@ export function MovieLogWorkspace({
             </button>
           </div>
 
-          <section className="signal-routes">
+          <section className="route-list">
             {state.watchedFolders.length === 0 ? (
               <div className="blank-slate blank-slate-compact">
                 <p className="blank-title">No routes yet</p>

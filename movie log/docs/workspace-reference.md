@@ -4,14 +4,17 @@ This document defines the approved Movie Log workspace shell for renderer work.
 
 ## Required Markers
 
-- control rail: a narrow utility rail on the left side of the workspace
-- signal canopy: a stepped signal shape above the main work stage
-- ledger: one permanent history surface as the dominant work area
-- archive inspector: one integrated inspector beside the ledger
-- warm accent family: one orange-warm accent system with no competing teal controls
+- ember crown: one dominant warm mass above and behind the working surface
+- figure sheet: one pale lower-center ledger surface that carries the primary interaction
+- archive shard: one dark archive surface embedded inside the same poster composition
+- blade field: one row of blade-like vertical anchors across the lower edge
+- editorial spine: one right-edge vertical label that frames the stage
+- warm accent family: one orange-red-cream accent system with black as the field color
 
 ## Disallowed Markers
 
-- control-slab
-- poster-stage
-- view-switcher
+- portrait-stage
+- focus-sheet
+- signal-cluster
+- echo-archive
+- ceiling-lattice
