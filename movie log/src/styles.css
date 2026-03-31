@@ -1,5 +1,5 @@
-/* ABOUTME: Defines one battle-poster workspace for the Movie Log desktop renderer. */
-/* ABOUTME: Keeps the pale ledger, dark archive shard, and route rig readable inside a single warm stage. */
+/* ABOUTME: Defines one poster-led workspace for the Movie Log desktop renderer. */
+/* ABOUTME: Keeps the figure body, archive band, and route talisman readable inside a single warm stage. */
 :root {
   --background: #050402;
   --backgroundRaised: #160804;
@@ -137,9 +137,9 @@ button:disabled {
 .ember-crown {
   top: 22px;
   left: 50%;
-  width: min(82vw, 960px);
-  height: min(70vh, 780px);
-  transform: translateX(-49%);
+  width: min(84vw, 990px);
+  height: min(72vh, 804px);
+  transform: translateX(-49.5%);
   border-radius: 46% 52% 42% 38% / 18% 22% 54% 60%;
   background:
     radial-gradient(circle at 50% 58%, rgba(255, 245, 220, 0.96) 0 8%, transparent 8.8%),
@@ -314,80 +314,166 @@ button:disabled {
 
 .stage-surface {
   position: relative;
+  width: min(760px, calc(100vw - 120px));
   min-height: 100dvh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin: 0 auto;
   padding: 34px 30px 72px;
 }
 
-.figure-sheet {
-  position: relative;
-  z-index: 3;
-  width: min(720px, calc(100% - 292px));
-  min-height: clamp(540px, 68vh, 660px);
-  margin: 252px auto 0;
-  margin-left: clamp(74px, 14vw, 188px);
-  padding: 28px 34px 34px 54px;
-  border: 1px solid rgba(96, 38, 14, 0.12);
-  border-radius: 160px 160px 54px 54px / 128px 128px 42px 42px;
+.figure-halo {
+  position: absolute;
+  top: 302px;
+  left: 50%;
+  z-index: 2;
+  width: min(21vw, 248px);
+  height: min(24vw, 290px);
+  transform: translateX(-18%) rotate(8deg);
+  border-radius: 44% 56% 46% 54% / 40% 44% 56% 60%;
   background:
-    linear-gradient(180deg, rgba(248, 239, 228, 0.98), rgba(241, 223, 207, 0.98)),
-    radial-gradient(circle at 18% 18%, rgba(255, 247, 233, 0.76), transparent 24%);
+    radial-gradient(circle at 50% 30%, rgba(255, 250, 235, 0.98) 0 16%, rgba(255, 238, 202, 0.92) 16% 34%, rgba(255, 181, 87, 0.32) 34% 54%, transparent 55%);
+  box-shadow: 0 0 120px rgba(255, 203, 128, 0.18);
+}
+
+.figure-body {
+  position: relative;
+  z-index: 4;
+  width: min(574px, calc(100vw - 392px));
+  min-height: clamp(566px, 72vh, 732px);
+  margin-top: clamp(204px, 26vh, 272px);
+  padding: 134px 36px 38px 34px;
+  border: 1px solid rgba(99, 44, 16, 0.12);
+  border-radius: 40% 40% 16% 16% / 24% 24% 10% 10%;
+  background:
+    linear-gradient(180deg, rgba(252, 246, 239, 0.99), rgba(247, 234, 220, 0.98) 54%, rgba(240, 221, 205, 0.99)),
+    radial-gradient(circle at 50% 16%, rgba(255, 252, 247, 0.82), transparent 34%);
   color: var(--ink);
-  clip-path: polygon(18% 0, 74% 0, 88% 10%, 94% 30%, 100% 100%, 0 100%, 5% 34%, 10% 12%);
   box-shadow:
-    0 36px 90px rgba(0, 0, 0, 0.38),
+    0 36px 96px rgba(0, 0, 0, 0.42),
     0 0 0 1px rgba(255, 248, 237, 0.12);
 }
 
-.figure-sheet::before,
-.figure-sheet::after {
+.figure-body::before,
+.figure-body::after,
+.route-talisman::before,
+.route-talisman::after,
+.archive-band::before {
   content: '';
   position: absolute;
   pointer-events: none;
 }
 
-.figure-sheet::before {
-  top: 112px;
-  right: 32px;
-  width: 180px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(211, 24, 15, 0.96), transparent);
-  box-shadow: 0 18px 0 rgba(211, 24, 15, 0.52);
-  transform: rotate(-17deg);
+.figure-body::before {
+  top: -58px;
+  left: 50%;
+  width: min(252px, 50%);
+  height: 190px;
+  transform: translateX(-62%) rotate(-8deg);
+  border-radius: 56% 44% 40% 56% / 54% 40% 44% 42%;
+  background:
+    radial-gradient(circle at 50% 60%, rgba(255, 247, 233, 0.98) 0 16%, rgba(255, 236, 198, 0.98) 16% 29%, transparent 29.8%),
+    radial-gradient(circle at 44% 34%, rgba(73, 35, 13, 0.22), transparent 52%),
+    linear-gradient(180deg, rgba(255, 250, 246, 0.96), rgba(236, 217, 202, 0.86));
+  box-shadow: inset 0 -26px 40px rgba(216, 40, 20, 0.08);
 }
 
-.figure-sheet::after {
-  left: 26px;
-  bottom: 26px;
-  width: 128px;
-  height: 128px;
-  border-left: 1px solid rgba(255, 102, 36, 0.56);
-  border-top: 1px solid rgba(255, 102, 36, 0.56);
-  border-radius: 0 0 0 90px;
+.figure-body::after {
+  left: 18%;
+  right: 16%;
+  bottom: 12px;
+  height: 186px;
+  border-radius: 42% 50% 16% 16% / 16% 18% 34% 34%;
+  background:
+    radial-gradient(circle at 14% 22%, rgba(214, 44, 28, 0.88) 0 6px, transparent 7px),
+    radial-gradient(circle at 83% 20%, rgba(214, 44, 28, 0.88) 0 6px, transparent 7px),
+    radial-gradient(circle at 24% 34%, rgba(214, 44, 28, 0.58) 0 5px, transparent 6px),
+    radial-gradient(circle at 76% 34%, rgba(214, 44, 28, 0.58) 0 5px, transparent 6px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.46));
+  opacity: 0.86;
 }
 
-.route-rig {
+.route-talisman {
   position: absolute;
-  top: 420px;
-  left: 22px;
-  z-index: 4;
-  width: 206px;
+  top: 346px;
+  left: -116px;
+  z-index: 6;
+  width: 188px;
+  transform: rotate(-7deg);
 }
 
-.battle-layout {
+.route-talisman::before {
+  top: -126px;
+  left: 38px;
+  width: 4px;
+  height: 148px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(208, 39, 25, 0.92), rgba(255, 176, 95, 0.3));
+  transform: rotate(13deg);
+}
+
+.route-talisman::after {
+  top: -112px;
+  left: 74px;
+  width: 4px;
+  height: 138px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(208, 39, 25, 0.92), rgba(255, 176, 95, 0.22));
+  transform: rotate(4deg);
+}
+
+.figure-layout {
   position: relative;
   display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) 214px;
   gap: 18px;
   min-height: 100%;
-  padding-left: 68px;
-  padding-right: 264px;
+}
+
+.figure-copy {
+  min-width: 0;
+  gap: 18px;
+}
+
+.figure-layout::before,
+.figure-layout::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(250, 241, 231, 0.96), rgba(239, 222, 205, 0.94)),
+    radial-gradient(circle at 22% 30%, rgba(255, 255, 255, 0.62), transparent 28%);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.06);
+}
+
+.figure-layout::before {
+  top: 120px;
+  left: -92px;
+  width: 196px;
+  height: 208px;
+  border-radius: 38% 62% 24% 52% / 32% 40% 18% 46%;
+  transform: rotate(-18deg);
+}
+
+.figure-layout::after {
+  top: 242px;
+  right: -74px;
+  width: 168px;
+  height: 138px;
+  border-radius: 62% 38% 56% 24% / 32% 26% 48% 24%;
+  transform: rotate(18deg);
 }
 
 .figure-head,
 .figure-mark,
+.figure-copy,
 .ledger-copy,
-.archive-head,
-.route-stack,
-.route-head,
+.band-head,
+.talisman-stack,
+.talisman-head,
 .signal-route-copy,
 .snapshot-copy,
 .reference-panel {
@@ -396,11 +482,13 @@ button:disabled {
 }
 
 .figure-head {
-  grid-template-columns: minmax(136px, 172px) minmax(0, 1fr);
-  gap: 20px 28px;
+  position: relative;
+  grid-template-columns: minmax(120px, 156px) minmax(0, 1fr);
+  gap: 18px 22px;
   align-items: end;
-  padding-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--rule);
+  max-width: 356px;
 }
 
 .section-label,
@@ -423,8 +511,8 @@ button:disabled {
   color: var(--violet);
 }
 
-.route-stack .section-label,
-.archive-shard .section-label,
+.talisman-stack .section-label,
+.archive-band .section-label,
 .route-meta,
 .secondary-meta,
 .signal-note {
@@ -506,8 +594,10 @@ button:disabled {
 .command-strip {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 14px;
+  gap: 12px;
   align-items: end;
+  grid-column: 1 / -1;
+  padding-right: 140px;
 }
 
 .command-strip input {
@@ -527,9 +617,13 @@ button:disabled {
 }
 
 .status-mark {
-  grid-column: 2;
+  position: absolute;
+  top: 4px;
+  right: 0;
   display: grid;
   gap: 6px;
+  max-width: 128px;
+  text-align: right;
 }
 
 .status-banner {
@@ -542,12 +636,17 @@ button:disabled {
   line-height: 1.5;
 }
 
-.history-ledger {
+.figure-ledger {
   position: relative;
   min-width: 0;
+  z-index: 1;
+  max-width: 368px;
+  max-height: 376px;
+  padding-right: 12px;
+  overflow: auto;
 }
 
-.history-ledger-active {
+.figure-ledger-active {
   animation: drop-pulse 760ms ease-in-out infinite alternate;
 }
 
@@ -577,7 +676,7 @@ button:disabled {
 }
 
 .record-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   border-top: 1px solid var(--rule);
 }
 
@@ -599,7 +698,7 @@ button:disabled {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .record-meta {
@@ -676,33 +775,37 @@ button:disabled {
   padding-top: 4px;
 }
 
-.archive-shard {
-  position: absolute;
-  top: 30px;
-  right: -82px;
-  z-index: 5;
-  width: 300px;
-  min-height: calc(100% - 84px);
+.archive-band {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: end;
+  justify-self: end;
+  z-index: 6;
+  width: 248px;
+  min-height: 286px;
   overflow: hidden;
-  padding: 24px 26px 24px 20px;
+  padding: 20px 24px 20px 24px;
   border: 1px solid rgba(255, 176, 95, 0.22);
-  border-radius: 44px 22px 58px 28px / 26px 16px 68px 42px;
+  border-radius: 22px 26px 44px 30px / 18px 20px 58px 36px;
   background:
     linear-gradient(180deg, rgba(41, 12, 7, 0.98), rgba(10, 6, 4, 0.99)),
     radial-gradient(circle at 28% 16%, rgba(255, 218, 165, 0.1), transparent 24%);
   color: var(--textPrimary);
   box-shadow: 0 30px 76px rgba(0, 0, 0, 0.36);
-  clip-path: polygon(12% 0, 92% 0, 100% 10%, 96% 34%, 100% 50%, 94% 100%, 8% 100%, 2% 82%, 0 52%, 4% 24%, 0 12%);
+  transform: rotate(-9deg);
+  margin-bottom: 118px;
 }
 
-.archive-shard::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 18px;
-  right: 58px;
-  height: 10px;
-  background: linear-gradient(90deg, var(--signal), rgba(255, 242, 214, 0.72));
+.archive-band::before {
+  top: -180px;
+  left: 22px;
+  width: 10px;
+  height: 244px;
+  background:
+    linear-gradient(180deg, rgba(214, 44, 28, 0.86), rgba(255, 140, 68, 0.18) 82%, transparent 100%);
+  transform: rotate(-6deg);
+  opacity: 0.92;
 }
 
 .archive-tabs {
@@ -741,38 +844,45 @@ button:disabled {
   padding-top: 16px;
 }
 
-.archive-shard .details-copy,
-.archive-shard .path-line,
-.archive-shard .secondary-meta,
-.archive-shard .blank-copy {
+.archive-band .details-copy,
+.archive-band .path-line,
+.archive-band .secondary-meta,
+.archive-band .blank-copy {
   color: var(--textMuted);
 }
 
-.archive-shard .finder-button,
-.archive-shard .text-button,
-.archive-shard .row-more summary {
+.archive-band .finder-button,
+.archive-band .text-button,
+.archive-band .row-more summary {
   color: var(--textPrimary);
 }
 
-.archive-shard .finder-button:hover:enabled,
-.archive-shard .text-button:hover:enabled,
-.archive-shard .row-more summary:hover,
+.archive-band .finder-button:hover:enabled,
+.archive-band .text-button:hover:enabled,
+.archive-band .row-more summary:hover,
 .route-remove:hover:enabled {
   color: var(--signalSoft);
 }
 
-.archive-shard .row-more-menu {
+.archive-band .row-more-menu {
   border-color: rgba(255, 242, 230, 0.16);
   background: rgba(20, 10, 7, 0.98);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
 }
 
-.route-stack {
-  gap: 16px;
+.talisman-stack {
+  gap: 14px;
   align-content: start;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 180, 108, 0.22);
+  border-radius: 20px 28px 28px 18px;
+  background:
+    linear-gradient(180deg, rgba(30, 10, 7, 0.98), rgba(10, 6, 4, 0.98)),
+    radial-gradient(circle at 28% 12%, rgba(255, 154, 76, 0.14), transparent 24%);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.3);
 }
 
-.route-head {
+.talisman-head {
   gap: 10px;
 }
 
@@ -785,7 +895,7 @@ button:disabled {
     -2px 0 0 0 rgba(255, 86, 24, 0.42);
 }
 
-.route-actions {
+.talisman-actions {
   display: grid;
   gap: 10px;
 }
@@ -810,7 +920,7 @@ button:disabled {
   border-bottom-color: var(--signal);
 }
 
-.route-list {
+.talisman-list {
   padding-top: 4px;
 }
 
@@ -846,17 +956,12 @@ button:disabled {
 }
 
 @media (max-width: 1200px) {
-  .figure-sheet {
-    width: min(700px, calc(100% - 240px));
-    margin-left: clamp(44px, 10vw, 132px);
+  .figure-body {
+    width: min(548px, calc(100vw - 276px));
   }
 
-  .archive-shard {
-    right: -42px;
-  }
-
-  .route-rig {
-    left: 8px;
+  .route-talisman {
+    left: -92px;
   }
 }
 
@@ -867,33 +972,65 @@ button:disabled {
   }
 
   .stage-surface {
+    width: 100%;
     display: grid;
     gap: 22px;
     padding: 88px 18px 48px;
   }
 
-  .route-rig {
+  .route-talisman {
     position: static;
     width: 100%;
+    left: auto;
+    top: auto;
   }
 
-  .figure-sheet {
-    width: 100%;
-    min-height: auto;
-    margin: 166px 0 0;
-    padding: 24px 20px 28px;
-    clip-path: none;
-    border-radius: 42px 42px 28px 28px / 58px 58px 28px 28px;
-  }
-
-  .figure-sheet::before,
-  .figure-sheet::after {
+  .route-talisman::before,
+  .route-talisman::after,
+  .archive-band::before {
     display: none;
   }
 
-  .battle-layout {
-    padding-left: 0;
+  .figure-halo {
+    top: 210px;
+    left: 50%;
+    width: 240px;
+    height: 280px;
+    transform: translateX(-50%);
+  }
+
+  .figure-body {
+    width: 100%;
+    min-height: auto;
+    margin: 166px 0 0;
+    padding: 110px 20px 28px;
+    border-radius: 34px 34px 26px 26px / 52px 52px 26px 26px;
+  }
+
+  .figure-body::before {
+    top: -42px;
+    width: min(280px, 74%);
+    height: 168px;
+  }
+
+  .figure-body::after {
+    left: 8%;
+    right: 8%;
+    height: 112px;
+  }
+
+  .figure-layout {
+    grid-template-columns: 1fr;
     padding-right: 0;
+  }
+
+  .figure-copy {
+    gap: 16px;
+  }
+
+  .figure-layout::before,
+  .figure-layout::after {
+    display: none;
   }
 
   .figure-head {
@@ -901,17 +1038,29 @@ button:disabled {
   }
 
   .status-mark {
-    grid-column: auto;
+    position: static;
+    max-width: none;
+    text-align: left;
   }
 
-  .archive-shard {
+  .command-strip {
+    padding-right: 0;
+  }
+
+  .figure-ledger {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .archive-band {
     position: static;
     width: 100%;
     min-height: 0;
     margin-top: 10px;
     right: auto;
-    clip-path: none;
     border-radius: 30px;
+    transform: none;
   }
 
   .record-row,
@@ -968,15 +1117,31 @@ button:disabled {
     height: 198px;
   }
 
-  .figure-sheet {
+  .figure-halo {
+    top: 172px;
+    width: 196px;
+    height: 224px;
+  }
+
+  .figure-body {
     margin-top: 148px;
-    padding: 20px 16px 24px;
-    border-radius: 30px 30px 22px 22px / 42px 42px 22px 22px;
+    padding: 94px 16px 24px;
+    border-radius: 28px 28px 22px 22px / 42px 42px 22px 22px;
+  }
+
+  .figure-body::before {
+    width: min(220px, 78%);
+    height: 132px;
+  }
+
+  .command-strip {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .history-ledger-active {
+  .figure-ledger-active {
     animation: none;
   }
 }

@@ -33,8 +33,13 @@ export function AppShell({ archiveStage, statusSpine }: AppShellProps) {
       createElement(
         'div',
         { className: 'stage-surface' },
-        createElement('div', { className: 'figure-sheet' }, archiveStage),
-        createElement('aside', { className: 'route-rig' }, statusSpine)
+        createElement('div', { 'aria-hidden': 'true', className: 'figure-halo' }),
+        createElement(
+          'div',
+          { className: 'figure-body' },
+          archiveStage,
+          createElement('aside', { className: 'route-talisman' }, statusSpine)
+        )
       )
     )
   );

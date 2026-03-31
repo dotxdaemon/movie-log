@@ -6,7 +6,7 @@ import { AppShell } from '../src/app-shell.js';
 import { findByClass, renderTree, readText } from './render-tree.js';
 
 describe('App shell', () => {
-  it('renders one battle stage with a warm crown, pale figure sheet, route rig, and blade field', () => {
+  it('renders one battle stage with a warm crown, figure halo, figure body, route talisman, and blade field', () => {
     const tree = renderTree(
       createElement(AppShell, {
         archiveStage: createElement('section', { className: 'records-surface' }, 'History'),
@@ -21,14 +21,14 @@ describe('App shell', () => {
     expect(findByClass(tree, 'frame-line')).toHaveLength(1);
     expect(findByClass(tree, 'editorial-spine')).toHaveLength(1);
     expect(findByClass(tree, 'blade-field')).toHaveLength(1);
-    expect(findByClass(tree, 'route-rig')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-sheet')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-halo')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-body')).toHaveLength(1);
+    expect(findByClass(tree, 'route-talisman')).toHaveLength(1);
     expect(findByClass(tree, 'portrait-stage')).toHaveLength(0);
     expect(findByClass(tree, 'glitch-track')).toHaveLength(0);
     expect(findByClass(tree, 'ceiling-lattice')).toHaveLength(0);
-    expect(findByClass(tree, 'echo-mass')).toHaveLength(0);
-    expect(findByClass(tree, 'signal-cluster')).toHaveLength(0);
-    expect(findByClass(tree, 'focus-sheet')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-sheet')).toHaveLength(0);
+    expect(findByClass(tree, 'route-rig')).toHaveLength(0);
     expect(readText(tree)).toContain('History');
     expect(readText(tree)).toContain('Status');
   });

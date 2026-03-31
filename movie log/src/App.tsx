@@ -210,88 +210,90 @@ export function MovieLogWorkspace({
   return (
     <AppShell
       archiveStage={
-        <div className="battle-layout">
-          <header className="figure-head">
-            <div className="figure-mark">
-              <p className="section-label">Movie Log</p>
-              <h2 className="figure-title">Arrivals</h2>
-            </div>
-
-            <label className="command-strip">
-              <span className="command-label">Search</span>
-              <input onChange={(event) => onSearchQueryChange(event.target.value)} placeholder="Search ledger" type="search" value={searchQuery} />
-            </label>
-
-            <div className="status-mark">
-              <p className="section-label">Ledger</p>
-              <p className="workspace-status">{ledgerSummary}</p>
-            </div>
-          </header>
-
-          {statusBanner}
-
-          <section
-            className={dropActive ? 'history-ledger history-ledger-active' : 'history-ledger'}
-            onDragEnter={() => onDropActiveChange(true)}
-            onDragLeave={() => onDropActiveChange(false)}
-            onDragOver={(event) => {
-              event.preventDefault();
-              onDropActiveChange(true);
-            }}
-            onDrop={onDrop}
-          >
-            <div className="ledger-head">
-              <div className="ledger-copy">
-                <p className="section-label">History</p>
-                <p className="ledger-note">{searchQuery ? 'Filtered arrivals.' : 'Latest arrivals.'}</p>
+        <div className="figure-layout">
+          <div className="figure-copy">
+            <header className="figure-head">
+              <div className="figure-mark">
+                <p className="section-label">Movie Log</p>
+                <h2 className="figure-title">Arrivals</h2>
               </div>
-              <p className="ledger-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
-            </div>
 
-            {filteredHistory.length === 0 ? (
-              <div className="blank-slate blank-slate-records">
-                <p className="blank-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
-                {!searchQuery ? <p className="blank-copy">New arrivals will appear here.</p> : null}
+              <label className="command-strip">
+                <span className="command-label">Search</span>
+                <input onChange={(event) => onSearchQueryChange(event.target.value)} placeholder="Search ledger" type="search" value={searchQuery} />
+              </label>
+
+              <div className="status-mark">
+                <p className="section-label">Ledger</p>
+                <p className="workspace-status">{ledgerSummary}</p>
               </div>
-            ) : (
-              <ol className="records-list">
-                {filteredHistory.map((entry) => (
-                  <li className="record-row" key={entry.id}>
-                    <div className="record-copy">
-                      <strong className="record-title">{entry.title}</strong>
-                      <p className="record-meta">
-                        {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
-                        {formatEntryType(entry.sourceKind)}
-                      </p>
-                      <p className="path-line">{entry.sourcePath}</p>
-                    </div>
+            </header>
 
-                    <div className="record-actions">
-                      <button className="finder-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
-                        Show in Finder
-                      </button>
-                      <details className="row-more">
-                        <summary>More</summary>
-                        <div className="row-more-menu">
-                          {entry.sourceKind === 'file' ? (
-                            <button className="text-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
-                              Open
+            {statusBanner}
+
+            <section
+              className={dropActive ? 'figure-ledger figure-ledger-active' : 'figure-ledger'}
+              onDragEnter={() => onDropActiveChange(true)}
+              onDragLeave={() => onDropActiveChange(false)}
+              onDragOver={(event) => {
+                event.preventDefault();
+                onDropActiveChange(true);
+              }}
+              onDrop={onDrop}
+            >
+              <div className="ledger-head">
+                <div className="ledger-copy">
+                  <p className="section-label">History</p>
+                  <p className="ledger-note">{searchQuery ? 'Filtered arrivals.' : 'Latest arrivals.'}</p>
+                </div>
+                <p className="ledger-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
+              </div>
+
+              {filteredHistory.length === 0 ? (
+                <div className="blank-slate blank-slate-records">
+                  <p className="blank-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
+                  {!searchQuery ? <p className="blank-copy">New arrivals will appear here.</p> : null}
+                </div>
+              ) : (
+                <ol className="records-list">
+                  {filteredHistory.map((entry) => (
+                    <li className="record-row" key={entry.id}>
+                      <div className="record-copy">
+                        <strong className="record-title">{entry.title}</strong>
+                        <p className="record-meta">
+                          {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
+                          {formatEntryType(entry.sourceKind)}
+                        </p>
+                        <p className="path-line">{entry.sourcePath}</p>
+                      </div>
+
+                      <div className="record-actions">
+                        <button className="finder-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
+                          Show in Finder
+                        </button>
+                        <details className="row-more">
+                          <summary>More</summary>
+                          <div className="row-more-menu">
+                            {entry.sourceKind === 'file' ? (
+                              <button className="text-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
+                                Open
+                              </button>
+                            ) : null}
+                            <button className="text-button" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
+                              Copy Path
                             </button>
-                          ) : null}
-                          <button className="text-button" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
-                            Copy Path
-                          </button>
-                        </div>
-                      </details>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
+                          </div>
+                        </details>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          </div>
 
-          <aside className="archive-shard">
-            <div className="archive-head">
+          <aside className="archive-band">
+            <div className="band-head">
               <p className="section-label">Archive</p>
               <h3 className="archive-title">{activeInspector.title}</h3>
               <p className="details-copy">{inspectorSummary}</p>
@@ -316,14 +318,14 @@ export function MovieLogWorkspace({
         </div>
       }
       statusSpine={
-        <div className="route-stack">
-          <div className="route-head">
+        <div className="talisman-stack">
+          <div className="talisman-head">
             <div aria-hidden="true" className="signal-mark" />
             <p className="section-label">Routes</p>
             <p className="signal-note">{watchedFolderSummary}</p>
           </div>
 
-          <div className="route-actions">
+          <div className="talisman-actions">
             <button className="signal-button signal-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
               Add Folder
             </button>
@@ -337,7 +339,7 @@ export function MovieLogWorkspace({
             </button>
           </div>
 
-          <section className="route-list">
+          <section className="talisman-list">
             {state.watchedFolders.length === 0 ? (
               <div className="blank-slate blank-slate-compact">
                 <p className="blank-title">No routes yet</p>

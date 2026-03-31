@@ -11,15 +11,17 @@ describe('workspace reference contract', () => {
     const referenceContract = await readFile(referenceContractPath, 'utf8');
 
     expect(referenceContract).toContain('ember crown');
-    expect(referenceContract).toContain('figure sheet');
-    expect(referenceContract).toContain('archive shard');
+    expect(referenceContract).toContain('figure body');
+    expect(referenceContract).toContain('archive band');
+    expect(referenceContract).toContain('figure halo');
+    expect(referenceContract).toContain('route talisman');
     expect(referenceContract).toContain('blade field');
     expect(referenceContract).toContain('editorial spine');
     expect(referenceContract).toContain('warm accent family');
-    expect(referenceContract).toContain('portrait-stage');
-    expect(referenceContract).toContain('focus-sheet');
-    expect(referenceContract).toContain('signal-cluster');
-    expect(referenceContract).toContain('echo-archive');
-    expect(referenceContract).toContain('ceiling-lattice');
+    expect(referenceContract).toContain('figure-sheet');
+    expect(referenceContract).toContain('archive-shard');
+    expect(referenceContract).toContain('route-rig');
+    expect(referenceContract).toContain('battle-layout');
+    expect(referenceContract).toContain('route-stack');
   });
 });
