@@ -1,5 +1,5 @@
 // ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
-// ABOUTME: Keeps one distorted ledger surface with embedded route controls and an overlaid archive echo.
+// ABOUTME: Keeps one minimal history workspace with plain archive and routes surfaces.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import { FolderSnapshotPanel } from './folder-snapshot-panel.js';
@@ -210,21 +210,12 @@ export function MovieLogWorkspace({
   return (
     <AppShell
       archiveStage={
-        <div className="poster-figure">
-          <div aria-hidden="true" className="figure-headpiece">
-            <span className="head-horn head-horn-left" />
-            <span className="head-horn head-horn-right" />
-            <span className="head-glow" />
-          </div>
-          <div aria-hidden="true" className="figure-sleeve-left" />
-          <div aria-hidden="true" className="figure-sleeve-right" />
-          <div aria-hidden="true" className="figure-waist" />
-
-          <section className="figure-torso">
-            <header className="torso-head">
+        <div className="workspace-stack">
+          <section className="history-panel">
+            <header className="workspace-head">
               <div className="title-mark">
                 <p className="section-label">Movie Log</p>
-                <h2 className="figure-title">Arrivals</h2>
+                <h2 className="workspace-title">Arrivals</h2>
               </div>
 
               <div className="status-mark">
@@ -232,8 +223,8 @@ export function MovieLogWorkspace({
                 <p className="workspace-status">{ledgerSummary}</p>
               </div>
 
-              <label className="torso-search">
-                <span className="command-label">Search</span>
+              <label className="workspace-search">
+                <span className="section-label">Search</span>
                 <input onChange={(event) => onSearchQueryChange(event.target.value)} placeholder="Search ledger" type="search" value={searchQuery} />
               </label>
             </header>
@@ -241,7 +232,7 @@ export function MovieLogWorkspace({
             {statusBanner}
 
             <section
-              className={dropActive ? 'torso-ledger torso-ledger-active' : 'torso-ledger'}
+              className={dropActive ? 'history-panel-body history-panel-body-active' : 'history-panel-body'}
               onDragEnter={() => onDropActiveChange(true)}
               onDragLeave={() => onDropActiveChange(false)}
               onDragOver={(event) => {
@@ -301,19 +292,18 @@ export function MovieLogWorkspace({
             </section>
           </section>
 
-          <aside className="archive-satchel">
-            <div aria-hidden="true" className="satchel-strap" />
-            <div className="satchel-head">
+          <aside className="archive-panel">
+            <div className="archive-head">
               <p className="section-label">Archive</p>
               <h3 className="archive-title">{activeInspector.title}</h3>
               <p className="details-copy">{inspectorSummary}</p>
             </div>
-            <div className="satchel-tabs" aria-label="Archive" role="tablist">
+            <div className="archive-tabs" aria-label="Archive" role="tablist">
               {inspectorTabs.map((tab) => (
                 <button
                   aria-label={tab.title}
                   aria-selected={activeInspectorTab === tab.id}
-                  className={activeInspectorTab === tab.id ? 'satchel-tab satchel-tab-active' : 'satchel-tab'}
+                  className={activeInspectorTab === tab.id ? 'archive-tab archive-tab-active' : 'archive-tab'}
                   key={tab.id}
                   onClick={() => onSelectInspectorTab(tab.id)}
                   role="tab"
@@ -323,20 +313,18 @@ export function MovieLogWorkspace({
                 </button>
               ))}
             </div>
-            <div className="satchel-body">{archivePanel}</div>
+            <div className="archive-body">{archivePanel}</div>
           </aside>
         </div>
       }
       statusSpine={
-        <div className="talisman-body">
-          <div aria-hidden="true" className="talisman-strap" />
-          <div className="talisman-head">
-            <div aria-hidden="true" className="signal-mark" />
+        <div className="routes-body">
+          <div className="routes-head">
             <p className="section-label">Routes</p>
             <p className="signal-note">{watchedFolderSummary}</p>
           </div>
 
-          <div className="talisman-actions">
+          <div className="routes-actions">
             <button className="signal-button signal-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
               Add Folder
             </button>
@@ -350,7 +338,7 @@ export function MovieLogWorkspace({
             </button>
           </div>
 
-          <section className="talisman-list">
+          <section className="routes-list">
             {state.watchedFolders.length === 0 ? (
               <div className="blank-slate blank-slate-compact">
                 <p className="blank-title">No routes yet</p>

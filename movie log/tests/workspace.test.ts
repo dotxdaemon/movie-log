@@ -1,4 +1,4 @@
-// ABOUTME: Verifies that the renderer workspace resolves into one focal form with overlaid archive context.
+// ABOUTME: Verifies that the renderer workspace resolves into one minimal history-first layout with plain archive and routes surfaces.
 // ABOUTME: Uses a resolved React tree so the redesign can regress without brittle markup snapshots.
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -51,7 +51,7 @@ const state: MovieLogState = {
 function noop(): void {}
 
 describe('MovieLogWorkspace', () => {
-  it('renders one portrait figure with distinct anatomy, an attached satchel, and a hanging talisman', () => {
+  it('renders one minimal history workspace with a plain archive panel and routes rail', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         activeInspectorTab: 'contents',
@@ -75,27 +75,24 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(findByClass(tree, 'poster-figure')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-headpiece')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-torso')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-sleeve-left')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-sleeve-right')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-waist')).toHaveLength(1);
-    expect(findByClass(tree, 'torso-head')).toHaveLength(1);
-    expect(findByClass(tree, 'torso-search')).toHaveLength(1);
-    expect(findByClass(tree, 'torso-ledger')).toHaveLength(1);
-    expect(findByClass(tree, 'archive-satchel')).toHaveLength(1);
-    expect(findByClass(tree, 'satchel-strap')).toHaveLength(1);
-    expect(findByClass(tree, 'talisman-body')).toHaveLength(1);
-    expect(findByClass(tree, 'talisman-strap')).toHaveLength(1);
-    expect(findByClass(tree, 'route-talisman')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-layout')).toHaveLength(0);
-    expect(findByClass(tree, 'figure-head')).toHaveLength(0);
-    expect(findByClass(tree, 'figure-mark')).toHaveLength(0);
-    expect(findByClass(tree, 'command-strip')).toHaveLength(0);
-    expect(findByClass(tree, 'figure-ledger')).toHaveLength(0);
-    expect(findByClass(tree, 'archive-band')).toHaveLength(0);
-    expect(findByClass(tree, 'talisman-stack')).toHaveLength(0);
+    expect(findByClass(tree, 'workspace-stack')).toHaveLength(1);
+    expect(findByClass(tree, 'history-panel')).toHaveLength(1);
+    expect(findByClass(tree, 'workspace-head')).toHaveLength(1);
+    expect(findByClass(tree, 'workspace-search')).toHaveLength(1);
+    expect(findByClass(tree, 'history-panel-body')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-panel')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-tabs')).toHaveLength(1);
+    expect(findByClass(tree, 'routes-panel')).toHaveLength(1);
+    expect(findByClass(tree, 'routes-body')).toHaveLength(1);
+    expect(findByClass(tree, 'poster-figure')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-headpiece')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-torso')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-sleeve-left')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-sleeve-right')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-waist')).toHaveLength(0);
+    expect(findByClass(tree, 'archive-satchel')).toHaveLength(0);
+    expect(findByClass(tree, 'satchel-strap')).toHaveLength(0);
+    expect(findByClass(tree, 'talisman-strap')).toHaveLength(0);
     expect(findByClass(tree, 'record-row')).toHaveLength(1);
     const text = readText(tree);
     expect(text).toContain('Movie Log');
@@ -121,7 +118,7 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('More');
   });
 
-  it('can switch the archive band context without losing the figure body', () => {
+  it('can switch the archive panel context without losing the minimal workspace layout', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         activeInspectorTab: 'note',
@@ -145,9 +142,9 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(findByClass(tree, 'poster-figure')).toHaveLength(1);
-    expect(findByClass(tree, 'archive-satchel')).toHaveLength(1);
-    expect(findByClass(tree, 'satchel-tabs')).toHaveLength(1);
+    expect(findByClass(tree, 'workspace-stack')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-panel')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-tabs')).toHaveLength(1);
     const text = readText(tree);
     expect(text).toContain('Movie Log');
     expect(text).toContain('Arrivals');

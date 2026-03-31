@@ -1,40 +1,32 @@
 # Workspace Reference
 
-This document defines the approved Movie Log poster composition for renderer work.
+This document defines the approved Movie Log monochrome workspace for renderer work.
 
 ## Required Markers
 
-- subject-led poster: the first viewport must read as one illustrated poster, not an app shell with poster colors
-- clear focal hierarchy: the fractured crown leads, the figure follows, attached accessories support, editorial marks stay last
-- poster column: one centered portrait column carries the figure and all primary interaction
-- fractured crown: one layered orange-red crown with horn and eye-like voids, halftone texture, and debris fragments
-- anatomical figure readability: the figure must read as separate headpiece, torso, sleeves, and waist forms rather than one slab
-- figure headpiece: one pale head and hair mass that anchors the figure below the crown
-- figure torso: one pale torso surface that carries title, search, status, and ledger content
-- figure sleeves: one left sleeve form and one right sleeve form extending beyond the torso
-- figure waist: one lower pale base that completes the body silhouette below the torso
-- integrated accessories: the route talisman and archive satchel must read as attached gear, not floating cards
-- route talisman: one hanging left accessory attached by visible tethers
-- archive satchel: one dark right-waist archive surface attached by a visible strap
-- asymmetry and tension: the figure sits low-center with weight pulled left and right by the attached accessories
-- internal texture and debris: the crown and field carry halftone, fracture, and debris texture rather than smooth blobs
-- specific pale forms: pale surfaces must describe body parts, not generic panels
-- violent crown detail: the orange crown must feel dense and fractured rather than circular and soft
-- subordinate editorial marks: top bars, side glyphs, bottom blades, and the right spine support the poster without carrying it
-- illustration-first surface: the working UI must submit to the poster composition instead of reading as themed productivity chrome
+- monochrome field: the app uses black, white, and gray only
+- minimal stage: one centered workspace with no decorative framing or poster geometry
+- history-first main surface: the largest surface is the history workspace with title, search, summary, and rows
+- simple archive panel: the archive stays reachable as a plain secondary panel
+- simple routes rail: watched folders and route actions stay reachable in one narrow utility rail
+- flat chrome: borders, spacing, and typography carry hierarchy instead of textures, shadows, or ornaments
+- restrained copy: headings and helper text stay short and operational
+- readable real content: history rows, paths, and metadata stay scannable with populated data
+- responsive stack: desktop uses a calm split workspace and narrow widths collapse to a single vertical stack
+- grayscale controls: buttons, tabs, inputs, and actions use one flat grayscale control system
 
 ## Disallowed Markers
 
-- figure-body
-- figure-halo
-- figure-layout
-- figure-head
-- figure-mark
-- command-strip
-- figure-ledger
-- archive-band
-- figure-sheet
-- archive-shard
-- route-rig
-- battle-layout
-- route-stack
+- poster-stage
+- top-bars
+- crown-fracture
+- poster-frame
+- editorial-spine
+- side-glyphs
+- blade-field
+- figure-headpiece
+- figure-sleeve-left
+- figure-sleeve-right
+- figure-waist
+- satchel-strap
+- talisman-strap
