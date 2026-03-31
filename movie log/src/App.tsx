@@ -210,29 +210,38 @@ export function MovieLogWorkspace({
   return (
     <AppShell
       archiveStage={
-        <div className="figure-layout">
-          <div className="figure-copy">
-            <header className="figure-head">
-              <div className="figure-mark">
+        <div className="poster-figure">
+          <div aria-hidden="true" className="figure-headpiece">
+            <span className="head-horn head-horn-left" />
+            <span className="head-horn head-horn-right" />
+            <span className="head-glow" />
+          </div>
+          <div aria-hidden="true" className="figure-sleeve-left" />
+          <div aria-hidden="true" className="figure-sleeve-right" />
+          <div aria-hidden="true" className="figure-waist" />
+
+          <section className="figure-torso">
+            <header className="torso-head">
+              <div className="title-mark">
                 <p className="section-label">Movie Log</p>
                 <h2 className="figure-title">Arrivals</h2>
               </div>
-
-              <label className="command-strip">
-                <span className="command-label">Search</span>
-                <input onChange={(event) => onSearchQueryChange(event.target.value)} placeholder="Search ledger" type="search" value={searchQuery} />
-              </label>
 
               <div className="status-mark">
                 <p className="section-label">Ledger</p>
                 <p className="workspace-status">{ledgerSummary}</p>
               </div>
+
+              <label className="torso-search">
+                <span className="command-label">Search</span>
+                <input onChange={(event) => onSearchQueryChange(event.target.value)} placeholder="Search ledger" type="search" value={searchQuery} />
+              </label>
             </header>
 
             {statusBanner}
 
             <section
-              className={dropActive ? 'figure-ledger figure-ledger-active' : 'figure-ledger'}
+              className={dropActive ? 'torso-ledger torso-ledger-active' : 'torso-ledger'}
               onDragEnter={() => onDropActiveChange(true)}
               onDragLeave={() => onDropActiveChange(false)}
               onDragOver={(event) => {
@@ -290,20 +299,21 @@ export function MovieLogWorkspace({
                 </ol>
               )}
             </section>
-          </div>
+          </section>
 
-          <aside className="archive-band">
-            <div className="band-head">
+          <aside className="archive-satchel">
+            <div aria-hidden="true" className="satchel-strap" />
+            <div className="satchel-head">
               <p className="section-label">Archive</p>
               <h3 className="archive-title">{activeInspector.title}</h3>
               <p className="details-copy">{inspectorSummary}</p>
             </div>
-            <div className="archive-tabs" aria-label="Archive" role="tablist">
+            <div className="satchel-tabs" aria-label="Archive" role="tablist">
               {inspectorTabs.map((tab) => (
                 <button
                   aria-label={tab.title}
                   aria-selected={activeInspectorTab === tab.id}
-                  className={activeInspectorTab === tab.id ? 'archive-tab archive-tab-active' : 'archive-tab'}
+                  className={activeInspectorTab === tab.id ? 'satchel-tab satchel-tab-active' : 'satchel-tab'}
                   key={tab.id}
                   onClick={() => onSelectInspectorTab(tab.id)}
                   role="tab"
@@ -313,12 +323,13 @@ export function MovieLogWorkspace({
                 </button>
               ))}
             </div>
-            <div className="archive-body">{archivePanel}</div>
+            <div className="satchel-body">{archivePanel}</div>
           </aside>
         </div>
       }
       statusSpine={
-        <div className="talisman-stack">
+        <div className="talisman-body">
+          <div aria-hidden="true" className="talisman-strap" />
           <div className="talisman-head">
             <div aria-hidden="true" className="signal-mark" />
             <p className="section-label">Routes</p>

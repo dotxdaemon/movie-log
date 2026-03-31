@@ -51,7 +51,7 @@ const state: MovieLogState = {
 function noop(): void {}
 
 describe('MovieLogWorkspace', () => {
-  it('renders one figure body with a command strip, figure ledger, archive band, and route talisman', () => {
+  it('renders one portrait figure with distinct anatomy, an attached satchel, and a hanging talisman', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         activeInspectorTab: 'contents',
@@ -75,21 +75,27 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(findByClass(tree, 'figure-layout')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-head')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-mark')).toHaveLength(1);
-    expect(findByClass(tree, 'command-strip')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-ledger')).toHaveLength(1);
-    expect(findByClass(tree, 'archive-band')).toHaveLength(1);
-    expect(findByClass(tree, 'talisman-stack')).toHaveLength(1);
+    expect(findByClass(tree, 'poster-figure')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-headpiece')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-torso')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-sleeve-left')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-sleeve-right')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-waist')).toHaveLength(1);
+    expect(findByClass(tree, 'torso-head')).toHaveLength(1);
+    expect(findByClass(tree, 'torso-search')).toHaveLength(1);
+    expect(findByClass(tree, 'torso-ledger')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-satchel')).toHaveLength(1);
+    expect(findByClass(tree, 'satchel-strap')).toHaveLength(1);
+    expect(findByClass(tree, 'talisman-body')).toHaveLength(1);
+    expect(findByClass(tree, 'talisman-strap')).toHaveLength(1);
     expect(findByClass(tree, 'route-talisman')).toHaveLength(1);
-    expect(findByClass(tree, 'form-head')).toHaveLength(0);
-    expect(findByClass(tree, 'search-strip')).toHaveLength(0);
-    expect(findByClass(tree, 'history-stream')).toHaveLength(0);
-    expect(findByClass(tree, 'battle-layout')).toHaveLength(0);
-    expect(findByClass(tree, 'history-ledger')).toHaveLength(0);
-    expect(findByClass(tree, 'archive-shard')).toHaveLength(0);
-    expect(findByClass(tree, 'route-stack')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-layout')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-head')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-mark')).toHaveLength(0);
+    expect(findByClass(tree, 'command-strip')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-ledger')).toHaveLength(0);
+    expect(findByClass(tree, 'archive-band')).toHaveLength(0);
+    expect(findByClass(tree, 'talisman-stack')).toHaveLength(0);
     expect(findByClass(tree, 'record-row')).toHaveLength(1);
     const text = readText(tree);
     expect(text).toContain('Movie Log');
@@ -139,9 +145,9 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    expect(findByClass(tree, 'figure-body')).toHaveLength(1);
-    expect(findByClass(tree, 'archive-band')).toHaveLength(1);
-    expect(findByClass(tree, 'archive-tabs')).toHaveLength(1);
+    expect(findByClass(tree, 'poster-figure')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-satchel')).toHaveLength(1);
+    expect(findByClass(tree, 'satchel-tabs')).toHaveLength(1);
     const text = readText(tree);
     expect(text).toContain('Movie Log');
     expect(text).toContain('Arrivals');

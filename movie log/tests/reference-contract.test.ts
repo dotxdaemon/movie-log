@@ -10,14 +10,25 @@ describe('workspace reference contract', () => {
   it('records the required markers and banned old-shell traits for the current workspace', async () => {
     const referenceContract = await readFile(referenceContractPath, 'utf8');
 
-    expect(referenceContract).toContain('ember crown');
-    expect(referenceContract).toContain('figure body');
-    expect(referenceContract).toContain('archive band');
-    expect(referenceContract).toContain('figure halo');
+    expect(referenceContract).toContain('subject-led poster');
+    expect(referenceContract).toContain('clear focal hierarchy');
+    expect(referenceContract).toContain('poster column');
+    expect(referenceContract).toContain('fractured crown');
+    expect(referenceContract).toContain('anatomical figure readability');
+    expect(referenceContract).toContain('figure headpiece');
+    expect(referenceContract).toContain('figure torso');
+    expect(referenceContract).toContain('figure sleeves');
+    expect(referenceContract).toContain('figure waist');
     expect(referenceContract).toContain('route talisman');
-    expect(referenceContract).toContain('blade field');
-    expect(referenceContract).toContain('editorial spine');
-    expect(referenceContract).toContain('warm accent family');
+    expect(referenceContract).toContain('archive satchel');
+    expect(referenceContract).toContain('asymmetry and tension');
+    expect(referenceContract).toContain('internal texture and debris');
+    expect(referenceContract).toContain('specific pale forms');
+    expect(referenceContract).toContain('violent crown detail');
+    expect(referenceContract).toContain('subordinate editorial marks');
+    expect(referenceContract).toContain('illustration-first surface');
+    expect(referenceContract).toContain('figure-body');
+    expect(referenceContract).toContain('figure-halo');
     expect(referenceContract).toContain('figure-sheet');
     expect(referenceContract).toContain('archive-shard');
     expect(referenceContract).toContain('route-rig');

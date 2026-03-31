@@ -6,7 +6,7 @@ import { AppShell } from '../src/app-shell.js';
 import { findByClass, renderTree, readText } from './render-tree.js';
 
 describe('App shell', () => {
-  it('renders one battle stage with a warm crown, figure halo, figure body, route talisman, and blade field', () => {
+  it('renders one poster stage with top bars, a fractured crown, a portrait column, a hanging talisman, and a blade field', () => {
     const tree = renderTree(
       createElement(AppShell, {
         archiveStage: createElement('section', { className: 'records-surface' }, 'History'),
@@ -15,20 +15,21 @@ describe('App shell', () => {
     );
 
     expect(findByClass(tree, 'workspace-shell')).toHaveLength(1);
-    expect(findByClass(tree, 'battle-stage')).toHaveLength(1);
-    expect(findByClass(tree, 'signal-banner')).toHaveLength(1);
-    expect(findByClass(tree, 'ember-crown')).toHaveLength(1);
-    expect(findByClass(tree, 'frame-line')).toHaveLength(1);
+    expect(findByClass(tree, 'poster-stage')).toHaveLength(1);
+    expect(findByClass(tree, 'top-bars')).toHaveLength(1);
+    expect(findByClass(tree, 'crown-fracture')).toHaveLength(1);
+    expect(findByClass(tree, 'poster-frame')).toHaveLength(1);
     expect(findByClass(tree, 'editorial-spine')).toHaveLength(1);
+    expect(findByClass(tree, 'side-glyphs')).toHaveLength(1);
     expect(findByClass(tree, 'blade-field')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-halo')).toHaveLength(1);
-    expect(findByClass(tree, 'figure-body')).toHaveLength(1);
+    expect(findByClass(tree, 'poster-column')).toHaveLength(1);
     expect(findByClass(tree, 'route-talisman')).toHaveLength(1);
-    expect(findByClass(tree, 'portrait-stage')).toHaveLength(0);
-    expect(findByClass(tree, 'glitch-track')).toHaveLength(0);
-    expect(findByClass(tree, 'ceiling-lattice')).toHaveLength(0);
-    expect(findByClass(tree, 'figure-sheet')).toHaveLength(0);
-    expect(findByClass(tree, 'route-rig')).toHaveLength(0);
+    expect(findByClass(tree, 'battle-stage')).toHaveLength(0);
+    expect(findByClass(tree, 'signal-banner')).toHaveLength(0);
+    expect(findByClass(tree, 'ember-crown')).toHaveLength(0);
+    expect(findByClass(tree, 'frame-line')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-halo')).toHaveLength(0);
+    expect(findByClass(tree, 'figure-body')).toHaveLength(0);
     expect(readText(tree)).toContain('History');
     expect(readText(tree)).toContain('Status');
   });

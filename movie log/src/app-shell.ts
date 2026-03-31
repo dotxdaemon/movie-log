@@ -13,17 +13,24 @@ export function AppShell({ archiveStage, statusSpine }: AppShellProps) {
     { className: 'workspace-shell' },
     createElement(
       'section',
-      { className: 'battle-stage' },
+      { className: 'poster-stage' },
       createElement(
         'div',
-        { 'aria-hidden': 'true', className: 'signal-banner' },
-        createElement('span', { className: 'signal-block signal-block-left' }),
-        createElement('span', { className: 'signal-block signal-block-center' }),
-        createElement('span', { className: 'signal-block signal-block-right' }),
+        { 'aria-hidden': 'true', className: 'top-bars' },
+        createElement('span', { className: 'top-bar top-bar-left' }),
+        createElement('span', { className: 'top-bar top-bar-center' }),
+        createElement('span', { className: 'top-bar top-bar-right' }),
         createElement('span', { className: 'signal-code' }, 'GT.2')
       ),
-      createElement('div', { 'aria-hidden': 'true', className: 'ember-crown' }),
-      createElement('div', { 'aria-hidden': 'true', className: 'frame-line' }),
+      createElement('div', { 'aria-hidden': 'true', className: 'crown-fracture' }),
+      createElement(
+        'div',
+        { 'aria-hidden': 'true', className: 'side-glyphs' },
+        createElement('span', { className: 'side-glyph side-glyph-upper' }),
+        createElement('span', { className: 'side-glyph side-glyph-middle' }),
+        createElement('span', { className: 'side-glyph side-glyph-lower' })
+      ),
+      createElement('div', { 'aria-hidden': 'true', className: 'poster-frame' }),
       createElement('div', { 'aria-hidden': 'true', className: 'editorial-spine' }),
       createElement(
         'div',
@@ -32,14 +39,14 @@ export function AppShell({ archiveStage, statusSpine }: AppShellProps) {
       ),
       createElement(
         'div',
-        { className: 'stage-surface' },
-        createElement('div', { 'aria-hidden': 'true', className: 'figure-halo' }),
+        { className: 'poster-column' },
         createElement(
-          'div',
-          { className: 'figure-body' },
-          archiveStage,
-          createElement('aside', { className: 'route-talisman' }, statusSpine)
+          'aside',
+          { className: 'route-talisman' },
+          statusSpine
         )
+      ,
+        archiveStage
       )
     )
   );
