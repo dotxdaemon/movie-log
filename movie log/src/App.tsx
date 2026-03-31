@@ -1,5 +1,5 @@
 // ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
-// ABOUTME: Keeps one minimal history workspace with plain archive and routes surfaces.
+// ABOUTME: Keeps one history-first workspace with embedded routes and a contextual archive inspector.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import { FolderSnapshotPanel } from './folder-snapshot-panel.js';
@@ -39,9 +39,11 @@ interface MovieLogWorkspaceProps {
   onRemoveWatchedFolder(folderId: string): Promise<void>;
   onScanNow(): Promise<void>;
   onSearchQueryChange(value: string): void;
+  onSelectHistoryEntry(entryId: string): void;
   onSelectInspectorTab(tab: InspectorTab): void;
   scanInProgress: boolean;
   searchQuery: string;
+  selectedHistoryEntryId: string | null;
   state: MovieLogState;
 }
 
@@ -126,16 +128,20 @@ function createLedgerSummary(
   return `${formatCount(historyCount, 'entry', 'entries')} recorded across ${formatCount(watchedFolderCount, 'route')}.`;
 }
 
-function createInspectorSummary(activeInspectorTab: InspectorTab, state: MovieLogState): string {
+function createInspectorSummary(activeInspectorTab: InspectorTab, activeEntry: WatchEntry | null, itemCount: number): string {
+  if (!activeEntry) {
+    return 'No arrival selected';
+  }
+
   if (activeInspectorTab === 'contents') {
-    return `${formatCount(state.libraryItems.length, 'item')} held.`;
+    return `${formatCount(itemCount, 'item')} linked to this arrival.`;
   }
 
   if (activeInspectorTab === 'note') {
-    return 'Local note.';
+    return 'Local note for this arrival.';
   }
 
-  return 'JSON store path.';
+  return 'JSON store path for this arrival.';
 }
 
 export function MovieLogWorkspace({
@@ -153,16 +159,19 @@ export function MovieLogWorkspace({
   onRemoveWatchedFolder,
   onScanNow,
   onSearchQueryChange,
+  onSelectHistoryEntry,
   onSelectInspectorTab,
   scanInProgress,
   searchQuery,
+  selectedHistoryEntryId,
   state
 }: MovieLogWorkspaceProps) {
   const history = collapseHistory(state.history);
   const filteredHistory = history.filter((entry) => matchesSearch(entry, searchQuery));
+  const activeEntry = filteredHistory.find((entry) => entry.id === selectedHistoryEntryId) ?? filteredHistory[0] ?? null;
+  const selectedLibraryItems = activeEntry ? state.libraryItems.filter((item) => item.sourcePath === activeEntry.sourcePath) : [];
   const ledgerSummary = createLedgerSummary(history.length, filteredHistory, searchQuery, scanInProgress, state.watchedFolders.length);
-  const inspectorSummary = createInspectorSummary(activeInspectorTab, state);
-  const activeInspector = inspectorTabs.find((tab) => tab.id === activeInspectorTab) ?? inspectorTabs[0];
+  const inspectorSummary = createInspectorSummary(activeInspectorTab, activeEntry, selectedLibraryItems.length);
   const watchedFolderSummary =
     state.watchedFolders.length === 0 ? 'None active' : `${formatCount(state.watchedFolders.length, 'folder')} active`;
   const statusBanner = errorMessage ? (
@@ -172,10 +181,15 @@ export function MovieLogWorkspace({
   ) : null;
 
   const archivePanel =
-    activeInspectorTab === 'contents' ? (
+    !activeEntry ? (
+      <div className="blank-slate blank-slate-compact">
+        <p className="blank-title">No arrival selected</p>
+        <p className="blank-copy">Select one arrival to inspect its archive details.</p>
+      </div>
+    ) : activeInspectorTab === 'contents' ? (
       <FolderSnapshotPanel
         compact
-        items={state.libraryItems}
+        items={selectedLibraryItems}
         onCopyPath={onCopyPath}
         onOpenInFinder={onOpenInFinder}
         onOpenItem={onOpenItem}
@@ -209,17 +223,12 @@ export function MovieLogWorkspace({
 
   return (
     <AppShell
-      archiveStage={
+      workspaceStage={
         <div className="workspace-stack">
           <section className="history-panel">
             <header className="workspace-head">
               <div className="title-mark">
-                <p className="section-label">Movie Log</p>
                 <h2 className="workspace-title">Arrivals</h2>
-              </div>
-
-              <div className="status-mark">
-                <p className="section-label">Ledger</p>
                 <p className="workspace-status">{ledgerSummary}</p>
               </div>
 
@@ -232,7 +241,7 @@ export function MovieLogWorkspace({
             {statusBanner}
 
             <section
-              className={dropActive ? 'history-panel-body history-panel-body-active' : 'history-panel-body'}
+              className={dropActive ? 'history-dropzone history-dropzone-active' : 'history-dropzone'}
               onDragEnter={() => onDropActiveChange(true)}
               onDragLeave={() => onDropActiveChange(false)}
               onDragOver={(event) => {
@@ -241,61 +250,112 @@ export function MovieLogWorkspace({
               }}
               onDrop={onDrop}
             >
-              <div className="ledger-head">
-                <div className="ledger-copy">
-                  <p className="section-label">History</p>
-                  <p className="ledger-note">{searchQuery ? 'Filtered arrivals.' : 'Latest arrivals.'}</p>
-                </div>
-                <p className="ledger-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
-              </div>
+              <div className="history-layout">
+                <section className="history-panel-body">
+                  <div className="ledger-head">
+                    <p className="ledger-note">{searchQuery ? 'Filtered arrivals.' : 'Latest arrivals.'}</p>
+                    <p className="ledger-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
+                  </div>
 
-              {filteredHistory.length === 0 ? (
-                <div className="blank-slate blank-slate-records">
-                  <p className="blank-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
-                  {!searchQuery ? <p className="blank-copy">New arrivals will appear here.</p> : null}
-                </div>
-              ) : (
-                <ol className="records-list">
-                  {filteredHistory.map((entry) => (
-                    <li className="record-row" key={entry.id}>
-                      <div className="record-copy">
-                        <strong className="record-title">{entry.title}</strong>
-                        <p className="record-meta">
-                          {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
-                          {formatEntryType(entry.sourceKind)}
-                        </p>
-                        <p className="path-line">{entry.sourcePath}</p>
-                      </div>
-
-                      <div className="record-actions">
-                        <button className="finder-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
-                          Show in Finder
-                        </button>
-                        <details className="row-more">
-                          <summary>More</summary>
-                          <div className="row-more-menu">
-                            {entry.sourceKind === 'file' ? (
-                              <button className="text-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
-                                Open
-                              </button>
-                            ) : null}
-                            <button className="text-button" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
-                              Copy Path
-                            </button>
+                  {filteredHistory.length === 0 ? (
+                    <div className="blank-slate blank-slate-records">
+                      <p className="blank-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
+                      {!searchQuery ? <p className="blank-copy">New arrivals will appear here.</p> : null}
+                    </div>
+                  ) : (
+                    <ol className="records-list">
+                      {filteredHistory.map((entry) => (
+                        <li
+                          className={activeEntry?.id === entry.id ? 'record-row record-row-active' : 'record-row'}
+                          key={entry.id}
+                          onClick={() => onSelectHistoryEntry(entry.id)}
+                        >
+                          <div className="record-copy">
+                            <strong className="record-title">{entry.title}</strong>
+                            <p className="record-meta">
+                              {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
+                              {formatEntryType(entry.sourceKind)}
+                            </p>
+                            <p className="path-line">{entry.sourcePath}</p>
                           </div>
-                        </details>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
+
+                          <div className="record-actions">
+                            <button className="finder-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
+                              Show in Finder
+                            </button>
+                            <details className="row-more">
+                              <summary>More</summary>
+                              <div className="row-more-menu">
+                                {entry.sourceKind === 'file' ? (
+                                  <button className="text-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
+                                    Open
+                                  </button>
+                                ) : null}
+                                <button className="text-button" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
+                                  Copy Path
+                                </button>
+                              </div>
+                            </details>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </section>
+
+                <aside className="routes-block">
+                  <div className="routes-body">
+                    <div className="routes-head">
+                      <p className="section-label">Routes</p>
+                      <p className="signal-note">{watchedFolderSummary}</p>
+                    </div>
+
+                    <div className="routes-actions">
+                      <button className="signal-button signal-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
+                        Add Folder
+                      </button>
+                      <button
+                        className="signal-button"
+                        disabled={state.watchedFolders.length === 0 || scanInProgress}
+                        onClick={() => void onScanNow()}
+                        type="button"
+                      >
+                        {scanInProgress ? 'Scanning...' : 'Scan'}
+                      </button>
+                    </div>
+
+                    <section className="routes-list">
+                      {state.watchedFolders.length === 0 ? (
+                        <div className="blank-slate blank-slate-compact">
+                          <p className="blank-title">No routes yet</p>
+                          <p className="blank-copy">Add one folder to start the ledger.</p>
+                        </div>
+                      ) : (
+                        <ul className="signal-route-list">
+                          {state.watchedFolders.map((folder) => (
+                            <li className="signal-route" key={folder.id}>
+                              <div className="signal-route-copy">
+                                <strong className="route-title">{folder.name}</strong>
+                                <p className="route-meta">{`Added ${timestampFormatter.format(new Date(folder.addedAt))}`}</p>
+                              </div>
+                              <button className="route-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
+                                Remove
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </section>
+                  </div>
+                </aside>
+              </div>
             </section>
           </section>
 
           <aside className="archive-panel">
             <div className="archive-head">
               <p className="section-label">Archive</p>
-              <h3 className="archive-title">{activeInspector.title}</h3>
+              <h3 className="archive-title">{activeEntry ? activeEntry.title : 'No arrival selected'}</h3>
               <p className="details-copy">{inspectorSummary}</p>
             </div>
             <div className="archive-tabs" aria-label="Archive" role="tablist">
@@ -317,53 +377,6 @@ export function MovieLogWorkspace({
           </aside>
         </div>
       }
-      statusSpine={
-        <div className="routes-body">
-          <div className="routes-head">
-            <p className="section-label">Routes</p>
-            <p className="signal-note">{watchedFolderSummary}</p>
-          </div>
-
-          <div className="routes-actions">
-            <button className="signal-button signal-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
-              Add Folder
-            </button>
-            <button
-              className="signal-button"
-              disabled={state.watchedFolders.length === 0 || scanInProgress}
-              onClick={() => void onScanNow()}
-              type="button"
-            >
-              {scanInProgress ? 'Scanning...' : 'Scan'}
-            </button>
-          </div>
-
-          <section className="routes-list">
-            {state.watchedFolders.length === 0 ? (
-              <div className="blank-slate blank-slate-compact">
-                <p className="blank-title">No routes yet</p>
-                <p className="blank-copy">Add one folder to start the ledger.</p>
-              </div>
-            ) : (
-              <ul className="signal-route-list">
-                {state.watchedFolders.map((folder) => (
-                  <li className="signal-route" key={folder.id}>
-                    <div className="signal-route-copy">
-                      <strong className="route-title">{folder.name}</strong>
-                      <p className="route-meta">
-                        {`Added ${timestampFormatter.format(new Date(folder.addedAt))}`}
-                      </p>
-                    </div>
-                    <button className="route-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-      }
     />
   );
 }
@@ -376,6 +389,7 @@ export default function App() {
   const [logFilePath, setLogFilePath] = useState('');
   const [noteFilePath, setNoteFilePath] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedHistoryEntryId, setSelectedHistoryEntryId] = useState<string | null>(null);
   const [scanInProgress, setScanInProgress] = useState(false);
 
   useEffect(() => {
@@ -523,9 +537,11 @@ export default function App() {
       onRemoveWatchedFolder={handleRemoveWatchedFolder}
       onScanNow={handleScanNow}
       onSearchQueryChange={setSearchQuery}
+      onSelectHistoryEntry={setSelectedHistoryEntryId}
       onSelectInspectorTab={setActiveInspectorTab}
       scanInProgress={scanInProgress}
       searchQuery={searchQuery}
+      selectedHistoryEntryId={selectedHistoryEntryId}
       state={state}
     />
   );

@@ -12,14 +12,21 @@ describe('workspace reference contract', () => {
 
     expect(referenceContract).toContain('monochrome field');
     expect(referenceContract).toContain('minimal stage');
-    expect(referenceContract).toContain('history-first main surface');
-    expect(referenceContract).toContain('simple archive panel');
-    expect(referenceContract).toContain('simple routes rail');
+    expect(referenceContract).toContain('dominant history surface');
+    expect(referenceContract).toContain('embedded routes utility block');
+    expect(referenceContract).toContain('contextual archive inspector');
+    expect(referenceContract).toContain('compact header band');
+    expect(referenceContract).toContain('reduced row hierarchy');
+    expect(referenceContract).toContain('flat control family');
+    expect(referenceContract).toContain('unified contrast system');
     expect(referenceContract).toContain('flat chrome');
     expect(referenceContract).toContain('restrained copy');
     expect(referenceContract).toContain('readable real content');
     expect(referenceContract).toContain('responsive stack');
-    expect(referenceContract).toContain('grayscale controls');
+    expect(referenceContract).toContain('three-pane first-screen layout');
+    expect(referenceContract).toContain('standalone left routes column');
+    expect(referenceContract).toContain('permanent archive list as a peer content column');
+    expect(referenceContract).toContain('Ledger');
     expect(referenceContract).toContain('poster-stage');
     expect(referenceContract).toContain('crown-fracture');
     expect(referenceContract).toContain('editorial-spine');

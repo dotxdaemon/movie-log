@@ -6,17 +6,25 @@ This document defines the approved Movie Log monochrome workspace for renderer w
 
 - monochrome field: the app uses black, white, and gray only
 - minimal stage: one centered workspace with no decorative framing or poster geometry
-- history-first main surface: the largest surface is the history workspace with title, search, summary, and rows
-- simple archive panel: the archive stays reachable as a plain secondary panel
-- simple routes rail: watched folders and route actions stay reachable in one narrow utility rail
+- dominant history surface: the history workspace owns most of the first screen
+- embedded routes utility block: watched folders and route actions live inside the main workspace instead of a standalone rail
+- contextual archive inspector: the archive follows the selected history row instead of rendering as a second content list
+- compact header band: title, summary, and search stay tight so arrivals start high on screen
+- reduced row hierarchy: each arrival row keeps one title line, one metadata line, one path line, and a reduced action area
+- flat control family: buttons, tabs, inputs, and menus share one low-chrome control treatment
+- unified contrast system: primary content, metadata, and inactive chrome use one shared grayscale hierarchy
 - flat chrome: borders, spacing, and typography carry hierarchy instead of textures, shadows, or ornaments
 - restrained copy: headings and helper text stay short and operational
 - readable real content: history rows, paths, and metadata stay scannable with populated data
-- responsive stack: desktop uses a calm split workspace and narrow widths collapse to a single vertical stack
-- grayscale controls: buttons, tabs, inputs, and actions use one flat grayscale control system
+- responsive stack: narrow widths stack in the order history, routes, inspector
 
 ## Disallowed Markers
 
+- three-pane first-screen layout
+- standalone left routes column
+- permanent archive list as a peer content column
+- equal-width utility panels
+- Ledger
 - poster-stage
 - top-bars
 - crown-fracture
