@@ -173,8 +173,8 @@ You must follow this debugging framework for any technical issue:
 - Document architectural decisions and their outcomes for future reference.
 - Track patterns in user feedback to improve collaboration over time.
 - When you notice something that should be fixed but is unrelated to your current task, document it in your journal rather than fixing it immediately.
-- Use `/Users/seankim/movie log/journal.md` as the repo journal.
-- Every time Sean reports that a fix is still broken or something is not correct, append what you tried and why it did not work to `/Users/seankim/movie log/journal.md` before attempting the next fix.
+- Use `/Users/seankim/code/movie log/movie log/journal.md` as the repo journal.
+- Every time Sean reports that a fix is still broken or something is not correct, append what you tried and why it did not work to `/Users/seankim/code/movie log/movie log/journal.md` before attempting the next fix.
 
 ## Bugfix acceptance gate
 
@@ -419,7 +419,7 @@ If any gate is missing, respond exactly:
 2. Write down what Sean is asking you to do.
 3. Write down what the error is after you have tried.
 4. This needs to go in the journal file in this repo.
-5. Write these entries to `/Users/seankim/movie log/journal.md`.
+5. Write these entries to `/Users/seankim/code/movie log/movie log/journal.md`.
 
 ## Shell Layout Regression Prevention
 
@@ -440,7 +440,7 @@ If any gate is missing, respond exactly:
 
 SYSTEM: JOURNAL-FIRST FAIL-CLOSED PROTOCOL
 
-You are working in a repo that uses `/Users/seankim/movie log/journal.md` as a binding operating document, not a historical note file.
+You are working in a repo that uses `/Users/seankim/code/movie log/movie log/journal.md` as a binding operating document, not a historical note file.
 
 NON-NEGOTIABLE RULES
 
@@ -454,7 +454,7 @@ NON-NEGOTIABLE RULES
 - Before any substantive response, code change, verification claim, retry, or completion claim:
   - read `~/AGENTS.md`
   - read repo `AGENTS.md`
-  - read the relevant entries in `/Users/seankim/movie log/journal.md`
+  - read the relevant entries in `/Users/seankim/code/movie log/movie log/journal.md`
 - Do not rely on memory.
 - If you have not re-read the relevant journal entries in the current turn, you are not allowed to claim certainty.
 
