@@ -1789,38 +1789,6 @@ button:disabled {
   opacity: 0.92;
 }
 
-.archive-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: center;
-  padding: 12px 0;
-  border-top: 1px solid var(--ruleLight);
-  border-bottom: 1px solid var(--ruleLight);
-}
-
-.archive-tab {
-  min-height: 0;
-  padding: 0 0 8px;
-  border: 0;
-  border-bottom: 1px solid transparent;
-  background: transparent;
-  color: var(--textMuted);
-  cursor: pointer;
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  transition:
-    color 140ms ease,
-    border-color 140ms ease;
-}
-
-.archive-tab-active {
-  color: var(--signalSoft);
-  border-bottom-color: var(--signal);
-}
-
 .archive-body {
   padding-top: 16px;
 }
@@ -2439,37 +2407,52 @@ body {
   color: var(--textMuted);
 }
 
-.archive-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+.archive-body {
+  min-height: 0;
 }
 
-.archive-tab {
-  min-height: 30px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--textMuted);
+.paths-disclosure {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.paths-summary {
+  list-style: none;
   cursor: pointer;
+  color: var(--textMuted);
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.archive-tab-active {
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--textPrimary);
+.paths-summary::-webkit-details-marker {
+  display: none;
 }
 
-.archive-body {
-  min-height: 0;
+.paths-summary::after {
+  content: '+';
+  float: right;
+}
+
+.paths-disclosure[open] .paths-summary::after {
+  content: '-';
+}
+
+.paths-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.paths-entry {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .archive-panel .snapshot-row {

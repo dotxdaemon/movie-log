@@ -16,16 +16,7 @@ const timestampFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short'
 });
 
-type InspectorTab = 'contents' | 'note' | 'store';
-
-const inspectorTabs = [
-  { id: 'contents', label: 'Contents', title: 'Contents' },
-  { id: 'note', label: 'Note', title: 'Field Note' },
-  { id: 'store', label: 'Store', title: 'Store Path' }
-] as const;
-
 interface MovieLogWorkspaceProps {
-  activeInspectorTab: InspectorTab;
   dropActive: boolean;
   errorMessage: string;
   logFilePath: string;
@@ -40,7 +31,6 @@ interface MovieLogWorkspaceProps {
   onScanNow(): Promise<void>;
   onSearchQueryChange(value: string): void;
   onSelectHistoryEntry(entryId: string): void;
-  onSelectInspectorTab(tab: InspectorTab): void;
   scanInProgress: boolean;
   searchQuery: string;
   selectedHistoryEntryId: string | null;
@@ -128,24 +118,15 @@ function createLedgerSummary(
   return `${formatCount(historyCount, 'entry', 'entries')} recorded across ${formatCount(watchedFolderCount, 'route')}.`;
 }
 
-function createInspectorSummary(activeInspectorTab: InspectorTab, activeEntry: WatchEntry | null, itemCount: number): string {
+function createInspectorSummary(activeEntry: WatchEntry | null, itemCount: number): string {
   if (!activeEntry) {
     return 'No arrival selected';
   }
 
-  if (activeInspectorTab === 'contents') {
-    return `${formatCount(itemCount, 'item')} linked to this arrival.`;
-  }
-
-  if (activeInspectorTab === 'note') {
-    return 'Local note for this arrival.';
-  }
-
-  return 'JSON store path for this arrival.';
+  return `${formatCount(itemCount, 'item')} linked to this arrival.`;
 }
 
 export function MovieLogWorkspace({
-  activeInspectorTab,
   dropActive,
   errorMessage,
   logFilePath,
@@ -160,7 +141,6 @@ export function MovieLogWorkspace({
   onScanNow,
   onSearchQueryChange,
   onSelectHistoryEntry,
-  onSelectInspectorTab,
   scanInProgress,
   searchQuery,
   selectedHistoryEntryId,
@@ -171,7 +151,7 @@ export function MovieLogWorkspace({
   const activeEntry = filteredHistory.find((entry) => entry.id === selectedHistoryEntryId) ?? filteredHistory[0] ?? null;
   const selectedLibraryItems = activeEntry ? state.libraryItems.filter((item) => item.sourcePath === activeEntry.sourcePath) : [];
   const ledgerSummary = createLedgerSummary(history.length, filteredHistory, searchQuery, scanInProgress, state.watchedFolders.length);
-  const inspectorSummary = createInspectorSummary(activeInspectorTab, activeEntry, selectedLibraryItems.length);
+  const inspectorSummary = createInspectorSummary(activeEntry, selectedLibraryItems.length);
   const watchedFolderSummary =
     state.watchedFolders.length === 0 ? 'None active' : `${formatCount(state.watchedFolders.length, 'folder')} active`;
   const statusBanner = errorMessage ? (
@@ -186,7 +166,7 @@ export function MovieLogWorkspace({
         <p className="blank-title">No arrival selected</p>
         <p className="blank-copy">Select one arrival to inspect its archive details.</p>
       </div>
-    ) : activeInspectorTab === 'contents' ? (
+    ) : (
       <FolderSnapshotPanel
         compact
         items={selectedLibraryItems}
@@ -195,31 +175,40 @@ export function MovieLogWorkspace({
         onOpenItem={onOpenItem}
         timestampLabel={(isoTime) => timestampFormatter.format(new Date(isoTime))}
       />
-    ) : activeInspectorTab === 'note' ? (
-      <section className="reference-panel">
-        <p className="path-line">{noteFilePath}</p>
-        <div className="details-actions">
-          <button className="finder-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
-            Open Note
-          </button>
-          <button className="text-button" disabled={!noteFilePath} onClick={() => void onCopyPath(noteFilePath)} type="button">
-            Copy Note Path
-          </button>
-        </div>
-      </section>
-    ) : (
-      <section className="reference-panel">
-        <p className="path-line">{logFilePath}</p>
-        <div className="details-actions">
-          <button className="finder-button" disabled={!logFilePath} onClick={() => void onOpenInFinder(logFilePath)} type="button">
-            Show in Finder
-          </button>
-          <button className="text-button" disabled={!logFilePath} onClick={() => void onCopyPath(logFilePath)} type="button">
-            Copy Store Path
-          </button>
-        </div>
-      </section>
     );
+
+  const pathsPanel = activeEntry ? (
+    <details className="paths-disclosure">
+      <summary className="paths-summary">Paths</summary>
+      <div className="paths-grid">
+        <section className="paths-entry">
+          <p className="section-label">Note Path</p>
+          <p className="path-line">{noteFilePath}</p>
+          <div className="details-actions">
+            <button className="finder-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
+              Open Note
+            </button>
+            <button className="text-button" disabled={!noteFilePath} onClick={() => void onCopyPath(noteFilePath)} type="button">
+              Copy Note Path
+            </button>
+          </div>
+        </section>
+
+        <section className="paths-entry">
+          <p className="section-label">Store Path</p>
+          <p className="path-line">{logFilePath}</p>
+          <div className="details-actions">
+            <button className="finder-button" disabled={!logFilePath} onClick={() => void onOpenInFinder(logFilePath)} type="button">
+              Show in Finder
+            </button>
+            <button className="text-button" disabled={!logFilePath} onClick={() => void onCopyPath(logFilePath)} type="button">
+              Copy Store Path
+            </button>
+          </div>
+        </section>
+      </div>
+    </details>
+  ) : null;
 
   return (
     <AppShell
@@ -358,22 +347,8 @@ export function MovieLogWorkspace({
               <h3 className="archive-title">{activeEntry ? activeEntry.title : 'No arrival selected'}</h3>
               <p className="details-copy">{inspectorSummary}</p>
             </div>
-            <div className="archive-tabs" aria-label="Archive" role="tablist">
-              {inspectorTabs.map((tab) => (
-                <button
-                  aria-label={tab.title}
-                  aria-selected={activeInspectorTab === tab.id}
-                  className={activeInspectorTab === tab.id ? 'archive-tab archive-tab-active' : 'archive-tab'}
-                  key={tab.id}
-                  onClick={() => onSelectInspectorTab(tab.id)}
-                  role="tab"
-                  type="button"
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
             <div className="archive-body">{archivePanel}</div>
+            {pathsPanel}
           </aside>
         </div>
       }
@@ -382,7 +357,6 @@ export function MovieLogWorkspace({
 }
 
 export default function App() {
-  const [activeInspectorTab, setActiveInspectorTab] = useState<InspectorTab>('contents');
   const [state, setState] = useState<MovieLogState>(emptyState);
   const [dropActive, setDropActive] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -523,7 +497,6 @@ export default function App() {
 
   return (
     <MovieLogWorkspace
-      activeInspectorTab={activeInspectorTab}
       dropActive={dropActive}
       errorMessage={errorMessage}
       logFilePath={logFilePath}
@@ -538,7 +511,6 @@ export default function App() {
       onScanNow={handleScanNow}
       onSearchQueryChange={setSearchQuery}
       onSelectHistoryEntry={setSelectedHistoryEntryId}
-      onSelectInspectorTab={setActiveInspectorTab}
       scanInProgress={scanInProgress}
       searchQuery={searchQuery}
       selectedHistoryEntryId={selectedHistoryEntryId}

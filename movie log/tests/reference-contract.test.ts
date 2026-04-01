@@ -23,9 +23,11 @@ describe('workspace reference contract', () => {
     expect(referenceContract).toContain('restrained copy');
     expect(referenceContract).toContain('readable real content');
     expect(referenceContract).toContain('responsive stack');
+    expect(referenceContract).toContain('secondary plumbing');
     expect(referenceContract).toContain('three-pane first-screen layout');
     expect(referenceContract).toContain('standalone left routes column');
     expect(referenceContract).toContain('permanent archive list as a peer content column');
+    expect(referenceContract).toContain('peer inspector modes for internal file plumbing');
     expect(referenceContract).toContain('Ledger');
     expect(referenceContract).toContain('poster-stage');
     expect(referenceContract).toContain('crown-fracture');

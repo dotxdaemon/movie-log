@@ -75,7 +75,6 @@ describe('MovieLogWorkspace', () => {
   it('renders one dominant history workspace with embedded routes and a contextual archive inspector', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
-        activeInspectorTab: 'contents',
         dropActive: false,
         errorMessage: '',
         logFilePath: '/Users/seankim/Library/Application Support/Movie Log/movie-log/movie-log.json',
@@ -90,7 +89,6 @@ describe('MovieLogWorkspace', () => {
         onScanNow: async () => {},
         onSearchQueryChange: noop,
         onSelectHistoryEntry: noop,
-        onSelectInspectorTab: noop,
         scanInProgress: false,
         searchQuery: '',
         selectedHistoryEntryId: null,
@@ -106,7 +104,8 @@ describe('MovieLogWorkspace', () => {
     expect(findByClass(tree, 'history-panel-body')).toHaveLength(1);
     expect(findByClass(tree, 'routes-block')).toHaveLength(1);
     expect(findByClass(tree, 'archive-panel')).toHaveLength(1);
-    expect(findByClass(tree, 'archive-tabs')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-tabs')).toHaveLength(0);
+    expect(findByClass(tree, 'paths-disclosure')).toHaveLength(1);
     expect(findByClass(tree, 'routes-panel')).toHaveLength(0);
     expect(findByClass(tree, 'workspace-grid')).toHaveLength(0);
     expect(findByClass(tree, 'poster-figure')).toHaveLength(0);
@@ -123,8 +122,7 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('Arrivals');
     expect(text).toContain('Archive');
     expect(text).toContain('Routes');
-    expect(text).toContain('Note');
-    expect(text).toContain('Store');
+    expect(text).toContain('Paths');
     expect(text).toContain('Add Folder');
     expect(text).not.toContain('Ledger');
     const routeText = readText(findByClass(tree, 'signal-route'));
@@ -150,7 +148,6 @@ describe('MovieLogWorkspace', () => {
   it('falls back the archive inspector to the first visible row when the selected row is filtered out', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
-        activeInspectorTab: 'contents',
         dropActive: false,
         errorMessage: '',
         logFilePath: '/Users/seankim/Library/Application Support/Movie Log/movie-log/movie-log.json',
@@ -165,7 +162,6 @@ describe('MovieLogWorkspace', () => {
         onScanNow: async () => {},
         onSearchQueryChange: noop,
         onSelectHistoryEntry: noop,
-        onSelectInspectorTab: noop,
         scanInProgress: false,
         searchQuery: 'Flow',
         selectedHistoryEntryId: plagueEntryId,
@@ -182,7 +178,6 @@ describe('MovieLogWorkspace', () => {
   it('shows an empty contextual inspector when no history entries remain after filtering', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
-        activeInspectorTab: 'contents',
         dropActive: false,
         errorMessage: '',
         logFilePath: '/Users/seankim/Library/Application Support/Movie Log/movie-log/movie-log.json',
@@ -197,7 +192,6 @@ describe('MovieLogWorkspace', () => {
         onScanNow: async () => {},
         onSearchQueryChange: noop,
         onSelectHistoryEntry: noop,
-        onSelectInspectorTab: noop,
         scanInProgress: false,
         searchQuery: 'missing',
         selectedHistoryEntryId: flowEntryId,
@@ -209,5 +203,6 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('No matching history entries');
     expect(text).toContain('No arrival selected');
     expect(findByClass(tree, 'snapshot-row')).toHaveLength(0);
+    expect(findByClass(tree, 'paths-disclosure')).toHaveLength(0);
   });
 });

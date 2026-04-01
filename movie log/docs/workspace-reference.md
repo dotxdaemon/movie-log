@@ -14,6 +14,7 @@ This document defines the approved Movie Log monochrome workspace for renderer w
 - flat control family: buttons, tabs, inputs, and menus share one low-chrome control treatment
 - unified contrast system: primary content, metadata, and inactive chrome use one shared grayscale hierarchy
 - flat chrome: borders, spacing, and typography carry hierarchy instead of textures, shadows, or ornaments
+- secondary plumbing: note and store paths stay behind one secondary Paths disclosure instead of sharing top-level inspector rank
 - restrained copy: headings and helper text stay short and operational
 - readable real content: history rows, paths, and metadata stay scannable with populated data
 - responsive stack: narrow widths stack in the order history, routes, inspector
@@ -23,6 +24,7 @@ This document defines the approved Movie Log monochrome workspace for renderer w
 - three-pane first-screen layout
 - standalone left routes column
 - permanent archive list as a peer content column
+- peer inspector modes for internal file plumbing
 - equal-width utility panels
 - Ledger
 - poster-stage
