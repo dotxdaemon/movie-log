@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
+import { resolveElectronAppTemplatePath } from './package-paths.mjs';
 
 const execFileAsync = promisify(execFile);
 const appName = 'Movie Log';
@@ -16,6 +17,7 @@ const releaseDirectory = join(projectDirectory, 'release', 'mac');
 const bundlePath = join(releaseDirectory, `${appName}.app`);
 const bundleResourcesPath = join(bundlePath, 'Contents', 'Resources');
 const bundleAppPath = join(bundleResourcesPath, 'app');
+const electronAppTemplatePath = await resolveElectronAppTemplatePath(projectDirectory);
 const packageJson = JSON.parse(await readFile(join(projectDirectory, 'package.json'), 'utf8'));
 const bundlePackage = {
   name: 'movie-log',
@@ -82,7 +84,7 @@ async function createIconFile(iconPath) {
 
 await rm(bundlePath, { recursive: true, force: true });
 await mkdir(releaseDirectory, { recursive: true });
-await runCommand('ditto', [join(projectDirectory, 'node_modules', 'electron', 'dist', 'Electron.app'), bundlePath]);
+await runCommand('ditto', [electronAppTemplatePath, bundlePath]);
 
 const infoPlistPath = join(bundlePath, 'Contents', 'Info.plist');
 const infoPlist = await readFile(infoPlistPath, 'utf8');
