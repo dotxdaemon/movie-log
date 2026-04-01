@@ -6,9 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const projectDirectory = fileURLToPath(new URL('..', import.meta.url));
-const parentDirectory = fileURLToPath(new URL('../..', import.meta.url));
-const workflowPath = join(projectDirectory, '.github', 'workflows', 'release-main-build.yml');
-const misplacedWorkflowPath = join(parentDirectory, '.github', 'workflows', 'release-main-build.yml');
+const workspaceDirectory = fileURLToPath(new URL('../..', import.meta.url));
+const workflowPath = join(workspaceDirectory, '.github', 'workflows', 'release-main-build.yml');
+const misplacedWorkflowPath = join(projectDirectory, '.github', 'workflows', 'release-main-build.yml');
 
 describe('release main build workflow', () => {
   it('publishes a rolling macOS prerelease from main', async () => {
