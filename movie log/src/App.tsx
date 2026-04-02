@@ -1,5 +1,5 @@
 // ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
-// ABOUTME: Keeps one history-first workspace with embedded routes and a contextual archive inspector.
+// ABOUTME: Keeps one history-first workspace with embedded routes and collapsed archive details.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import { FolderSnapshotPanel } from './folder-snapshot-panel.js';
@@ -338,18 +338,17 @@ export function MovieLogWorkspace({
                   </div>
                 </aside>
               </div>
+              <section className="archive-block">
+                <div className="archive-head">
+                  <p className="section-label">Archive</p>
+                  <h3 className="archive-title">{activeEntry ? activeEntry.title : 'No arrival selected'}</h3>
+                  <p className="details-copy">{inspectorSummary}</p>
+                </div>
+                <div className="archive-body">{archivePanel}</div>
+                {pathsPanel}
+              </section>
             </section>
           </section>
-
-          <aside className="archive-panel">
-            <div className="archive-head">
-              <p className="section-label">Archive</p>
-              <h3 className="archive-title">{activeEntry ? activeEntry.title : 'No arrival selected'}</h3>
-              <p className="details-copy">{inspectorSummary}</p>
-            </div>
-            <div className="archive-body">{archivePanel}</div>
-            {pathsPanel}
-          </aside>
         </div>
       }
     />

@@ -14,7 +14,7 @@ describe('workspace reference contract', () => {
     expect(referenceContract).toContain('minimal stage');
     expect(referenceContract).toContain('dominant history surface');
     expect(referenceContract).toContain('embedded routes utility block');
-    expect(referenceContract).toContain('contextual archive inspector');
+    expect(referenceContract).toContain('collapsed archive detail block');
     expect(referenceContract).toContain('compact header band');
     expect(referenceContract).toContain('reduced row hierarchy');
     expect(referenceContract).toContain('flat control family');
@@ -25,6 +25,7 @@ describe('workspace reference contract', () => {
     expect(referenceContract).toContain('responsive stack');
     expect(referenceContract).toContain('secondary plumbing');
     expect(referenceContract).toContain('three-pane first-screen layout');
+    expect(referenceContract).toContain('separate right archive sidebar');
     expect(referenceContract).toContain('standalone left routes column');
     expect(referenceContract).toContain('permanent archive list as a peer content column');
     expect(referenceContract).toContain('peer inspector modes for internal file plumbing');

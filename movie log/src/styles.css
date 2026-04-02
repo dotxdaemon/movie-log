@@ -1,5 +1,5 @@
-/* ABOUTME: Defines one poster-led workspace for the Movie Log desktop renderer. */
-/* ABOUTME: Keeps the figure body, archive band, and route talisman readable inside a single warm stage. */
+/* ABOUTME: Styles the Movie Log desktop workspace as one monochrome surface with embedded route and archive blocks. */
+/* ABOUTME: Keeps arrivals, routes, and selected-entry details readable without separate utility sidebars. */
 :root {
   --background: #050402;
   --backgroundRaised: #160804;
@@ -2140,14 +2140,11 @@ body {
 
 .workspace-stack {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 292px;
-  gap: 20px;
   min-height: 100%;
   align-items: start;
 }
 
-.history-panel,
-.archive-panel {
+.history-panel {
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 16px;
 }
@@ -2294,7 +2291,8 @@ body {
   align-self: start;
 }
 
-.routes-body {
+.routes-body,
+.archive-block {
   display: grid;
   gap: 14px;
   padding: 14px;
@@ -2391,20 +2389,8 @@ body {
   justify-content: flex-start;
 }
 
-.archive-panel {
-  display: grid;
-  align-content: start;
-  gap: 14px;
-  padding: 18px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--textPrimary);
-}
-
-.archive-panel .details-copy,
-.archive-panel .blank-copy,
-.archive-panel .path-line,
-.archive-panel .secondary-meta {
-  color: var(--textMuted);
+.archive-block {
+  min-width: 0;
 }
 
 .archive-body {
@@ -2415,13 +2401,13 @@ body {
   display: grid;
   gap: 12px;
   padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-top: 1px solid var(--rule);
 }
 
 .paths-summary {
   list-style: none;
   cursor: pointer;
-  color: var(--textMuted);
+  color: var(--inkSoft);
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -2450,13 +2436,9 @@ body {
   display: grid;
   gap: 6px;
   padding: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(17, 17, 17, 0.08);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.archive-panel .snapshot-row {
-  border-top-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.62);
 }
 
 .finder-button,
@@ -2493,13 +2475,6 @@ body {
   border-color: #111111;
 }
 
-.archive-panel .finder-button,
-.archive-panel .text-button,
-.archive-panel .route-remove {
-  color: var(--textPrimary);
-  border-color: rgba(245, 245, 245, 0.18);
-}
-
 .row-more {
   position: relative;
 }
@@ -2512,10 +2487,6 @@ body {
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-}
-
-.archive-panel .row-more summary {
-  color: var(--textMuted);
 }
 
 .row-more summary::-webkit-details-marker {
@@ -2534,11 +2505,6 @@ body {
   border: 1px solid rgba(17, 17, 17, 0.14);
   border-radius: 10px;
   background: #ffffff;
-}
-
-.archive-panel .row-more-menu {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: #0d0d0d;
 }
 
 .blank-slate {
@@ -2560,7 +2526,6 @@ body {
     min-height: auto;
   }
 
-  .workspace-stack,
   .workspace-head,
   .history-layout {
     grid-template-columns: 1fr;
@@ -2573,7 +2538,7 @@ body {
   }
 
   .history-panel,
-  .archive-panel {
+  .archive-block {
     padding: 16px;
   }
 

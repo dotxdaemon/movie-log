@@ -72,7 +72,7 @@ const state: MovieLogState = {
 function noop(): void {}
 
 describe('MovieLogWorkspace', () => {
-  it('renders one dominant history workspace with embedded routes and a contextual archive inspector', () => {
+  it('renders one dominant history workspace with embedded routes and collapsed archive details', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         dropActive: false,
@@ -103,7 +103,8 @@ describe('MovieLogWorkspace', () => {
     expect(findByClass(tree, 'history-layout')).toHaveLength(1);
     expect(findByClass(tree, 'history-panel-body')).toHaveLength(1);
     expect(findByClass(tree, 'routes-block')).toHaveLength(1);
-    expect(findByClass(tree, 'archive-panel')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-panel')).toHaveLength(0);
+    expect(findByClass(tree, 'archive-block')).toHaveLength(1);
     expect(findByClass(tree, 'archive-tabs')).toHaveLength(0);
     expect(findByClass(tree, 'paths-disclosure')).toHaveLength(1);
     expect(findByClass(tree, 'routes-panel')).toHaveLength(0);
@@ -132,7 +133,7 @@ describe('MovieLogWorkspace', () => {
     expect(historyText).toContain('Mar 19');
     expect(historyText).not.toContain('Mar 21');
     expect(historyText).toContain('The Plague');
-    const archiveText = readText(findByClass(tree, 'archive-panel'));
+    const archiveText = readText(findByClass(tree, 'archive-block'));
     expect(archiveText).toContain('Flow');
     expect(archiveText).not.toContain('The.Plague.2025.1080p.AMZN.WEB-DL.DDP5.1.x265.mkv');
     const snapshotText = readText(findByClass(tree, 'snapshot-row'));
@@ -145,7 +146,7 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('More');
   });
 
-  it('falls back the archive inspector to the first visible row when the selected row is filtered out', () => {
+  it('falls back the collapsed archive details to the first visible row when the selected row is filtered out', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         dropActive: false,
@@ -175,7 +176,7 @@ describe('MovieLogWorkspace', () => {
     expect(text).not.toContain('The.Plague.2025.1080p.AMZN.WEB-DL.DDP5.1.x265.mkv');
   });
 
-  it('shows an empty contextual inspector when no history entries remain after filtering', () => {
+  it('shows an empty collapsed archive block when no history entries remain after filtering', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         dropActive: false,
