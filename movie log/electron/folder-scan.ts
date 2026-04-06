@@ -7,16 +7,28 @@ import { isTrackableMediaItem } from '../shared/media-items.js';
 import type { EntryKind } from '../shared/types.js';
 
 export interface ScannedFolderItem {
+  addedAt?: string;
   itemKey: string;
   sourceKind: EntryKind;
   sourcePath: string;
   title: string;
 }
 
-async function readItemKey(sourcePath: string): Promise<string | null> {
+function readItemAddedAt(itemStats: Awaited<ReturnType<typeof stat>>): string {
+  if (itemStats.birthtimeMs > 0) {
+    return itemStats.birthtime.toISOString();
+  }
+
+  return itemStats.mtime.toISOString();
+}
+
+async function readScannedItem(sourcePath: string): Promise<Pick<ScannedFolderItem, 'addedAt' | 'itemKey'> | null> {
   try {
     const itemStats = await stat(sourcePath);
-    return `${itemStats.dev}:${itemStats.ino}`;
+    return {
+      addedAt: readItemAddedAt(itemStats),
+      itemKey: `${itemStats.dev}:${itemStats.ino}`
+    };
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
 
@@ -34,7 +46,7 @@ export async function scanFolderContents(folderPath: string): Promise<ScannedFol
     const scannedItems = await Promise.all(
       entries
         .filter((entry) => entry.isDirectory() || entry.isFile())
-        .map(async (entry) => {
+        .map(async (entry): Promise<ScannedFolderItem | null> => {
           const sourcePath = join(folderPath, entry.name);
           const sourceKind: EntryKind = entry.isDirectory() ? 'directory' : 'file';
 
@@ -42,20 +54,23 @@ export async function scanFolderContents(folderPath: string): Promise<ScannedFol
             return null;
           }
 
-          const itemKey = await readItemKey(sourcePath);
+          const scannedItem = await readScannedItem(sourcePath);
 
-          if (!itemKey) {
+          if (!scannedItem) {
             return null;
           }
 
           const watchEntry = createEntryFromPath(sourcePath, 'watch', '1970-01-01T00:00:00.000Z', sourceKind);
 
-          return {
-            itemKey,
+          const nextItem: ScannedFolderItem = {
+            addedAt: scannedItem.addedAt,
+            itemKey: scannedItem.itemKey,
             sourceKind,
             sourcePath,
             title: watchEntry.title
           };
+
+          return nextItem;
         })
     );
 

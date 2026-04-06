@@ -11,9 +11,11 @@ import { createEntryFromPath } from '../shared/history.js';
 function scannedItem(
   sourcePath: string,
   itemKey: string,
-  sourceKind: 'file' | 'directory' = 'file'
+  sourceKind: 'file' | 'directory' = 'file',
+  addedAt?: string
 ) {
   return {
+    addedAt,
     itemKey,
     sourceKind,
     sourcePath,
@@ -301,6 +303,58 @@ describe('createHistoryStore', () => {
     ]);
   });
 
+  it('uses a scanned item added time instead of the scan time for first import', async () => {
+    const store = createHistoryStore(dataDirectory);
+
+    await store.addWatchedFolder('/Users/seankim/Movies');
+    const recordedEntries = await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [
+        scannedItem(
+          '/Users/seankim/Movies/Dtf.St.Louis.S01e01.Cornhole.1080P.Amzn.Web-Dl.Ddp5.1.Atmos.H.265.mp4',
+          'dev:1',
+          'file',
+          '2026-03-02T20:19:04.000Z'
+        )
+      ],
+      '2026-04-06T15:54:20.342Z'
+    );
+    const state = await store.readState();
+
+    expect(recordedEntries[0]?.watchedAt).toBe('2026-03-02T20:19:04.000Z');
+    expect(state.history[0]?.watchedAt).toBe('2026-03-02T20:19:04.000Z');
+    expect(state.libraryItems[0]?.firstSeenAt).toBe('2026-03-02T20:19:04.000Z');
+  });
+
+  it('rewrites an existing watched-folder entry when a later scan finds an earlier added time', async () => {
+    const store = createHistoryStore(dataDirectory);
+
+    await store.addWatchedFolder('/Users/seankim/Movies');
+    await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [scannedItem('/Users/seankim/Movies/Dtf.St.Louis.S01e01.Cornhole.1080P.Amzn.Web-Dl.Ddp5.1.Atmos.H.265.mp4', 'dev:1')],
+      '2026-04-06T15:54:20.342Z'
+    );
+
+    await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [
+        scannedItem(
+          '/Users/seankim/Movies/Dtf.St.Louis.S01e01.Cornhole.1080P.Amzn.Web-Dl.Ddp5.1.Atmos.H.265.mp4',
+          'dev:1',
+          'file',
+          '2026-03-02T20:19:04.000Z'
+        )
+      ],
+      '2026-04-06T16:10:00.000Z'
+    );
+
+    const state = await store.readState();
+
+    expect(state.history[0]?.watchedAt).toBe('2026-03-02T20:19:04.000Z');
+    expect(state.libraryItems[0]?.firstSeenAt).toBe('2026-03-02T20:19:04.000Z');
+  });
+
   it('updates history paths when a watched-folder file is renamed in place', async () => {
     const store = createHistoryStore(dataDirectory);
 
@@ -507,8 +561,8 @@ describe('createHistoryStore', () => {
     expect(firstBackfill.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
     expect(secondBackfill).toEqual([]);
     expect(state.history.map((entry) => entry.sourcePath)).toEqual([
-      '/Users/seankim/Movies/Severance',
-      '/Users/seankim/Movies/Flow.mkv'
+      '/Users/seankim/Movies/Flow.mkv',
+      '/Users/seankim/Movies/Severance'
     ]);
     expect(storedJson.historyPolicy).toBe('append-only');
   });

@@ -100,14 +100,23 @@ function hasStoredFolderValues(valuesByFolder: Record<string, string[]>, folderP
   return Object.hasOwn(valuesByFolder, folderPath);
 }
 
-function buildWatchEntries(items: ScannedFolderItem[], watchedAt: string): WatchEntry[] {
-  return items.map((item) => createEntryFromPath(item.sourcePath, 'watch', watchedAt, item.sourceKind));
+function buildWatchEntries(items: ScannedFolderItem[], scannedAt: string): WatchEntry[] {
+  return items.map((item) => createEntryFromPath(item.sourcePath, 'watch', item.addedAt ?? scannedAt, item.sourceKind));
 }
 
 function buildHistoryFromLibraryItems(items: LibraryItem[]): WatchEntry[] {
   return sortEntriesByWatchedAt(
     items.map((item) => createEntryFromPath(item.sourcePath, 'watch', item.firstSeenAt, item.sourceKind))
   );
+}
+
+function readItemFirstSeenAt(existingFirstSeenAt: string | undefined, addedAt: string, scannedAt: string): string {
+  if (!existingFirstSeenAt) {
+    return addedAt;
+  }
+
+  const fallbackFirstSeenAt = addedAt || scannedAt;
+  return existingFirstSeenAt < fallbackFirstSeenAt ? existingFirstSeenAt : fallbackFirstSeenAt;
 }
 
 async function readFolderId(folderPath: string): Promise<string | null> {
@@ -125,7 +134,7 @@ async function readFolderId(folderPath: string): Promise<string | null> {
   }
 }
 
-function replaceHistoryEntryPath(
+function replaceHistoryEntry(
   history: WatchEntry[],
   previousItem: LibraryItem,
   nextItem: LibraryItem
@@ -140,7 +149,7 @@ function replaceHistoryEntryPath(
         return entry;
       }
 
-      return createEntryFromPath(nextItem.sourcePath, 'watch', previousItem.firstSeenAt, nextItem.sourceKind);
+      return createEntryFromPath(nextItem.sourcePath, 'watch', nextItem.firstSeenAt, nextItem.sourceKind);
     })
   );
 }
@@ -463,7 +472,7 @@ export function createHistoryStore(dataDirectory: string) {
           const existing = existingItemsById.get(item.itemKey) ?? existingItemsByPath.get(item.sourcePath);
 
           return {
-            firstSeenAt: existing?.firstSeenAt ?? scannedAt,
+            firstSeenAt: readItemFirstSeenAt(existing?.firstSeenAt, item.addedAt ?? scannedAt, scannedAt),
             folderId: folder.id,
             folderPath,
             id: item.itemKey,
@@ -478,6 +487,10 @@ export function createHistoryStore(dataDirectory: string) {
         const existingPaths = state.knownPathsByFolder[folderPath] ?? [];
         const hasSamePaths = sameValues(existingPaths, nextPaths);
         const hasSameKeys = sameValues(existingSeenKeys, nextKeys);
+        const hasSameFirstSeenAt = nextItems.every((item) => {
+          const existing = existingItemsById.get(item.id) ?? existingItemsByPath.get(item.sourcePath);
+          return existing?.firstSeenAt === item.firstSeenAt;
+        });
         const entriesToAdd = !hasSeenKeys
           ? buildWatchEntries(
               items.filter((item) => !historyPaths.has(item.sourcePath)),
@@ -488,7 +501,14 @@ export function createHistoryStore(dataDirectory: string) {
               scannedAt
             );
 
-        if (hasSeenKeys && entriesToAdd.length === 0 && hasSamePaths && hasSameKeys && currentFolderItems.length === nextItems.length) {
+        if (
+          hasSeenKeys &&
+          entriesToAdd.length === 0 &&
+          hasSamePaths &&
+          hasSameKeys &&
+          hasSameFirstSeenAt &&
+          currentFolderItems.length === nextItems.length
+        ) {
           return [];
         }
 
@@ -497,11 +517,14 @@ export function createHistoryStore(dataDirectory: string) {
         for (const nextItem of nextItems) {
           const previousItem = existingItemsById.get(nextItem.id);
 
-          if (!previousItem || previousItem.sourcePath === nextItem.sourcePath) {
+          if (
+            !previousItem ||
+            (previousItem.sourcePath === nextItem.sourcePath && previousItem.firstSeenAt === nextItem.firstSeenAt)
+          ) {
             continue;
           }
 
-          nextHistory = replaceHistoryEntryPath(nextHistory, previousItem, nextItem);
+          nextHistory = replaceHistoryEntry(nextHistory, previousItem, nextItem);
         }
 
         state.history = entriesToAdd.length === 0 ? nextHistory : mergeHistoryEntries(nextHistory, entriesToAdd);

@@ -130,20 +130,17 @@ describe('MovieLogWorkspace', () => {
     expect(routeText).toContain('Added Mar 17');
     expect(routeText).not.toContain('Seen Mar 19');
     const historyRows = findByClass(tree, 'record-row');
-    expect(historyRows.map((row) => readText([row]))).toEqual([
-      expect.stringContaining('The Plague'),
-      expect.stringContaining('Flow')
-    ]);
+    expect(historyRows.map((row) => readText([row]))).toEqual([expect.stringContaining('Flow'), expect.stringContaining('The Plague')]);
     const historyText = readText(historyRows);
     expect(historyText).toContain('Mar 19');
     expect(historyText).not.toContain('Mar 21');
     expect(historyText).toContain('The Plague');
     const archiveText = readText(findByClass(tree, 'archive-block'));
-    expect(archiveText).toContain('The Plague');
-    expect(archiveText).not.toContain('Flow.mkv');
+    expect(archiveText).toContain('Flow');
+    expect(archiveText).not.toContain('The.Plague.2025.1080p.AMZN.WEB-DL.DDP5.1.x265.mkv');
     const snapshotText = readText(findByClass(tree, 'snapshot-row'));
-    expect(snapshotText).toContain('The Plague');
-    expect(snapshotText).toContain('Added Mar 16');
+    expect(snapshotText).toContain('Flow');
+    expect(snapshotText).toContain('Added Mar 17');
     expect(snapshotText).not.toContain('Seen Mar 19');
     expect(text).toContain('2 entries recorded across 1 route.');
     expect(text).toContain('2 entries');

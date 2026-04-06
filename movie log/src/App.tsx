@@ -89,7 +89,7 @@ function collapseHistory(entries: WatchEntry[]): WatchEntry[] {
     }
   }
 
-  return [...manualEntries, ...historyByPath.values()].sort((left, right) => left.watchedAt.localeCompare(right.watchedAt));
+  return [...manualEntries, ...historyByPath.values()].sort((left, right) => right.watchedAt.localeCompare(left.watchedAt));
 }
 
 function createLedgerSummary(
