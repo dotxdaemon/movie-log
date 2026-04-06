@@ -355,6 +355,56 @@ describe('createHistoryStore', () => {
     expect(state.libraryItems[0]?.firstSeenAt).toBe('2026-03-02T20:19:04.000Z');
   });
 
+  it('repairs stale watched-folder history from the filesystem when snapshot data is missing', async () => {
+    const watchedFolderPath = join(dataDirectory, 'Movies');
+    const filePath = join(
+      watchedFolderPath,
+      'Dtf.St.Louis.S01e01.Cornhole.1080P.Amzn.Web-Dl.Ddp5.1.Atmos.H.265.mp4'
+    );
+
+    await mkdir(watchedFolderPath, { recursive: true });
+    await writeFile(filePath, 'dtf', 'utf8');
+
+    const fileStats = await stat(filePath);
+    const addedAt = fileStats.birthtimeMs > 0 ? fileStats.birthtime.toISOString() : fileStats.mtime.toISOString();
+    const staleScanTime = '2026-04-07T15:54:20.342Z';
+
+    await writeFile(
+      join(dataDirectory, 'movie-log.json'),
+      `${JSON.stringify(
+        {
+          history: [createEntryFromPath(filePath, 'watch', staleScanTime, 'file')],
+          historyPolicy: 'append-only',
+          knownPathsByFolder: {
+            [watchedFolderPath]: []
+          },
+          libraryItems: [],
+          seenKeysByFolder: {
+            [watchedFolderPath]: []
+          },
+          watchedFolders: [
+            {
+              addedAt: '2026-03-12T08:00:00.000Z',
+              id: watchedFolderPath,
+              lastScannedAt: staleScanTime,
+              name: 'Movies',
+              path: watchedFolderPath
+            }
+          ]
+        },
+        null,
+        2
+      )}\n`,
+      'utf8'
+    );
+
+    const store = createHistoryStore(dataDirectory);
+    const state = await store.readState();
+
+    expect(state.history[0]?.watchedAt).toBe(addedAt);
+    expect(state.libraryItems[0]?.firstSeenAt).toBe(addedAt);
+  });
+
   it('updates history paths when a watched-folder file is renamed in place', async () => {
     const store = createHistoryStore(dataDirectory);
 

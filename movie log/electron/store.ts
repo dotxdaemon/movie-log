@@ -2,7 +2,7 @@
 // ABOUTME: Provides the minimal read and write operations needed by the Electron process and tests.
 import { access, mkdir, open, readFile, rename, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import type { ScannedFolderItem } from './folder-scan.js';
+import { scanFolderContents, type ScannedFolderItem } from './folder-scan.js';
 import { createEntryFromPath, sortEntriesByWatchedAt } from '../shared/history.js';
 import type { LibraryItem, MovieLogState, WatchEntry, WatchedFolder } from '../shared/types.js';
 
@@ -152,6 +152,118 @@ function replaceHistoryEntry(
       return createEntryFromPath(nextItem.sourcePath, 'watch', nextItem.firstSeenAt, nextItem.sourceKind);
     })
   );
+}
+
+function hasWatchHistoryForFolder(state: PersistedState, folderPath: string): boolean {
+  return state.history.some((entry) => entry.source === 'watch' && entry.sourcePath.startsWith(`${folderPath}/`));
+}
+
+function shouldRepairWatchedFolder(state: PersistedState, folder: WatchedFolder): boolean {
+  const folderItems = state.libraryItems.filter((item) => item.folderId === folder.id || item.folderPath === folder.path);
+
+  return (
+    folderItems.length === 0 &&
+    (state.knownPathsByFolder[folder.path] ?? []).length === 0 &&
+    (state.seenKeysByFolder[folder.path] ?? []).length === 0 &&
+    hasWatchHistoryForFolder(state, folder.path)
+  );
+}
+
+interface WatchedFolderSyncOutcome {
+  changed: boolean;
+  entriesToAdd: WatchEntry[];
+}
+
+function applyWatchedFolderSync(
+  state: PersistedState,
+  folder: WatchedFolder,
+  items: ScannedFolderItem[],
+  scannedAt: string
+): WatchedFolderSyncOutcome {
+  const currentFolderItems = state.libraryItems.filter((item) => item.folderId === folder.id);
+  const existingItemsById = new Map(currentFolderItems.map((item) => [item.id, item]));
+  const existingItemsByPath = new Map(currentFolderItems.map((item) => [item.sourcePath, item]));
+  const existingSeenKeys = state.seenKeysByFolder[folder.path] ?? [];
+  const hasSeenKeys = hasStoredFolderValues(state.seenKeysByFolder, folder.path);
+  const seenKeys = new Set(existingSeenKeys);
+  const historyPaths = new Set(state.history.map((entry) => entry.sourcePath));
+  const nextItems: LibraryItem[] = items.map((item) => {
+    const existing = existingItemsById.get(item.itemKey) ?? existingItemsByPath.get(item.sourcePath);
+
+    return {
+      firstSeenAt: readItemFirstSeenAt(existing?.firstSeenAt, item.addedAt ?? scannedAt, scannedAt),
+      folderId: folder.id,
+      folderPath: folder.path,
+      id: item.itemKey,
+      lastSeenAt: scannedAt,
+      sourceKind: item.sourceKind,
+      sourcePath: item.sourcePath,
+      title: item.title
+    };
+  });
+  const nextPaths = items.map((item) => item.sourcePath);
+  const nextKeys = items.map((item) => item.itemKey);
+  const existingPaths = state.knownPathsByFolder[folder.path] ?? [];
+  const hasSamePaths = sameValues(existingPaths, nextPaths);
+  const hasSameKeys = sameValues(existingSeenKeys, nextKeys);
+  const hasSameFirstSeenAt = nextItems.every((item) => {
+    const existing = existingItemsById.get(item.id) ?? existingItemsByPath.get(item.sourcePath);
+    return existing?.firstSeenAt === item.firstSeenAt;
+  });
+  const entriesToAdd = !hasSeenKeys
+    ? buildWatchEntries(
+        items.filter((item) => !historyPaths.has(item.sourcePath)),
+        scannedAt
+      )
+    : buildWatchEntries(
+        items.filter((item) => !seenKeys.has(item.itemKey)),
+        scannedAt
+      );
+
+  if (
+    hasSeenKeys &&
+    entriesToAdd.length === 0 &&
+    hasSamePaths &&
+    hasSameKeys &&
+    hasSameFirstSeenAt &&
+    currentFolderItems.length === nextItems.length
+  ) {
+    return {
+      changed: false,
+      entriesToAdd: []
+    };
+  }
+
+  let nextHistory = state.history;
+
+  for (const nextItem of nextItems) {
+    const previousItem = existingItemsById.get(nextItem.id);
+
+    if (
+      !previousItem ||
+      (previousItem.sourcePath === nextItem.sourcePath && previousItem.firstSeenAt === nextItem.firstSeenAt)
+    ) {
+      continue;
+    }
+
+    nextHistory = replaceHistoryEntry(nextHistory, previousItem, nextItem);
+  }
+
+  state.history = entriesToAdd.length === 0 ? nextHistory : mergeHistoryEntries(nextHistory, entriesToAdd);
+  state.libraryItems = sortLibraryItems([
+    ...state.libraryItems.filter((item) => item.folderId !== folder.id),
+    ...nextItems
+  ]);
+  state.knownPathsByFolder[folder.path] = nextPaths;
+  state.seenKeysByFolder[folder.path] = nextKeys;
+  state.watchedFolders = state.watchedFolders.map((item) =>
+    item.path === folder.path ? { ...item, lastScannedAt: scannedAt } : item
+  );
+
+  return {
+    changed: true,
+    entriesToAdd
+  };
 }
 
 export function createHistoryStore(dataDirectory: string) {
@@ -308,7 +420,24 @@ export function createHistoryStore(dataDirectory: string) {
         return state;
       }
 
-      if (parsed.historyPolicy !== HISTORY_POLICY || JSON.stringify(parsedState) !== JSON.stringify(state)) {
+      let repairedWatchedFolders = false;
+
+      for (const folder of state.watchedFolders) {
+        if (!shouldRepairWatchedFolder(state, folder)) {
+          continue;
+        }
+
+        const items = await scanFolderContents(folder.path);
+
+        if (items.length === 0) {
+          continue;
+        }
+
+        const outcome = applyWatchedFolderSync(state, folder, items, new Date().toISOString());
+        repairedWatchedFolders = repairedWatchedFolders || outcome.changed;
+      }
+
+      if (repairedWatchedFolders || parsed.historyPolicy !== HISTORY_POLICY || JSON.stringify(parsedState) !== JSON.stringify(state)) {
         await writePersistedState(state);
         return state;
       }
@@ -460,86 +589,15 @@ export function createHistoryStore(dataDirectory: string) {
         if (!folder) {
           return [];
         }
+        const outcome = applyWatchedFolderSync(state, folder, items, scannedAt);
 
-        const currentFolderItems = state.libraryItems.filter((item) => item.folderId === folder.id);
-        const existingItemsById = new Map(currentFolderItems.map((item) => [item.id, item]));
-        const existingItemsByPath = new Map(currentFolderItems.map((item) => [item.sourcePath, item]));
-        const existingSeenKeys = state.seenKeysByFolder[folderPath] ?? [];
-        const hasSeenKeys = hasStoredFolderValues(state.seenKeysByFolder, folderPath);
-        const seenKeys = new Set(existingSeenKeys);
-        const historyPaths = new Set(state.history.map((entry) => entry.sourcePath));
-        const nextItems: LibraryItem[] = items.map((item) => {
-          const existing = existingItemsById.get(item.itemKey) ?? existingItemsByPath.get(item.sourcePath);
-
-          return {
-            firstSeenAt: readItemFirstSeenAt(existing?.firstSeenAt, item.addedAt ?? scannedAt, scannedAt),
-            folderId: folder.id,
-            folderPath,
-            id: item.itemKey,
-            lastSeenAt: scannedAt,
-            sourceKind: item.sourceKind,
-            sourcePath: item.sourcePath,
-            title: item.title
-          };
-        });
-        const nextPaths = items.map((item) => item.sourcePath);
-        const nextKeys = items.map((item) => item.itemKey);
-        const existingPaths = state.knownPathsByFolder[folderPath] ?? [];
-        const hasSamePaths = sameValues(existingPaths, nextPaths);
-        const hasSameKeys = sameValues(existingSeenKeys, nextKeys);
-        const hasSameFirstSeenAt = nextItems.every((item) => {
-          const existing = existingItemsById.get(item.id) ?? existingItemsByPath.get(item.sourcePath);
-          return existing?.firstSeenAt === item.firstSeenAt;
-        });
-        const entriesToAdd = !hasSeenKeys
-          ? buildWatchEntries(
-              items.filter((item) => !historyPaths.has(item.sourcePath)),
-              scannedAt
-            )
-          : buildWatchEntries(
-              items.filter((item) => !seenKeys.has(item.itemKey)),
-              scannedAt
-            );
-
-        if (
-          hasSeenKeys &&
-          entriesToAdd.length === 0 &&
-          hasSamePaths &&
-          hasSameKeys &&
-          hasSameFirstSeenAt &&
-          currentFolderItems.length === nextItems.length
-        ) {
+        if (!outcome.changed) {
           return [];
         }
 
-        let nextHistory = state.history;
-
-        for (const nextItem of nextItems) {
-          const previousItem = existingItemsById.get(nextItem.id);
-
-          if (
-            !previousItem ||
-            (previousItem.sourcePath === nextItem.sourcePath && previousItem.firstSeenAt === nextItem.firstSeenAt)
-          ) {
-            continue;
-          }
-
-          nextHistory = replaceHistoryEntry(nextHistory, previousItem, nextItem);
-        }
-
-        state.history = entriesToAdd.length === 0 ? nextHistory : mergeHistoryEntries(nextHistory, entriesToAdd);
-        state.libraryItems = sortLibraryItems([
-          ...state.libraryItems.filter((item) => item.folderId !== folder.id),
-          ...nextItems
-        ]);
-        state.knownPathsByFolder[folderPath] = nextPaths;
-        state.seenKeysByFolder[folderPath] = nextKeys;
-        state.watchedFolders = state.watchedFolders.map((item) =>
-          item.path === folderPath ? { ...item, lastScannedAt: scannedAt } : item
-        );
         await writePersistedState(state);
 
-        return entriesToAdd;
+        return outcome.entriesToAdd;
       });
     },
 
