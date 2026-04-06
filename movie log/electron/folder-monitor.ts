@@ -22,6 +22,15 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
   const missingFolderWatchers = new Map<string, FSWatcher>();
   const scheduledSyncs = new Map<string, NodeJS.Timeout>();
   const pendingSyncsByFolder = new Map<string, Set<Promise<void>>>();
+  const syncVersionsByFolder = new Map<string, number>();
+
+  function readSyncVersion(folderPath: string): number {
+    return syncVersionsByFolder.get(folderPath) ?? 0;
+  }
+
+  function advanceSyncVersion(folderPath: string): void {
+    syncVersionsByFolder.set(folderPath, readSyncVersion(folderPath) + 1);
+  }
 
   function trackPendingSync(folderPath: string, syncPromise: Promise<void>): void {
     const pendingSyncs = pendingSyncsByFolder.get(folderPath) ?? new Set<Promise<void>>();
@@ -82,23 +91,32 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
     }
   }
 
-  async function syncFolder(folderPath: string, emitNewItems: boolean): Promise<void> {
+  async function syncFolder(folderPath: string, emitNewItems: boolean, syncVersion: number): Promise<void> {
     let currentPaths: string[] = [];
     let folderIsMissing = false;
 
     try {
+      await stat(folderPath);
       const knownPaths = await options.loadKnownPaths(folderPath);
       currentPaths = (await scanFolderContents(folderPath)).map((item) => item.sourcePath);
 
+      if (readSyncVersion(folderPath) !== syncVersion) {
+        return;
+      }
+
       if (sameValues(knownPaths, currentPaths)) {
+        return;
+      }
+
+      await options.saveKnownPaths(folderPath, currentPaths);
+
+      if (readSyncVersion(folderPath) !== syncVersion) {
         return;
       }
 
       if (emitNewItems) {
         await options.onChange(folderPath);
       }
-
-      await options.saveKnownPaths(folderPath, currentPaths);
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
 
@@ -114,13 +132,22 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
       return;
     }
 
+    clearScheduledSync(folderPath);
     const knownPaths = await options.loadKnownPaths(folderPath);
 
-    if (!sameValues(knownPaths, currentPaths) && emitNewItems) {
-      await options.onChange(folderPath);
+    if (!sameValues(knownPaths, currentPaths)) {
+      await options.saveKnownPaths(folderPath, currentPaths);
+
+      if (readSyncVersion(folderPath) !== syncVersion) {
+        return;
+      }
+
+      if (emitNewItems) {
+        await options.onChange(folderPath);
+      }
     }
 
-    await options.saveKnownPaths(folderPath, currentPaths);
+    advanceSyncVersion(folderPath);
     closeWatcher(watchers.get(folderPath));
     watchers.delete(folderPath);
     await watchMissingFolder(folderPath);
@@ -128,10 +155,11 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
 
   function scheduleSync(folderPath: string): void {
     clearScheduledSync(folderPath);
+    const syncVersion = readSyncVersion(folderPath);
 
     const timeout = setTimeout(() => {
       scheduledSyncs.delete(folderPath);
-      trackPendingSync(folderPath, syncFolder(folderPath, true));
+      trackPendingSync(folderPath, syncFolder(folderPath, true, syncVersion));
     }, settleMs);
 
     scheduledSyncs.set(folderPath, timeout);
@@ -217,6 +245,7 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
     },
 
     async unwatchFolder(folderPath: string): Promise<void> {
+      advanceSyncVersion(folderPath);
       closeWatcher(watchers.get(folderPath));
       watchers.delete(folderPath);
       closeWatcher(missingFolderWatchers.get(folderPath));

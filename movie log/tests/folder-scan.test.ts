@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { resolveAddedAt, scanFolderContents } from '../electron/folder-scan.js';
+import { parseAddedAtValues, resolveAddedAt, scanFolderContents } from '../electron/folder-scan.js';
 
 describe('scanFolderContents', () => {
   let rootDirectory = '';
@@ -54,10 +54,33 @@ describe('scanFolderContents', () => {
     expect(items.every((item) => item.itemKey.length > 0)).toBe(true);
   });
 
-  it('prefers Finder date added metadata over filesystem timestamps', () => {
+  it('prefers Finder added-to-directory values over filesystem timestamps', () => {
     expect(resolveAddedAt('2026-04-06 01:44:32 +0000', '2023-12-19T17:35:21.000Z')).toBe(
       '2026-04-06T01:44:32.000Z'
     );
     expect(resolveAddedAt('(null)', '2023-12-19T17:35:21.000Z')).toBe('2023-12-19T17:35:21.000Z');
+  });
+
+  it('maps Finder added-to-directory values back to the scanned paths', () => {
+    expect(
+      parseAddedAtValues(
+        [
+          '/Volumes/blve/movies/Dtf.St.Louis.S01e01.Cornhole.1080P.Amzn.Web-Dl.Ddp5.1.Atmos.H.265.mp4',
+          '/Volumes/blve/movies/Y Tu Mama Tambien 2001 Criterion (1080p x265 10bit Tigole).mkv'
+        ],
+        '2026-04-01 09:03:55 -0600\n2026-04-05 19:44:32 -0600'
+      )
+    ).toEqual(
+      new Map([
+        [
+          '/Volumes/blve/movies/Dtf.St.Louis.S01e01.Cornhole.1080P.Amzn.Web-Dl.Ddp5.1.Atmos.H.265.mp4',
+          '2026-04-01 09:03:55 -0600'
+        ],
+        [
+          '/Volumes/blve/movies/Y Tu Mama Tambien 2001 Criterion (1080p x265 10bit Tigole).mkv',
+          '2026-04-05 19:44:32 -0600'
+        ]
+      ])
+    );
   });
 });

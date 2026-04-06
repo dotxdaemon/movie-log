@@ -9,6 +9,28 @@ import { isTrackableMediaItem } from '../shared/media-items.js';
 import type { EntryKind } from '../shared/types.js';
 
 const execFileAsync = promisify(execFile);
+const finderAddedAtScript = `
+use framework "Foundation"
+on run argv
+  set formatter to current application's NSDateFormatter's new()
+  formatter's setDateFormat:"yyyy-MM-dd HH:mm:ss.SSS Z"
+  set outputLines to {}
+  repeat with currentPath in argv
+    set fileURL to current application's |NSURL|'s fileURLWithPath:(currentPath as text)
+    set {ok, addedDate} to fileURL's getResourceValue:(reference) forKey:(current application's NSURLAddedToDirectoryDateKey) |error|:(missing value)
+    if ok then
+      set end of outputLines to ((formatter's stringFromDate:addedDate) as text)
+    else
+      set end of outputLines to "(null)"
+    end if
+  end repeat
+  set previousTextItemDelimiters to AppleScript's text item delimiters
+  set AppleScript's text item delimiters to linefeed
+  set outputText to outputLines as text
+  set AppleScript's text item delimiters to previousTextItemDelimiters
+  return outputText
+end run
+`.trim();
 
 export interface ScannedFolderItem {
   addedAt?: string;
@@ -42,20 +64,41 @@ export function resolveAddedAt(addedAtValue: string | null | undefined, fallback
   return parsedAddedAt.toISOString();
 }
 
-async function readDateAddedValue(sourcePath: string): Promise<string | null> {
+export function parseAddedAtValues(sourcePaths: string[], output: string): Map<string, string | null> {
+  const lines = output
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.trim());
+  const addedAtValues = new Map<string, string | null>();
+
+  sourcePaths.forEach((sourcePath, index) => {
+    const addedAtValue = lines[index];
+    addedAtValues.set(sourcePath, !addedAtValue || addedAtValue === '(null)' ? null : addedAtValue);
+  });
+
+  return addedAtValues;
+}
+
+async function readAddedAtValues(sourcePaths: string[]): Promise<Map<string, string | null>> {
+  if (sourcePaths.length === 0) {
+    return new Map();
+  }
+
   try {
-    const { stdout } = await execFileAsync('mdls', ['-raw', '-name', 'kMDItemDateAdded', sourcePath]);
-    return stdout;
+    const { stdout } = await execFileAsync('osascript', ['-l', 'AppleScript', '-e', finderAddedAtScript, ...sourcePaths]);
+    return parseAddedAtValues(sourcePaths, stdout);
   } catch {
-    return null;
+    return new Map(sourcePaths.map((sourcePath) => [sourcePath, null]));
   }
 }
 
-async function readScannedItem(sourcePath: string): Promise<Pick<ScannedFolderItem, 'addedAt' | 'itemKey'> | null> {
+async function readScannedItem(
+  sourcePath: string,
+  addedAtValue: string | null
+): Promise<Pick<ScannedFolderItem, 'addedAt' | 'itemKey'> | null> {
   try {
     const itemStats = await stat(sourcePath);
     const fallbackAddedAt = readFilesystemAddedAt(itemStats);
-    const addedAtValue = await readDateAddedValue(sourcePath);
 
     return {
       addedAt: resolveAddedAt(addedAtValue, fallbackAddedAt),
@@ -75,35 +118,39 @@ async function readScannedItem(sourcePath: string): Promise<Pick<ScannedFolderIt
 export async function scanFolderContents(folderPath: string): Promise<ScannedFolderItem[]> {
   try {
     const entries = await readdir(folderPath, { withFileTypes: true });
+    const trackableEntries = entries
+      .filter((entry) => entry.isDirectory() || entry.isFile())
+      .map((entry) => {
+        const sourcePath = join(folderPath, entry.name);
+        const sourceKind: EntryKind = entry.isDirectory() ? 'directory' : 'file';
+
+        return {
+          sourceKind,
+          sourcePath
+        };
+      })
+      .filter(({ sourceKind, sourcePath }) => isTrackableMediaItem(sourcePath, sourceKind));
+    const addedAtValues = await readAddedAtValues(trackableEntries.map((entry) => entry.sourcePath));
     const scannedItems = await Promise.all(
-      entries
-        .filter((entry) => entry.isDirectory() || entry.isFile())
-        .map(async (entry): Promise<ScannedFolderItem | null> => {
-          const sourcePath = join(folderPath, entry.name);
-          const sourceKind: EntryKind = entry.isDirectory() ? 'directory' : 'file';
+      trackableEntries.map(async ({ sourceKind, sourcePath }): Promise<ScannedFolderItem | null> => {
+        const scannedItem = await readScannedItem(sourcePath, addedAtValues.get(sourcePath) ?? null);
 
-          if (!isTrackableMediaItem(sourcePath, sourceKind)) {
-            return null;
-          }
+        if (!scannedItem) {
+          return null;
+        }
 
-          const scannedItem = await readScannedItem(sourcePath);
+        const watchEntry = createEntryFromPath(sourcePath, 'watch', '1970-01-01T00:00:00.000Z', sourceKind);
 
-          if (!scannedItem) {
-            return null;
-          }
+        const nextItem: ScannedFolderItem = {
+          addedAt: scannedItem.addedAt,
+          itemKey: scannedItem.itemKey,
+          sourceKind,
+          sourcePath,
+          title: watchEntry.title
+        };
 
-          const watchEntry = createEntryFromPath(sourcePath, 'watch', '1970-01-01T00:00:00.000Z', sourceKind);
-
-          const nextItem: ScannedFolderItem = {
-            addedAt: scannedItem.addedAt,
-            itemKey: scannedItem.itemKey,
-            sourceKind,
-            sourcePath,
-            title: watchEntry.title
-          };
-
-          return nextItem;
-        })
+        return nextItem;
+      })
     );
 
     return scannedItems
