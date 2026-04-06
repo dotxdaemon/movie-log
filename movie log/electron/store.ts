@@ -110,13 +110,16 @@ function buildHistoryFromLibraryItems(items: LibraryItem[]): WatchEntry[] {
   );
 }
 
-function readItemFirstSeenAt(existingFirstSeenAt: string | undefined, addedAt: string, scannedAt: string): string {
-  if (!existingFirstSeenAt) {
+function readItemFirstSeenAt(existingFirstSeenAt: string | undefined, addedAt: string | undefined, scannedAt: string): string {
+  if (addedAt) {
     return addedAt;
   }
 
-  const fallbackFirstSeenAt = addedAt || scannedAt;
-  return existingFirstSeenAt < fallbackFirstSeenAt ? existingFirstSeenAt : fallbackFirstSeenAt;
+  if (existingFirstSeenAt) {
+    return existingFirstSeenAt;
+  }
+
+  return scannedAt;
 }
 
 async function readFolderId(folderPath: string): Promise<string | null> {
@@ -191,7 +194,7 @@ function applyWatchedFolderSync(
     const existing = existingItemsById.get(item.itemKey) ?? existingItemsByPath.get(item.sourcePath);
 
     return {
-      firstSeenAt: readItemFirstSeenAt(existing?.firstSeenAt, item.addedAt ?? scannedAt, scannedAt),
+      firstSeenAt: readItemFirstSeenAt(existing?.firstSeenAt, item.addedAt, scannedAt),
       folderId: folder.id,
       folderPath: folder.path,
       id: item.itemKey,

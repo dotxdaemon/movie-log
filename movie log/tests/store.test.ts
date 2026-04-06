@@ -355,6 +355,42 @@ describe('createHistoryStore', () => {
     expect(state.libraryItems[0]?.firstSeenAt).toBe('2026-03-02T20:19:04.000Z');
   });
 
+  it('rewrites an existing watched-folder entry when Finder date added is later than the stored creation time', async () => {
+    const store = createHistoryStore(dataDirectory);
+
+    await store.addWatchedFolder('/Users/seankim/Movies');
+    await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [
+        scannedItem(
+          '/Users/seankim/Movies/Y Tu Mama Tambien 2001 Criterion (1080p x265 10bit Tigole).mkv',
+          'dev:1',
+          'file',
+          '2023-12-19T17:35:21.000Z'
+        )
+      ],
+      '2026-04-06T15:54:20.342Z'
+    );
+
+    await store.syncWatchedFolderContents(
+      '/Users/seankim/Movies',
+      [
+        scannedItem(
+          '/Users/seankim/Movies/Y Tu Mama Tambien 2001 Criterion (1080p x265 10bit Tigole).mkv',
+          'dev:1',
+          'file',
+          '2026-04-06T01:44:32.000Z'
+        )
+      ],
+      '2026-04-06T16:10:00.000Z'
+    );
+
+    const state = await store.readState();
+
+    expect(state.history[0]?.watchedAt).toBe('2026-04-06T01:44:32.000Z');
+    expect(state.libraryItems[0]?.firstSeenAt).toBe('2026-04-06T01:44:32.000Z');
+  });
+
   it('repairs stale watched-folder history from the filesystem when snapshot data is missing', async () => {
     const watchedFolderPath = join(dataDirectory, 'Movies');
     const filePath = join(

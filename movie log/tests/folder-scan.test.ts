@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { scanFolderContents } from '../electron/folder-scan.js';
+import { resolveAddedAt, scanFolderContents } from '../electron/folder-scan.js';
 
 describe('scanFolderContents', () => {
   let rootDirectory = '';
@@ -52,5 +52,12 @@ describe('scanFolderContents', () => {
       }
     ]);
     expect(items.every((item) => item.itemKey.length > 0)).toBe(true);
+  });
+
+  it('prefers Finder date added metadata over filesystem timestamps', () => {
+    expect(resolveAddedAt('2026-04-06 01:44:32 +0000', '2023-12-19T17:35:21.000Z')).toBe(
+      '2026-04-06T01:44:32.000Z'
+    );
+    expect(resolveAddedAt('(null)', '2023-12-19T17:35:21.000Z')).toBe('2023-12-19T17:35:21.000Z');
   });
 });
