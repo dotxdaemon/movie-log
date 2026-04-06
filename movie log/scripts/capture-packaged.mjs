@@ -8,9 +8,10 @@ import process from 'node:process';
 
 const capturePath = join(homedir(), '.codex-artifacts', 'movie-log-packaged.png');
 const packagedAppPath = join(process.cwd(), 'release', 'mac', 'Movie Log.app', 'Contents', 'MacOS', 'Electron');
+const packagedAppProcessPattern = '/Movie Log.app/Contents/MacOS/Electron';
 const captureStartedAt = Date.now();
 
-spawnSync('pkill', ['-f', packagedAppPath], {
+spawnSync('pkill', ['-f', packagedAppProcessPattern], {
   stdio: 'ignore'
 });
 

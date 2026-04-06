@@ -25,5 +25,6 @@ describe('capture pipeline', () => {
     expect(packagedCaptureScript).toContain('rm(capturePath');
     expect(packagedCaptureScript).toContain('stat(capturePath');
     expect(packagedCaptureScript).toContain('captureStartedAt');
+    expect(packagedCaptureScript).toContain('/Movie Log.app/Contents/MacOS/Electron');
   });
 });
