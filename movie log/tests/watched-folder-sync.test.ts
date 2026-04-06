@@ -25,7 +25,7 @@ function scannedItem(sourcePath: string): ScannedFolderItem {
 }
 
 describe('createWatchedFolderSync', () => {
-  it('starts watching existing watched folders without scanning them', async () => {
+  it('starts watching existing watched folders and scans them', async () => {
     const order: string[] = [];
     const folders = [watchedFolder('/Movies/One'), watchedFolder('/Movies/Two')];
     const watchedFolderSync = createWatchedFolderSync({
@@ -48,33 +48,51 @@ describe('createWatchedFolderSync', () => {
 
     await watchedFolderSync.catchUpWatchedFolders();
 
-    expect(order).toEqual([
+    expect(order).toEqual(expect.arrayContaining([
       'watch:/Movies/One',
-      'watch:/Movies/Two'
-    ]);
+      'watch:/Movies/Two',
+      'scan:/Movies/One',
+      'scan:/Movies/Two',
+      'save:/Movies/One:2026-03-16T09:00:00.000Z',
+      'save:/Movies/Two:2026-03-16T09:00:00.000Z',
+      'broadcast',
+      'broadcast'
+    ]));
   });
 
-  it('does not rescan watched folders after watching resumes', async () => {
-    const savedPaths: string[] = [];
-    let watchCount = 0;
+  it('rescans watched folders after watching resumes', async () => {
+    const order: string[] = [];
     const watchedFolderSync = createWatchedFolderSync({
-      broadcastState: async () => {},
+      broadcastState: async () => {
+        order.push('broadcast');
+      },
       listWatchedFolders: async () => [watchedFolder('/Movies/Resume')],
       now: () => '2026-03-16T10:00:00.000Z',
-      saveFolderContents: async (folderPath) => {
-        savedPaths.push(folderPath);
+      saveFolderContents: async (folderPath, items, scannedAt) => {
+        order.push(`save:${folderPath}:${items[0]?.sourcePath ?? '[empty]'}:${scannedAt}`);
       },
-      scanFolder: async () => [scannedItem('/Movies/Resume/Flow.mkv')],
+      scanFolder: async (folderPath) => {
+        order.push(`scan:${folderPath}`);
+        return [scannedItem('/Movies/Resume/Flow.mkv')];
+      },
       watchFolder: async () => {
-        watchCount += 1;
+        order.push('watch:/Movies/Resume');
       }
     });
 
     await watchedFolderSync.catchUpWatchedFolders();
     await watchedFolderSync.catchUpWatchedFolders();
 
-    expect(savedPaths).toEqual([]);
-    expect(watchCount).toBe(2);
+    expect(order).toEqual([
+      'watch:/Movies/Resume',
+      'scan:/Movies/Resume',
+      'save:/Movies/Resume:/Movies/Resume/Flow.mkv:2026-03-16T10:00:00.000Z',
+      'broadcast',
+      'watch:/Movies/Resume',
+      'scan:/Movies/Resume',
+      'save:/Movies/Resume:/Movies/Resume/Flow.mkv:2026-03-16T10:00:00.000Z',
+      'broadcast'
+    ]);
   });
 
   it('captures an arrival that lands during add-folder setup', async () => {

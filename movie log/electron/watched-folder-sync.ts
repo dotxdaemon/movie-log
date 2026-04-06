@@ -85,7 +85,12 @@ export function createWatchedFolderSync(options: WatchedFolderSyncOptions) {
   async function catchUpWatchedFolders(): Promise<void> {
     const watchedFolders = await options.listWatchedFolders();
 
-    await Promise.all(watchedFolders.map((folder) => options.watchFolder(folder.path)));
+    await Promise.all(
+      watchedFolders.map(async (folder) => {
+        await options.watchFolder(folder.path);
+        await queueRefresh(folder.path);
+      })
+    );
   }
 
   async function watchAndRefreshFolder(folderPath: string): Promise<void> {
