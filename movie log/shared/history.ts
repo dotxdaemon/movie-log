@@ -1,5 +1,5 @@
 // ABOUTME: Creates normalized watch-history entries from dropped files and watched-folder discoveries.
-// ABOUTME: Keeps title cleanup and recent-first sorting deterministic across the desktop app.
+// ABOUTME: Keeps title cleanup and arrival ordering deterministic across the desktop app.
 import { basename, extname } from 'node:path';
 import type { EntryKind, EntrySource, WatchEntry } from './types.js';
 
@@ -35,5 +35,5 @@ export function createEntryFromPath(
 }
 
 export function sortEntriesByWatchedAt(entries: WatchEntry[]): WatchEntry[] {
-  return [...entries].sort((left, right) => right.watchedAt.localeCompare(left.watchedAt));
+  return [...entries].sort((left, right) => left.watchedAt.localeCompare(right.watchedAt));
 }

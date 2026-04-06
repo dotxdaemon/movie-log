@@ -151,7 +151,7 @@ export function createHistoryStore(dataDirectory: string) {
   let stateQueue = Promise.resolve();
 
   function renderNote(state: PersistedState): string {
-    const lines = ['# Movie Log', '', '## Recent History', ''];
+    const lines = ['# Movie Log', '', '## History', ''];
 
     if (state.history.length === 0) {
       lines.push('- Nothing logged yet.');

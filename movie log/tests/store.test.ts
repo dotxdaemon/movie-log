@@ -507,8 +507,8 @@ describe('createHistoryStore', () => {
     expect(firstBackfill.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
     expect(secondBackfill).toEqual([]);
     expect(state.history.map((entry) => entry.sourcePath)).toEqual([
-      '/Users/seankim/Movies/Flow.mkv',
-      '/Users/seankim/Movies/Severance'
+      '/Users/seankim/Movies/Severance',
+      '/Users/seankim/Movies/Flow.mkv'
     ]);
     expect(storedJson.historyPolicy).toBe('append-only');
   });

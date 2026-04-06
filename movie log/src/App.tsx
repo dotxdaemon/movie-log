@@ -89,7 +89,7 @@ function collapseHistory(entries: WatchEntry[]): WatchEntry[] {
     }
   }
 
-  return [...manualEntries, ...historyByPath.values()].sort((left, right) => right.watchedAt.localeCompare(left.watchedAt));
+  return [...manualEntries, ...historyByPath.values()].sort((left, right) => left.watchedAt.localeCompare(right.watchedAt));
 }
 
 function createLedgerSummary(
@@ -242,7 +242,7 @@ export function MovieLogWorkspace({
               <div className="history-layout">
                 <section className="history-panel-body">
                   <div className="ledger-head">
-                    <p className="ledger-note">{searchQuery ? 'Filtered arrivals.' : 'Latest arrivals.'}</p>
+                    <p className="ledger-note">{searchQuery ? 'Filtered arrivals.' : 'Arrival history.'}</p>
                     <p className="ledger-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
                   </div>
 

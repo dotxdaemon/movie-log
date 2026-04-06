@@ -1,5 +1,5 @@
 // ABOUTME: Verifies that dropped paths become clean watch-history entries with stable titles.
-// ABOUTME: Checks file-title cleanup and recent-first ordering for the local history list.
+// ABOUTME: Checks file-title cleanup and chronological ordering for the local history list.
 import { describe, expect, it } from 'vitest';
 import { createEntryFromPath, sortEntriesByWatchedAt } from '../shared/history.js';
 
@@ -21,12 +21,12 @@ describe('createEntryFromPath', () => {
 });
 
 describe('sortEntriesByWatchedAt', () => {
-  it('returns entries in reverse chronological order', () => {
+  it('returns entries in chronological order', () => {
     const sorted = sortEntriesByWatchedAt([
       createEntryFromPath('/tmp/older', 'watch', '2026-03-10T08:00:00.000Z'),
       createEntryFromPath('/tmp/newer', 'drop', '2026-03-12T08:00:00.000Z')
     ]);
 
-    expect(sorted.map((entry) => entry.title)).toEqual(['newer', 'older']);
+    expect(sorted.map((entry) => entry.title)).toEqual(['older', 'newer']);
   });
 });
