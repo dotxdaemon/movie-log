@@ -706,6 +706,18 @@ Answer these questions explicitly:
 5. If Sean saw the result right now, would I still be comfortable using the word `fixed`?
 
 If any answer is no, do not claim completion.
+
+### 10. Do not argue from an unproven theory
+
+When Sean reports that the visible behavior is wrong, do not respond by correcting Sean unless the correction is proven in Sean's exact runtime environment.
+
+- If current theory and Sean's evidence conflict, say the theory is incomplete. Do not say Sean is wrong.
+- Treat screenshots, direct runtime behavior, and exact user-visible dates as higher-priority evidence than inferred field mappings or intermediate metadata.
+- If the source of truth is not proven yet, label the explanation as a hypothesis, not a fact.
+- Do not reuse rejected proof. Once Sean says the explanation or result is wrong, stop arguing from it and restart from reproduction.
+- Do not swing from defensive language into appeasing language. State the mistake, the concrete contradiction, and the next verification step in plain technical terms.
+- Do not tell Sean what he meant. Quote the exact requirement or ask one narrow clarifying question.
+
 - 2026-03-30: What I just tried previously was testing the repo and identifying three current contract bugs without changing code: persisted watch-history duplication is still only hidden in the renderer, watched-folder identity is still path-based, and startup/resume still do catch-up scans. Sean is now asking me to fix all three. The current errors after that analysis are: `electron/store.ts` still persists and renders raw duplicate watch rows while `src/App.tsx` collapses them only for the UI; watched folders still use `folderPath` as identity so rename/move continuity is brittle; and `electron/watched-folder-sync.ts` plus `electron/main.ts` still trigger startup/resume scans that conflict with the arrival-only watcher contract.
 - 2026-03-31: What I just tried previously was the `967d451` ember-poster workspace pass with a warm crown background, a pale central ledger panel, a left route rig, and a dark archive shard. Sean is now asking me to fix it again because the result still looks nothing like the supplied poster reference. The current error after the previous pass is that Movie Log is still governed by visible app panels and utility regions, so the warm crown acts like background decoration while the reference depends on a subject-led poster composition with a much larger warm mass, a stronger lower figure silhouette, and bottom weapon anchors driving the whole screen.
 - 2026-03-31: What I just tried previously was the `2de138f` poster pass with a centered pale figure mass, a hanging left talisman, and a dark archive band. Sean is now asking me to implement the poster-first rebuild plan so all ten composition mismatches are corrected instead of only carrying over the warm palette and editorial shell cues. The current error after the previous pass is that Movie Log still reads as abstract UI blobs with detached cards, while the reference requires a subject-led portrait poster with distinct anatomy, attached accessories, a fractured orange crown, stronger asymmetry, and bottom blade anchors that drive the whole first viewport.

@@ -21,6 +21,7 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
   const watchers = new Map<string, FSWatcher>();
   const missingFolderWatchers = new Map<string, FSWatcher>();
   const scheduledSyncs = new Map<string, NodeJS.Timeout>();
+  const syncChainsByFolder = new Map<string, Promise<void>>();
   const pendingSyncsByFolder = new Map<string, Set<Promise<void>>>();
   const syncVersionsByFolder = new Map<string, number>();
 
@@ -159,7 +160,20 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
 
     const timeout = setTimeout(() => {
       scheduledSyncs.delete(folderPath);
-      trackPendingSync(folderPath, syncFolder(folderPath, true, syncVersion));
+      const previousSync = syncChainsByFolder.get(folderPath) ?? Promise.resolve();
+      const nextSync = previousSync
+        .catch(() => undefined)
+        .then(async () => syncFolder(folderPath, true, syncVersion));
+
+      syncChainsByFolder.set(folderPath, nextSync);
+      trackPendingSync(
+        folderPath,
+        nextSync.finally(() => {
+          if (syncChainsByFolder.get(folderPath) === nextSync) {
+            syncChainsByFolder.delete(folderPath);
+          }
+        })
+      );
     }, settleMs);
 
     scheduledSyncs.set(folderPath, timeout);
