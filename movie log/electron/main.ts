@@ -114,7 +114,7 @@ async function createWindow(): Promise<void> {
     height: 820,
     minWidth: 390,
     minHeight: 640,
-    backgroundColor: '#121212',
+    backgroundColor: '#0B100E',
     title: 'Movie Log',
     webPreferences: {
       preload: join(currentDirectory, 'preload.cjs')

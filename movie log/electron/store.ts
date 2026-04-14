@@ -436,6 +436,10 @@ export function createHistoryStore(dataDirectory: string) {
           continue;
         }
 
+        state.history = state.history.filter(
+          (entry) => entry.source !== 'watch' || !entry.sourcePath.startsWith(`${folder.path}/`)
+        );
+
         const outcome = applyWatchedFolderSync(state, folder, items, new Date().toISOString());
         repairedWatchedFolders = repairedWatchedFolders || outcome.changed;
       }
