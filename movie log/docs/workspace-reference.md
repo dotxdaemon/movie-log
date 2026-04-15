@@ -1,43 +1,37 @@
 # Workspace Reference
 
-This document defines the approved Movie Log monochrome workspace for renderer work.
+This document defines the approved Movie Log workspace inspired by the supplied Chainsaw Man Vol. 19 cover.
 
 ## Required Markers
 
-- monochrome field: the app uses black, white, and gray only
-- minimal stage: one centered workspace with no decorative framing or poster geometry
-- dominant history surface: the history workspace owns most of the first screen
-- embedded routes utility block: watched folders and route actions live inside the main workspace instead of a standalone rail
-- collapsed archive detail block: the archive follows the selected history row inside the main workspace instead of rendering as a separate sidebar
-- compact header band: title, summary, and search stay tight so arrivals start high on screen
-- reduced row hierarchy: each arrival row keeps one title line, one metadata line, one path line, and a reduced action area
-- flat control family: buttons, tabs, inputs, and menus share one low-chrome control treatment
-- unified contrast system: primary content, metadata, and inactive chrome use one shared grayscale hierarchy
-- flat chrome: borders, spacing, and typography carry hierarchy instead of textures, shadows, or ornaments
-- secondary plumbing: note and store paths stay behind one secondary Paths disclosure instead of sharing top-level inspector rank
-- restrained copy: headings and helper text stay short and operational
-- readable real content: history rows, paths, and metadata stay scannable with populated data
-- responsive stack: narrow widths stack in the order history, routes, archive details
+- olive room field: the app reads as one green room instead of a neutral or monochrome tool shell
+- acid-red masthead: the loudest hierarchy is a condensed red `Movie Log` banner at the top of the first screen
+- oversized issue mark: the entry count appears as one large editorial number instead of a small dashboard stat
+- framed wall gallery: watched folders and utility controls live inside a framed plaque with nearby wall art echoes
+- diagonal light: bright angled light bands cut across the room and support the focal plane
+- pale focal seat: the arrivals list lives inside one pale cream seat-like surface with a darker rose shadow plane
+- botanical edge: clustered plant forms anchor the lower corners of the screen
+- poster-led first viewport: the first screen reads as one composed poster surface, not a split utility grid
+- quiet utility controls: search, note, scan, and add-folder controls stay usable without taking headline rank
+- readable arrivals list: history rows remain scannable with real titles, timestamps, and actions
+- responsive stack: narrow widths keep the arrivals seat first and the wall gallery second
+- poster-stage
+- masthead-banner
+- issue-mark
+- sunbeam-field
+- wall-gallery
+- routes-frame
+- focal-seat
 
 ## Disallowed Markers
 
-- three-pane first-screen layout
-- separate right archive sidebar
-- standalone left routes column
-- permanent archive list as a peer content column
-- peer inspector modes for internal file plumbing
-- equal-width utility panels
-- Ledger
-- poster-stage
-- top-bars
-- crown-fracture
-- poster-frame
-- editorial-spine
-- side-glyphs
-- blade-field
-- figure-headpiece
-- figure-sleeve-left
-- figure-sleeve-right
-- figure-waist
-- satchel-strap
-- talisman-strap
+- monochrome field
+- minimal stage
+- flat chrome
+- history-layout
+- history-panel
+- routes-block
+- equal split utility grid
+- standalone admin rail
+- glass dashboard cards
+- decorative shell energy that outranks the working surfaces

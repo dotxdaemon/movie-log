@@ -1,5 +1,5 @@
-// ABOUTME: Verifies that the renderer workspace resolves into one history-first layout with a routes sidebar.
-// ABOUTME: Uses a resolved React tree so the redesign can regress without brittle markup snapshots.
+// ABOUTME: Verifies that the renderer workspace resolves into one poster-led layout with a focal arrivals stage.
+// ABOUTME: Uses a resolved React tree so the cover-driven redesign can regress without brittle markup snapshots.
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { MovieLogWorkspace } from '../src/App.js';
@@ -48,7 +48,7 @@ const state: MovieLogState = {
 function noop(): void {}
 
 describe('MovieLogWorkspace', () => {
-  it('renders a full-height ledger with a routes sidebar and no archive panel', () => {
+  it('renders a poster-led workspace with one focal seat, wall gallery, and oversized issue mark', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         dropActive: false,
@@ -70,17 +70,20 @@ describe('MovieLogWorkspace', () => {
     );
 
     expect(findByClass(tree, 'workspace-stack')).toHaveLength(1);
-    expect(findByClass(tree, 'history-panel')).toHaveLength(1);
-    expect(findByClass(tree, 'workspace-head')).toHaveLength(1);
+    expect(findByClass(tree, 'poster-stage')).toHaveLength(1);
+    expect(findByClass(tree, 'poster-head')).toHaveLength(1);
+    expect(findByClass(tree, 'masthead-banner')).toHaveLength(1);
+    expect(findByClass(tree, 'issue-mark')).toHaveLength(1);
+    expect(findByClass(tree, 'sunbeam-field')).toHaveLength(1);
+    expect(findByClass(tree, 'wall-gallery')).toHaveLength(1);
+    expect(findByClass(tree, 'routes-frame')).toHaveLength(1);
+    expect(findByClass(tree, 'focal-seat')).toHaveLength(1);
     expect(findByClass(tree, 'workspace-search')).toHaveLength(1);
-    expect(findByClass(tree, 'history-layout')).toHaveLength(1);
-    expect(findByClass(tree, 'history-panel-body')).toHaveLength(1);
-    expect(findByClass(tree, 'routes-block')).toHaveLength(1);
+    expect(findByClass(tree, 'history-layout')).toHaveLength(0);
+    expect(findByClass(tree, 'history-panel')).toHaveLength(0);
+    expect(findByClass(tree, 'routes-block')).toHaveLength(0);
     expect(findByClass(tree, 'archive-block')).toHaveLength(0);
     expect(findByClass(tree, 'paths-disclosure')).toHaveLength(0);
-    expect(findByClass(tree, 'poster-figure')).toHaveLength(0);
-    expect(findByClass(tree, 'figure-torso')).toHaveLength(0);
-    expect(findByClass(tree, 'archive-satchel')).toHaveLength(0);
     expect(findByClass(tree, 'record-row')).toHaveLength(2);
     const text = readText(tree);
     expect(text).toContain('Movie Log');
