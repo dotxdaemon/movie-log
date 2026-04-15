@@ -7,9 +7,9 @@
       <stop offset="100%" stop-color="#d59b4b" />
     </linearGradient>
   </defs>
-  <rect width="1024" height="1024" rx="228" fill="#18120d" />
-  <rect x="72" y="72" width="880" height="880" rx="180" fill="url(#bg)" />
-  <rect x="156" y="156" width="712" height="712" rx="144" fill="#18120d" opacity="0.92" />
+  <rect width="1024" height="1024" fill="#18120d" />
+  <rect x="48" y="48" width="928" height="928" rx="180" fill="url(#bg)" />
+  <rect x="120" y="120" width="784" height="784" rx="144" fill="#18120d" opacity="0.92" />
   <path d="M268 308h104l140 264 140-264h104v408H664V500L560 696h-96L360 500v216H268V308Z" fill="#f5f2eb" />
   <path d="m690 230 130 78-130 78Z" fill="#d8aa61" />
 </svg>

@@ -1,8 +1,7 @@
 // ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
-// ABOUTME: Keeps one history-first workspace with embedded routes and collapsed archive details.
+// ABOUTME: Keeps one history-first workspace with a full-height ledger and compact routes sidebar.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
-import { FolderSnapshotPanel } from './folder-snapshot-panel.js';
 import type { MovieLogState, WatchEntry } from '../shared/types.js';
 
 const emptyState: MovieLogState = {
@@ -19,7 +18,6 @@ const timestampFormatter = new Intl.DateTimeFormat(undefined, {
 interface MovieLogWorkspaceProps {
   dropActive: boolean;
   errorMessage: string;
-  logFilePath: string;
   noteFilePath: string;
   onAddWatchedFolders(): Promise<void>;
   onCopyPath(itemPath: string): Promise<void>;
@@ -30,10 +28,8 @@ interface MovieLogWorkspaceProps {
   onRemoveWatchedFolder(folderId: string): Promise<void>;
   onScanNow(): Promise<void>;
   onSearchQueryChange(value: string): void;
-  onSelectHistoryEntry(entryId: string): void;
   scanInProgress: boolean;
   searchQuery: string;
-  selectedHistoryEntryId: string | null;
   state: MovieLogState;
 }
 
@@ -100,36 +96,27 @@ function createLedgerSummary(
   watchedFolderCount: number
 ): string {
   if (searchQuery) {
-    return `${formatCount(filteredHistory.length, 'entry', 'entries')} shown from ${formatCount(historyCount, 'entry', 'entries')}.`;
+    return `${formatCount(filteredHistory.length, 'result')} from ${formatCount(historyCount, 'entry', 'entries')}`;
   }
 
   if (scanInProgress) {
-    return `Scanning ${formatCount(watchedFolderCount, 'route')} now.`;
+    return `Scanning ${formatCount(watchedFolderCount, 'folder')}…`;
   }
 
   if (historyCount === 0) {
-    return 'No arrivals logged yet.';
+    return 'No arrivals yet';
   }
 
   if (watchedFolderCount === 0) {
-    return `${formatCount(historyCount, 'entry', 'entries')} recorded.`;
+    return `${formatCount(historyCount, 'entry', 'entries')}`;
   }
 
-  return `${formatCount(historyCount, 'entry', 'entries')} recorded across ${formatCount(watchedFolderCount, 'route')}.`;
-}
-
-function createInspectorSummary(activeEntry: WatchEntry | null, itemCount: number): string {
-  if (!activeEntry) {
-    return 'No arrival selected';
-  }
-
-  return `${formatCount(itemCount, 'item')} linked to this arrival.`;
+  return `${formatCount(historyCount, 'entry', 'entries')} across ${formatCount(watchedFolderCount, 'folder')}`;
 }
 
 export function MovieLogWorkspace({
   dropActive,
   errorMessage,
-  logFilePath,
   noteFilePath,
   onAddWatchedFolders,
   onCopyPath,
@@ -140,74 +127,19 @@ export function MovieLogWorkspace({
   onRemoveWatchedFolder,
   onScanNow,
   onSearchQueryChange,
-  onSelectHistoryEntry,
   scanInProgress,
   searchQuery,
-  selectedHistoryEntryId,
   state
 }: MovieLogWorkspaceProps) {
   const history = collapseHistory(state.history);
   const filteredHistory = history.filter((entry) => matchesSearch(entry, searchQuery));
-  const activeEntry = filteredHistory.find((entry) => entry.id === selectedHistoryEntryId) ?? filteredHistory[0] ?? null;
-  const selectedLibraryItems = activeEntry ? state.libraryItems.filter((item) => item.sourcePath === activeEntry.sourcePath) : [];
   const ledgerSummary = createLedgerSummary(history.length, filteredHistory, searchQuery, scanInProgress, state.watchedFolders.length);
-  const inspectorSummary = createInspectorSummary(activeEntry, selectedLibraryItems.length);
   const watchedFolderSummary =
     state.watchedFolders.length === 0 ? 'None active' : `${formatCount(state.watchedFolders.length, 'folder')} active`;
   const statusBanner = errorMessage ? (
     <section className="status-banner" role="alert">
       {errorMessage}
     </section>
-  ) : null;
-
-  const archivePanel =
-    !activeEntry ? (
-      <div className="blank-slate blank-slate-compact">
-        <p className="blank-title">No arrival selected</p>
-        <p className="blank-copy">Select one arrival to inspect its archive details.</p>
-      </div>
-    ) : (
-      <FolderSnapshotPanel
-        compact
-        items={selectedLibraryItems}
-        onCopyPath={onCopyPath}
-        onOpenInFinder={onOpenInFinder}
-        onOpenItem={onOpenItem}
-        timestampLabel={(isoTime) => timestampFormatter.format(new Date(isoTime))}
-      />
-    );
-
-  const pathsPanel = activeEntry ? (
-    <details className="paths-disclosure">
-      <summary className="paths-summary">Paths</summary>
-      <div className="paths-grid">
-        <section className="paths-entry">
-          <p className="section-label">Note Path</p>
-          <p className="path-line">{noteFilePath}</p>
-          <div className="details-actions">
-            <button className="finder-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
-              Open Note
-            </button>
-            <button className="text-button" disabled={!noteFilePath} onClick={() => void onCopyPath(noteFilePath)} type="button">
-              Copy Note Path
-            </button>
-          </div>
-        </section>
-
-        <section className="paths-entry">
-          <p className="section-label">Store Path</p>
-          <p className="path-line">{logFilePath}</p>
-          <div className="details-actions">
-            <button className="finder-button" disabled={!logFilePath} onClick={() => void onOpenInFinder(logFilePath)} type="button">
-              Show in Finder
-            </button>
-            <button className="text-button" disabled={!logFilePath} onClick={() => void onCopyPath(logFilePath)} type="button">
-              Copy Store Path
-            </button>
-          </div>
-        </section>
-      </div>
-    </details>
   ) : null;
 
   return (
@@ -217,14 +149,18 @@ export function MovieLogWorkspace({
           <section className="history-panel">
             <header className="workspace-head">
               <div className="title-mark">
-                <h2 className="workspace-title">Arrivals</h2>
+                <h2 className="workspace-title">Movie Log</h2>
                 <p className="workspace-status">{ledgerSummary}</p>
               </div>
 
-              <label className="workspace-search">
-                <span className="section-label">Search</span>
-                <input onChange={(event) => onSearchQueryChange(event.target.value)} placeholder="Search ledger" type="search" value={searchQuery} />
-              </label>
+              <div className="head-actions">
+                <button className="note-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
+                  Open Note
+                </button>
+                <label className="workspace-search">
+                  <input onChange={(event) => onSearchQueryChange(event.target.value)} placeholder="Search…" type="search" value={searchQuery} />
+                </label>
+              </div>
             </header>
 
             {statusBanner}
@@ -241,50 +177,34 @@ export function MovieLogWorkspace({
             >
               <div className="history-layout">
                 <section className="history-panel-body">
-                  <div className="ledger-head">
-                    <p className="ledger-note">{searchQuery ? 'Filtered arrivals.' : 'Arrival history.'}</p>
-                    <p className="ledger-count">{formatCount(filteredHistory.length, 'entry', 'entries')}</p>
-                  </div>
-
                   {filteredHistory.length === 0 ? (
                     <div className="blank-slate blank-slate-records">
-                      <p className="blank-title">{searchQuery ? 'No matching history entries' : 'Nothing logged yet'}</p>
-                      {!searchQuery ? <p className="blank-copy">New arrivals will appear here.</p> : null}
+                      <p className="blank-title">{searchQuery ? 'No matches' : 'Nothing here yet'}</p>
+                      {!searchQuery ? <p className="blank-copy">Drop files or add a watched folder to start logging.</p> : null}
                     </div>
                   ) : (
                     <ol className="records-list">
                       {filteredHistory.map((entry) => (
-                        <li
-                          className={activeEntry?.id === entry.id ? 'record-row record-row-active' : 'record-row'}
-                          key={entry.id}
-                          onClick={() => onSelectHistoryEntry(entry.id)}
-                        >
+                        <li className="record-row" key={entry.id}>
                           <div className="record-copy">
                             <strong className="record-title">{entry.title}</strong>
                             <p className="record-meta">
-                              {timestampFormatter.format(new Date(entry.watchedAt))} • {formatSource(entry.source)} •{' '}
-                              {formatEntryType(entry.sourceKind)}
+                              {timestampFormatter.format(new Date(entry.watchedAt))} · {formatSource(entry.source)} · {formatEntryType(entry.sourceKind)}
                             </p>
-                            <p className="path-line">{entry.sourcePath}</p>
                           </div>
 
                           <div className="record-actions">
-                            <button className="finder-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
-                              Show in Finder
+                            <button className="action-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
+                              Reveal
                             </button>
-                            <details className="row-more">
-                              <summary>More</summary>
-                              <div className="row-more-menu">
-                                {entry.sourceKind === 'file' ? (
-                                  <button className="text-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
-                                    Open
-                                  </button>
-                                ) : null}
-                                <button className="text-button" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
-                                  Copy Path
-                                </button>
-                              </div>
-                            </details>
+                            {entry.sourceKind === 'file' ? (
+                              <button className="action-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
+                                Open
+                              </button>
+                            ) : null}
+                            <button className="action-button action-button-dim" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
+                              Copy Path
+                            </button>
                           </div>
                         </li>
                       ))}
@@ -295,39 +215,38 @@ export function MovieLogWorkspace({
                 <aside className="routes-block">
                   <div className="routes-body">
                     <div className="routes-head">
-                      <p className="section-label">Routes</p>
-                      <p className="signal-note">{watchedFolderSummary}</p>
+                      <p className="routes-label">Watched Folders</p>
+                      <p className="routes-status">{watchedFolderSummary}</p>
                     </div>
 
                     <div className="routes-actions">
-                      <button className="signal-button signal-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
+                      <button className="routes-button routes-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
                         Add Folder
                       </button>
                       <button
-                        className="signal-button"
+                        className="routes-button"
                         disabled={state.watchedFolders.length === 0 || scanInProgress}
                         onClick={() => void onScanNow()}
                         type="button"
                       >
-                        {scanInProgress ? 'Scanning...' : 'Scan'}
+                        {scanInProgress ? 'Scanning…' : 'Scan Now'}
                       </button>
                     </div>
 
                     <section className="routes-list">
                       {state.watchedFolders.length === 0 ? (
                         <div className="blank-slate blank-slate-compact">
-                          <p className="blank-title">No routes yet</p>
-                          <p className="blank-copy">Add one folder to start the ledger.</p>
+                          <p className="blank-copy">No folders watched yet.</p>
                         </div>
                       ) : (
-                        <ul className="signal-route-list">
+                        <ul className="folder-list">
                           {state.watchedFolders.map((folder) => (
-                            <li className="signal-route" key={folder.id}>
-                              <div className="signal-route-copy">
-                                <strong className="route-title">{folder.name}</strong>
-                                <p className="route-meta">{`Added ${timestampFormatter.format(new Date(folder.addedAt))}`}</p>
+                            <li className="folder-row" key={folder.id}>
+                              <div className="folder-info">
+                                <strong className="folder-name">{folder.name}</strong>
+                                <p className="folder-meta">{`Added ${timestampFormatter.format(new Date(folder.addedAt))}`}</p>
                               </div>
-                              <button className="route-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
+                              <button className="folder-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
                                 Remove
                               </button>
                             </li>
@@ -338,15 +257,6 @@ export function MovieLogWorkspace({
                   </div>
                 </aside>
               </div>
-              <section className="archive-block">
-                <div className="archive-head">
-                  <p className="section-label">Archive</p>
-                  <h3 className="archive-title">{activeEntry ? activeEntry.title : 'No arrival selected'}</h3>
-                  <p className="details-copy">{inspectorSummary}</p>
-                </div>
-                <div className="archive-body">{archivePanel}</div>
-                {pathsPanel}
-              </section>
             </section>
           </section>
         </div>
@@ -359,10 +269,8 @@ export default function App() {
   const [state, setState] = useState<MovieLogState>(emptyState);
   const [dropActive, setDropActive] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [logFilePath, setLogFilePath] = useState('');
   const [noteFilePath, setNoteFilePath] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedHistoryEntryId, setSelectedHistoryEntryId] = useState<string | null>(null);
   const [scanInProgress, setScanInProgress] = useState(false);
 
   useEffect(() => {
@@ -370,9 +278,8 @@ export default function App() {
     document.documentElement.dataset.movieLogCaptureReady = 'false';
 
     const loadAppData = async () => {
-      const [nextState, nextLogFilePath, nextNoteFilePath] = await Promise.all([
+      const [nextState, nextNoteFilePath] = await Promise.all([
         window.movieLog.getState(),
-        window.movieLog.getDataFilePath(),
         window.movieLog.getNoteFilePath()
       ]);
 
@@ -381,7 +288,6 @@ export default function App() {
       }
 
       updateState(nextState, setState);
-      setLogFilePath(nextLogFilePath);
       setNoteFilePath(nextNoteFilePath);
       document.documentElement.dataset.movieLogCaptureReady = 'true';
     };
@@ -498,7 +404,6 @@ export default function App() {
     <MovieLogWorkspace
       dropActive={dropActive}
       errorMessage={errorMessage}
-      logFilePath={logFilePath}
       noteFilePath={noteFilePath}
       onAddWatchedFolders={handleAddWatchedFolders}
       onCopyPath={handleCopyPath}
@@ -509,10 +414,8 @@ export default function App() {
       onRemoveWatchedFolder={handleRemoveWatchedFolder}
       onScanNow={handleScanNow}
       onSearchQueryChange={setSearchQuery}
-      onSelectHistoryEntry={setSelectedHistoryEntryId}
       scanInProgress={scanInProgress}
       searchQuery={searchQuery}
-      selectedHistoryEntryId={selectedHistoryEntryId}
       state={state}
     />
   );
