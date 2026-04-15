@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest';
 
 const captureScript = readFileSync(new URL('../scripts/capture.mjs', import.meta.url), 'utf8');
 const packagedCaptureScript = readFileSync(new URL('../scripts/capture-packaged.mjs', import.meta.url), 'utf8');
+const packageManifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+  scripts: Record<string, string>;
+};
 const mainProcess = readFileSync(new URL('../electron/main.ts', import.meta.url), 'utf8');
 
 describe('capture pipeline', () => {
@@ -25,6 +28,10 @@ describe('capture pipeline', () => {
     expect(packagedCaptureScript).toContain('rm(capturePath');
     expect(packagedCaptureScript).toContain('stat(capturePath');
     expect(packagedCaptureScript).toContain('captureStartedAt');
-    expect(packagedCaptureScript).toContain('/Movie Log.app/Contents/MacOS/Electron');
+    expect(packagedCaptureScript).toContain('/Applications');
+    expect(packagedCaptureScript).toContain('resolveInstalledAppPath');
+    expect(packagedCaptureScript).toContain("'Contents', 'MacOS', 'Electron'");
+    expect(packagedCaptureScript).not.toContain("join(process.cwd(), 'release', 'mac', 'Movie Log.app'");
+    expect(packageManifest.scripts['open:mac']).toContain("/Applications/Movie Log.app");
   });
 });

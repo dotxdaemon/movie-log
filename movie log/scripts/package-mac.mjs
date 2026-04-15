@@ -3,10 +3,10 @@
 import { execFile } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
-import { resolveElectronAppTemplatePath } from './package-paths.mjs';
+import { resolveElectronAppTemplatePath, resolveInstalledAppPath, resolveReleaseAppPath } from './package-paths.mjs';
 
 const execFileAsync = promisify(execFile);
 const appName = 'Movie Log';
@@ -14,7 +14,8 @@ const appIdentifier = 'com.seankim.movielog';
 const iconBaseName = 'movie-log';
 const projectDirectory = process.cwd();
 const releaseDirectory = join(projectDirectory, 'release', 'mac');
-const bundlePath = join(releaseDirectory, `${appName}.app`);
+const bundlePath = resolveReleaseAppPath(projectDirectory);
+const installedAppPath = resolveInstalledAppPath();
 const bundleResourcesPath = join(bundlePath, 'Contents', 'Resources');
 const bundleAppPath = join(bundleResourcesPath, 'app');
 const electronAppTemplatePath = await resolveElectronAppTemplatePath(projectDirectory);
@@ -107,4 +108,8 @@ await cp(join(projectDirectory, 'dist-electron', 'shared'), join(bundleAppPath, 
 await cp(join(projectDirectory, 'electron', 'preload.cjs'), join(bundleAppPath, 'electron', 'preload.cjs'), { recursive: false });
 await writeFile(join(bundleAppPath, 'package.json'), `${JSON.stringify(bundlePackage, null, 2)}\n`, 'utf8');
 
-process.stdout.write(`${bundlePath}\n`);
+await rm(installedAppPath, { recursive: true, force: true });
+await mkdir(dirname(installedAppPath), { recursive: true });
+await runCommand('ditto', [bundlePath, installedAppPath]);
+
+process.stdout.write(`${installedAppPath}\n`);

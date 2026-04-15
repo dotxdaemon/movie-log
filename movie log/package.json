@@ -8,7 +8,7 @@
     "dev": "node ./scripts/dev.mjs",
     "build": "vite build && tsc -p tsconfig.electron.json --outDir dist-electron",
     "package:mac": "npm run build && node ./scripts/package-mac.mjs",
-    "open:mac": "open './release/mac/Movie Log.app'",
+    "open:mac": "open '/Applications/Movie Log.app'",
     "start": "node ./scripts/dev.mjs",
     "capture": "node ./scripts/capture.mjs",
     "capture:mac": "node ./scripts/capture-packaged.mjs",

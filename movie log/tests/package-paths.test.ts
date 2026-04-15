@@ -7,7 +7,9 @@ import { createRequire } from 'node:module';
 import { afterEach, describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const { resolveElectronAppTemplatePath } = require('../scripts/package-paths.mjs') as {
+const { resolveElectronAppTemplatePath, resolveInstalledAppPath, resolveReleaseAppPath } = require('../scripts/package-paths.mjs') as {
+  resolveInstalledAppPath(): string;
+  resolveReleaseAppPath(projectDirectory: string): string;
   resolveElectronAppTemplatePath(projectDirectory: string): Promise<string>;
 };
 
@@ -54,5 +56,14 @@ describe('resolveElectronAppTemplatePath', () => {
     await expect(resolveElectronAppTemplatePath(projectDirectory)).rejects.toThrow(
       `Could not find Electron.app from ${projectDirectory}`
     );
+  });
+});
+
+describe('installed app paths', () => {
+  it('treats /Applications/Movie Log.app as the canonical installed app and keeps the repo bundle in release/mac', async () => {
+    const projectDirectory = await createTemporaryProjectDirectory();
+
+    expect(resolveInstalledAppPath()).toBe('/Applications/Movie Log.app');
+    expect(resolveReleaseAppPath(projectDirectory)).toBe(join(projectDirectory, 'release', 'mac', 'Movie Log.app'));
   });
 });

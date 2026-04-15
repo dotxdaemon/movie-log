@@ -1,7 +1,9 @@
-// ABOUTME: Resolves filesystem paths that the packaging scripts need across the nested project and workspace root.
-// ABOUTME: Finds the nearest installed Electron app template so packaging works without local symlink workarounds.
+// ABOUTME: Resolves filesystem paths that the packaging scripts need across the nested project, workspace root, and installed app.
+// ABOUTME: Finds the nearest installed Electron app template and the canonical Movie Log app bundle locations.
 import { access } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+
+const appName = 'Movie Log';
 
 async function pathExists(targetPath) {
   try {
@@ -10,6 +12,14 @@ async function pathExists(targetPath) {
   } catch {
     return false;
   }
+}
+
+export function resolveInstalledAppPath() {
+  return join('/Applications', `${appName}.app`);
+}
+
+export function resolveReleaseAppPath(projectDirectory) {
+  return join(projectDirectory, 'release', 'mac', `${appName}.app`);
 }
 
 export async function resolveElectronAppTemplatePath(projectDirectory) {

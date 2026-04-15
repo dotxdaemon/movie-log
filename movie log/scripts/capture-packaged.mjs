@@ -1,14 +1,15 @@
 // ABOUTME: Launches the packaged macOS Movie Log app and captures a proof screenshot from the normal local Movie Log data.
-// ABOUTME: Verifies the installed-style app bundle works without the Vite dev server or source Electron entrypoint.
+// ABOUTME: Verifies the installed /Applications Movie Log app bundle works without the Vite dev server or source Electron entrypoint.
 import { rm, stat } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
+import { resolveInstalledAppPath } from './package-paths.mjs';
 
 const capturePath = join(homedir(), '.codex-artifacts', 'movie-log-packaged.png');
-const packagedAppPath = join(process.cwd(), 'release', 'mac', 'Movie Log.app', 'Contents', 'MacOS', 'Electron');
-const packagedAppProcessPattern = '/Movie Log.app/Contents/MacOS/Electron';
+const packagedAppPath = join(resolveInstalledAppPath(), 'Contents', 'MacOS', 'Electron');
+const packagedAppProcessPattern = `${resolveInstalledAppPath()}/Contents/MacOS/Electron`;
 const captureStartedAt = Date.now();
 
 spawnSync('pkill', ['-f', packagedAppProcessPattern], {
