@@ -136,35 +136,56 @@ export function MovieLogWorkspace({
   const ledgerSummary = createLedgerSummary(history.length, filteredHistory, searchQuery, scanInProgress, state.watchedFolders.length);
   const watchedFolderSummary =
     state.watchedFolders.length === 0 ? 'None' : `${formatCount(state.watchedFolders.length, 'folder')} active`;
+  const issueMark = String(history.length).padStart(2, '0');
+  const statusBanner = errorMessage ? (
+    <section className="status-banner" role="alert">
+      {errorMessage}
+    </section>
+  ) : null;
 
   return (
     <AppShell
       workspaceStage={
-        <div className="workspace-stack">
-          <header className="workspace-head">
-            <div className="title-block">
+        <div className="workspace-stack poster-stage">
+          <div aria-hidden="true" className="sunbeam-field">
+            <span className="sunbeam sunbeam-one" />
+            <span className="sunbeam sunbeam-two" />
+            <span className="sunbeam sunbeam-three" />
+          </div>
+
+          <div aria-hidden="true" className="botanical-edge botanical-edge-left" />
+          <div aria-hidden="true" className="botanical-edge botanical-edge-right" />
+
+          <header className="poster-head">
+            <div className="masthead-banner title-block">
               <h1 className="workspace-title">Movie Log</h1>
               <p className="workspace-status">{ledgerSummary}</p>
             </div>
+
+            <p aria-hidden="true" className="issue-mark">
+              {issueMark}
+            </p>
 
             <div className="head-actions">
               <button className="note-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
                 Open Note
               </button>
-              <label className="workspace-search">
-                <input onChange={(event) => onSearchQueryChange(event.target.value)} placeholder="Search…" type="search" value={searchQuery} />
+              <label className="workspace-search" htmlFor="workspace-search-input">
+                <input
+                  id="workspace-search-input"
+                  onChange={(event) => onSearchQueryChange(event.target.value)}
+                  placeholder="Search…"
+                  type="search"
+                  value={searchQuery}
+                />
               </label>
             </div>
           </header>
 
-          {errorMessage ? (
-            <section className="status-banner" role="alert">
-              {errorMessage}
-            </section>
-          ) : null}
+          {statusBanner}
 
           <section
-            className={dropActive ? 'content-grid drop-zone-active' : 'content-grid'}
+            className={dropActive ? 'poster-room poster-room-active' : 'poster-room'}
             onDragEnter={() => onDropActiveChange(true)}
             onDragLeave={() => onDropActiveChange(false)}
             onDragOver={(event) => {
@@ -173,44 +194,48 @@ export function MovieLogWorkspace({
             }}
             onDrop={onDrop}
           >
-            <section className="entries-panel">
-              {filteredHistory.length === 0 ? (
-                <div className="blank-slate blank-slate-entries">
-                  <p className="blank-title">{searchQuery ? 'No matches' : 'Nothing here yet'}</p>
-                  {!searchQuery ? <p className="blank-copy">Drop files or add a watched folder to start logging.</p> : null}
-                </div>
-              ) : (
-                <ol className="records-list">
-                  {filteredHistory.map((entry) => (
-                    <li className="record-row" key={entry.id}>
-                      <div className="record-copy">
-                        <strong className="record-title">{entry.title}</strong>
-                        <p className="record-meta">
-                          {timestampFormatter.format(new Date(entry.watchedAt))} · {formatSource(entry.source)} · {formatEntryType(entry.sourceKind)}
-                        </p>
-                      </div>
+            <section className="entries-panel focal-seat">
+              <div aria-hidden="true" className="seat-shadow" />
+              <div className="records-frame">
+                {filteredHistory.length === 0 ? (
+                  <div className="blank-slate blank-slate-entries">
+                    <p className="blank-title">{searchQuery ? 'No matches' : 'Nothing here yet'}</p>
+                    {!searchQuery ? <p className="blank-copy">Drop files or add a watched folder to start logging.</p> : null}
+                  </div>
+                ) : (
+                  <ol className="records-list">
+                    {filteredHistory.map((entry) => (
+                      <li className="record-row" key={entry.id}>
+                        <div className="record-copy">
+                          <strong className="record-title">{entry.title}</strong>
+                          <p className="record-meta">
+                            {timestampFormatter.format(new Date(entry.watchedAt))} · {formatSource(entry.source)} · {formatEntryType(entry.sourceKind)}
+                          </p>
+                        </div>
 
-                      <div className="record-actions">
-                        <button className="action-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
-                          Reveal
-                        </button>
-                        {entry.sourceKind === 'file' ? (
-                          <button className="action-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
-                            Open
+                        <div className="record-actions">
+                          <button className="action-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
+                            Reveal
                           </button>
-                        ) : null}
-                        <button className="action-button action-button-dim" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
-                          Copy Path
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
+                          {entry.sourceKind === 'file' ? (
+                            <button className="action-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
+                              Open
+                            </button>
+                          ) : null}
+                          <button className="action-button action-button-dim" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
+                            Copy Path
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
             </section>
 
-            <aside className="sidebar">
-              <section className="sidebar-card">
+            <aside className="sidebar wall-gallery">
+              <div aria-hidden="true" className="gallery-frame gallery-frame-tall" />
+              <section className="sidebar-card routes-frame">
                 <div className="sidebar-head">
                   <p className="sidebar-label">Watched Folders</p>
                   <p className="sidebar-status">{watchedFolderSummary}</p>
@@ -250,6 +275,7 @@ export function MovieLogWorkspace({
                   </ul>
                 )}
               </section>
+              <div aria-hidden="true" className="gallery-frame gallery-frame-wide" />
             </aside>
           </section>
         </div>
