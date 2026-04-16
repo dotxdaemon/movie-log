@@ -519,6 +519,7 @@ Sean, this happened because I kept solving the wrong layer of the problem.
    - snapshot inventory
    - each screen must declare which one it is rendering
 - 2026-04-16: Sean said the black brutalist layout was ugly. The exact cover file at `/Users/seankim/Downloads/Jan 13 2026/Chainsaw Man v19 (2025) (Digital) (1r0n)/Chainsaw Man - c165 (v19) - p000 [VIZ Media] [Digital] [1r0n].jpg` is the source of truth for this screen. The required markers are olive wallpaper, a large scarlet masthead, an oversized numeral, framed wall panels, diagonal light, a pale seat-like focal surface, and lower-corner foliage. The root cause was letting the later monochrome utility rewrite replace that contract. Future UI passes for Movie Log must start from the exact cover markers and verify the installed `/Applications/Movie Log.app`, not drift back to a generic black tool shell.
+- 2026-04-16: Sean asked to remove the giant X from the wall panel. The concrete root cause was `.gallery-frame-tall` still carrying decorative diagonal gradients that did no product work. For this screen, framed art panels may support composition, but they cannot introduce glyphs or marks that Sean did not ask for.
 
 4. I will treat existing tests as local truth, not global product truth.
    - if a store test says repeated events are preserved, that does not mean the UI should show repeated rows

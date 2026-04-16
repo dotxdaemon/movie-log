@@ -14,4 +14,9 @@ describe('renderer palette', () => {
     expect(stylesheet).not.toContain('--amber:');
     expect(stylesheet).not.toContain('var(--amber)');
   });
+
+  it('does not paint a decorative X across the framed wall panel', () => {
+    expect(stylesheet).not.toContain('linear-gradient(45deg, transparent 37%');
+    expect(stylesheet).not.toContain('linear-gradient(-45deg, transparent 37%');
+  });
 });
