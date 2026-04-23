@@ -1,20 +1,35 @@
 # Workspace Reference
 
-This document defines the approved Movie Log workspace inspired by the supplied Chainsaw Man Vol. 19 cover.
+This document defines the approved Movie Log workspace inspired by Sean's supplied ink-and-prism anime reference image at `/Users/seankim/Desktop/image.png`.
 
 ## Required Markers
 
-- olive room field: the app reads as one green room instead of a neutral or monochrome tool shell
-- acid-red masthead: the loudest hierarchy is a condensed red `Movie Log` banner at the top of the first screen
-- oversized issue mark: the entry count appears as one large editorial number instead of a small dashboard stat
-- framed wall gallery: watched folders and utility controls live inside a framed plaque with nearby wall art echoes
-- diagonal light: bright angled light bands cut across the room and support the focal plane
-- pale focal seat: the arrivals list lives inside one pale cream seat-like surface with a darker rose shadow plane
-- botanical edge: clustered plant forms anchor the lower corners of the screen
-- poster-led first viewport: the first screen reads as one composed poster surface, not a split utility grid
+- pale paper field: the app sits on a muted gray-beige ground with fine grain instead of a colored room or neutral dashboard
+- central ink figure: the arrivals list is the tall focal body that anchors the screen
+- fractured ink wings: black shard forms radiate behind and below the focal body
+- prismatic coat shards: cyan, magenta, violet, and gold accents appear as restrained light fractures at key edges
+- compact editorial masthead: `Movie Log`, status, count, search, and note action form one low top band
+- integrated route tools: watched folders attach to the focal body as an ink coat flap rather than a standalone sidebar
+- minimal first viewport: unnecessary helper copy, wall art, and decorative panels are removed
 - quiet utility controls: search, note, scan, and add-folder controls stay usable without taking headline rank
 - readable arrivals list: history rows remain scannable with real titles, timestamps, and actions
-- responsive stack: narrow widths keep the arrivals seat first and the wall gallery second
+- responsive stack: narrow widths keep the arrivals figure first and the route tools second
+- portrait-stage
+- ink-masthead
+- figure-count
+- ink-wing-field
+- route-tools
+- figure-panel
+
+## Disallowed Markers
+
+- olive room field
+- acid-red masthead
+- oversized issue mark
+- framed wall gallery
+- diagonal light
+- pale focal seat
+- botanical edge
 - poster-stage
 - masthead-banner
 - issue-mark
@@ -22,12 +37,6 @@ This document defines the approved Movie Log workspace inspired by the supplied 
 - wall-gallery
 - routes-frame
 - focal-seat
-
-## Disallowed Markers
-
-- monochrome field
-- minimal stage
-- flat chrome
 - history-layout
 - history-panel
 - routes-block

@@ -1,4 +1,4 @@
-// ABOUTME: Verifies that the renderer workspace resolves into one editorial layout with a warm focal stage.
+// ABOUTME: Verifies that the renderer workspace resolves into one ink-portrait composition.
 // ABOUTME: Uses a resolved React tree so the visual contract can regress without brittle markup snapshots.
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -48,7 +48,7 @@ const state: MovieLogState = {
 function noop(): void {}
 
 describe('MovieLogWorkspace', () => {
-  it('renders an editorial workspace with a focal seat, wall gallery, and warm scene markers', () => {
+  it('renders an ink portrait workspace with integrated route tools and a central figure panel', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         dropActive: false,
@@ -70,19 +70,19 @@ describe('MovieLogWorkspace', () => {
     );
 
     expect(findByClass(tree, 'workspace-stack')).toHaveLength(1);
-    expect(findByClass(tree, 'poster-stage')).toHaveLength(1);
-    expect(findByClass(tree, 'poster-head')).toHaveLength(1);
-    expect(findByClass(tree, 'masthead-banner')).toHaveLength(1);
-    expect(findByClass(tree, 'issue-mark')).toHaveLength(1);
+    expect(findByClass(tree, 'portrait-stage')).toHaveLength(1);
+    expect(findByClass(tree, 'ink-masthead')).toHaveLength(1);
+    expect(findByClass(tree, 'figure-count')).toHaveLength(1);
     expect(findByClass(tree, 'workspace-search')).toHaveLength(1);
-    expect(findByClass(tree, 'poster-room')).toHaveLength(1);
-    expect(findByClass(tree, 'sunbeam-field')).toHaveLength(1);
-    expect(findByClass(tree, 'botanical-edge')).toHaveLength(2);
-    expect(findByClass(tree, 'focal-seat')).toHaveLength(1);
+    expect(findByClass(tree, 'portrait-room')).toHaveLength(1);
+    expect(findByClass(tree, 'ink-wing-field')).toHaveLength(1);
+    expect(findByClass(tree, 'ink-wing')).toHaveLength(3);
+    expect(findByClass(tree, 'figure-panel')).toHaveLength(1);
     expect(findByClass(tree, 'records-frame')).toHaveLength(1);
-    expect(findByClass(tree, 'wall-gallery')).toHaveLength(1);
-    expect(findByClass(tree, 'routes-frame')).toHaveLength(1);
-    expect(findByClass(tree, 'minimal-stage')).toHaveLength(0);
+    expect(findByClass(tree, 'route-tools')).toHaveLength(1);
+    expect(findByClass(tree, 'wall-gallery')).toHaveLength(0);
+    expect(findByClass(tree, 'routes-frame')).toHaveLength(0);
+    expect(findByClass(tree, 'botanical-edge')).toHaveLength(0);
     expect(findByClass(tree, 'record-row')).toHaveLength(2);
     const text = readText(tree);
     expect(text).toContain('Movie Log');
@@ -90,6 +90,34 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('Flow');
     expect(text).toContain('The Plague');
     expect(text).toContain('2 entries across 1 folder');
+  });
+
+  it('keeps the count inside the masthead instead of a separate oversized header mark', () => {
+    const tree = renderTree(
+      createElement(MovieLogWorkspace, {
+        dropActive: false,
+        errorMessage: '',
+        noteFilePath: '/tmp/movie-log-note.md',
+        onAddWatchedFolders: async () => {},
+        onCopyPath: async () => {},
+        onDrop: noop,
+        onDropActiveChange: noop,
+        onOpenInFinder: async () => {},
+        onOpenItem: async () => {},
+        onRemoveWatchedFolder: async () => {},
+        onScanNow: async () => {},
+        onSearchQueryChange: noop,
+        scanInProgress: false,
+        searchQuery: '',
+        state
+      })
+    );
+
+    const masthead = findByClass(tree, 'ink-masthead');
+    expect(masthead).toHaveLength(1);
+    expect(findByClass(masthead, 'workspace-title')).toHaveLength(1);
+    expect(findByClass(masthead, 'figure-count')).toHaveLength(1);
+    expect(findByClass(tree, 'issue-mark')).toHaveLength(0);
   });
 
   it('shows filtered results when searching', () => {
