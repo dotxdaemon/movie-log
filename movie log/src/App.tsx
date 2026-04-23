@@ -1,5 +1,5 @@
 // ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
-// ABOUTME: Shapes arrivals and folder controls into one ink-portrait workspace.
+// ABOUTME: Shapes arrivals and folder controls into one couture ledger workspace.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import type { MovieLogState, WatchEntry } from '../shared/types.js';
@@ -134,8 +134,6 @@ export function MovieLogWorkspace({
   const history = collapseHistory(state.history);
   const filteredHistory = history.filter((entry) => matchesSearch(entry, searchQuery));
   const ledgerSummary = createLedgerSummary(history.length, filteredHistory, searchQuery, scanInProgress, state.watchedFolders.length);
-  const watchedFolderSummary =
-    state.watchedFolders.length === 0 ? 'None' : `${formatCount(state.watchedFolders.length, 'folder')} active`;
   const issueMark = String(history.length).padStart(2, '0');
   const statusBanner = errorMessage ? (
     <section className="status-banner" role="alert">
@@ -146,8 +144,8 @@ export function MovieLogWorkspace({
   return (
     <AppShell
       workspaceStage={
-        <div className="workspace-stack portrait-stage">
-          <header className="ink-masthead">
+        <div className="workspace-stack couture-stage">
+          <header className="atelier-head">
             <div className="title-block">
               <h1 className="workspace-title">Movie Log</h1>
               <p className="workspace-status">{ledgerSummary}</p>
@@ -157,7 +155,27 @@ export function MovieLogWorkspace({
               {issueMark}
             </p>
 
-            <div className="head-actions">
+          </header>
+
+          {statusBanner}
+
+          <section
+            className={dropActive ? 'couture-room couture-room-active' : 'couture-room'}
+            onDragEnter={() => onDropActiveChange(true)}
+            onDragLeave={() => onDropActiveChange(false)}
+            onDragOver={(event) => {
+              event.preventDefault();
+              onDropActiveChange(true);
+            }}
+            onDrop={onDrop}
+          >
+            <div aria-hidden="true" className="coat-field">
+              <span className="coat-wing coat-wing-left" />
+              <span className="coat-wing coat-wing-right" />
+              <span className="coat-wing coat-ground" />
+            </div>
+
+            <section className="command-strip">
               <button className="note-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
                 Open Note
               </button>
@@ -170,28 +188,38 @@ export function MovieLogWorkspace({
                   value={searchQuery}
                 />
               </label>
-            </div>
-          </header>
+              <div className="command-actions">
+                <button className="command-button command-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
+                  Add Folder
+                </button>
+                <button
+                  className="command-button"
+                  disabled={state.watchedFolders.length === 0 || scanInProgress}
+                  onClick={() => void onScanNow()}
+                  type="button"
+                >
+                  {scanInProgress ? 'Scanning…' : 'Scan Now'}
+                </button>
+              </div>
 
-          {statusBanner}
+              {state.watchedFolders.length > 0 ? (
+                <ul className="folder-list">
+                  {state.watchedFolders.map((folder) => (
+                    <li className="folder-row" key={folder.id}>
+                      <div className="folder-info">
+                        <strong className="folder-name">{folder.name}</strong>
+                        <p className="folder-meta">{`Added ${timestampFormatter.format(new Date(folder.addedAt))}`}</p>
+                      </div>
+                      <button className="folder-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
 
-          <section
-            className={dropActive ? 'portrait-room portrait-room-active' : 'portrait-room'}
-            onDragEnter={() => onDropActiveChange(true)}
-            onDragLeave={() => onDropActiveChange(false)}
-            onDragOver={(event) => {
-              event.preventDefault();
-              onDropActiveChange(true);
-            }}
-            onDrop={onDrop}
-          >
-            <div aria-hidden="true" className="ink-wing-field">
-              <span className="ink-wing ink-wing-left" />
-              <span className="ink-wing ink-wing-right" />
-              <span className="ink-wing ink-wing-ground" />
-            </div>
-
-            <section className="entries-panel figure-panel">
+            <section className="entries-panel coat-panel">
               <div className="records-frame">
                 {filteredHistory.length === 0 ? (
                   <div className="blank-slate blank-slate-entries">
@@ -227,43 +255,6 @@ export function MovieLogWorkspace({
                 )}
               </div>
             </section>
-
-            <aside className="route-tools">
-              <div className="sidebar-head">
-                <p className="sidebar-label">Watched Folders</p>
-                <p className="sidebar-status">{watchedFolderSummary}</p>
-              </div>
-
-              <div className="sidebar-actions">
-                <button className="sidebar-button sidebar-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
-                  Add Folder
-                </button>
-                <button
-                  className="sidebar-button"
-                  disabled={state.watchedFolders.length === 0 || scanInProgress}
-                  onClick={() => void onScanNow()}
-                  type="button"
-                >
-                  {scanInProgress ? 'Scanning…' : 'Scan Now'}
-                </button>
-              </div>
-
-              {state.watchedFolders.length > 0 ? (
-                <ul className="folder-list">
-                  {state.watchedFolders.map((folder) => (
-                    <li className="folder-row" key={folder.id}>
-                      <div className="folder-info">
-                        <strong className="folder-name">{folder.name}</strong>
-                        <p className="folder-meta">{`Added ${timestampFormatter.format(new Date(folder.addedAt))}`}</p>
-                      </div>
-                      <button className="folder-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </aside>
           </section>
         </div>
       }

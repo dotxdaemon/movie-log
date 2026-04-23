@@ -1,4 +1,4 @@
-// ABOUTME: Verifies that the renderer workspace resolves into one ink-portrait composition.
+// ABOUTME: Verifies that the renderer workspace resolves into one couture ledger composition.
 // ABOUTME: Uses a resolved React tree so the visual contract can regress without brittle markup snapshots.
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -48,7 +48,7 @@ const state: MovieLogState = {
 function noop(): void {}
 
 describe('MovieLogWorkspace', () => {
-  it('renders an ink portrait workspace with integrated route tools and a central figure panel', () => {
+  it('renders a couture workspace with one integrated command strip and coat panel', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         dropActive: false,
@@ -70,16 +70,17 @@ describe('MovieLogWorkspace', () => {
     );
 
     expect(findByClass(tree, 'workspace-stack')).toHaveLength(1);
-    expect(findByClass(tree, 'portrait-stage')).toHaveLength(1);
-    expect(findByClass(tree, 'ink-masthead')).toHaveLength(1);
+    expect(findByClass(tree, 'couture-stage')).toHaveLength(1);
+    expect(findByClass(tree, 'atelier-head')).toHaveLength(1);
     expect(findByClass(tree, 'figure-count')).toHaveLength(1);
     expect(findByClass(tree, 'workspace-search')).toHaveLength(1);
-    expect(findByClass(tree, 'portrait-room')).toHaveLength(1);
-    expect(findByClass(tree, 'ink-wing-field')).toHaveLength(1);
-    expect(findByClass(tree, 'ink-wing')).toHaveLength(3);
-    expect(findByClass(tree, 'figure-panel')).toHaveLength(1);
+    expect(findByClass(tree, 'couture-room')).toHaveLength(1);
+    expect(findByClass(tree, 'coat-field')).toHaveLength(1);
+    expect(findByClass(tree, 'coat-wing')).toHaveLength(3);
+    expect(findByClass(tree, 'command-strip')).toHaveLength(1);
+    expect(findByClass(tree, 'coat-panel')).toHaveLength(1);
     expect(findByClass(tree, 'records-frame')).toHaveLength(1);
-    expect(findByClass(tree, 'route-tools')).toHaveLength(1);
+    expect(findByClass(tree, 'route-tools')).toHaveLength(0);
     expect(findByClass(tree, 'wall-gallery')).toHaveLength(0);
     expect(findByClass(tree, 'routes-frame')).toHaveLength(0);
     expect(findByClass(tree, 'botanical-edge')).toHaveLength(0);
@@ -92,7 +93,7 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('2 entries across 1 folder');
   });
 
-  it('keeps the count inside the masthead instead of a separate oversized header mark', () => {
+  it('keeps the count inside the header instead of a separate oversized mark', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         dropActive: false,
@@ -113,10 +114,10 @@ describe('MovieLogWorkspace', () => {
       })
     );
 
-    const masthead = findByClass(tree, 'ink-masthead');
-    expect(masthead).toHaveLength(1);
-    expect(findByClass(masthead, 'workspace-title')).toHaveLength(1);
-    expect(findByClass(masthead, 'figure-count')).toHaveLength(1);
+    const head = findByClass(tree, 'atelier-head');
+    expect(head).toHaveLength(1);
+    expect(findByClass(head, 'workspace-title')).toHaveLength(1);
+    expect(findByClass(head, 'figure-count')).toHaveLength(1);
     expect(findByClass(tree, 'issue-mark')).toHaveLength(0);
   });
 

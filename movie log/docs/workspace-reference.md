@@ -4,25 +4,28 @@ This document defines the approved Movie Log workspace inspired by Sean's suppli
 
 ## Required Markers
 
-- pale paper field: the app sits on a muted gray-beige ground with fine grain instead of a colored room or neutral dashboard
-- central ink figure: the arrivals list is the tall focal body that anchors the screen
-- fractured ink wings: black shard forms radiate behind and below the focal body
-- prismatic coat shards: cyan, magenta, violet, and gold accents appear as restrained light fractures at key edges
-- compact editorial masthead: `Movie Log`, status, count, search, and note action form one low top band
-- integrated route tools: watched folders attach to the focal body as an ink coat flap rather than a standalone sidebar
-- minimal first viewport: unnecessary helper copy, wall art, and decorative panels are removed
+- mist paper field: the app sits on a pale gray-beige ground with fine grain
+- tailored black coat: the main record surface is a dark suit-like mass, not a pale rectangular slab
+- integrated command strip: search, note, add-folder, scan, and folder chips live in one surface above the ledger
+- translucent coat planes: black angular planes sit behind the ledger and support the central surface
+- prismatic edge glints: cyan, magenta, violet, and gold appear only as restrained edge light
+- quiet masthead: `Movie Log`, status, and count stay compact and do not dominate the working surface
+- minimal first viewport: unnecessary helper copy, wall art, separate side cards, and decorative panels are removed
 - quiet utility controls: search, note, scan, and add-folder controls stay usable without taking headline rank
 - readable arrivals list: history rows remain scannable with real titles, timestamps, and actions
-- responsive stack: narrow widths keep the arrivals figure first and the route tools second
-- portrait-stage
-- ink-masthead
+- responsive stack: narrow widths keep controls first and the arrivals ledger second
+- couture-stage
+- atelier-head
 - figure-count
-- ink-wing-field
-- route-tools
-- figure-panel
+- coat-field
+- command-strip
+- coat-panel
 
 ## Disallowed Markers
 
+- pale rectangular slab
+- separate tilted route card
+- route-tools
 - olive room field
 - acid-red masthead
 - oversized issue mark
@@ -30,6 +33,10 @@ This document defines the approved Movie Log workspace inspired by Sean's suppli
 - diagonal light
 - pale focal seat
 - botanical edge
+- portrait-stage
+- ink-masthead
+- ink-wing-field
+- figure-panel
 - poster-stage
 - masthead-banner
 - issue-mark
