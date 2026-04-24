@@ -1,5 +1,5 @@
 // ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
-// ABOUTME: Shapes arrivals and folder controls into one couture ledger workspace.
+// ABOUTME: Shapes arrivals and folder controls into one tailored ledger workspace.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import type { MovieLogState, WatchEntry } from '../shared/types.js';
@@ -144,14 +144,14 @@ export function MovieLogWorkspace({
   return (
     <AppShell
       workspaceStage={
-        <div className="workspace-stack couture-stage">
-          <header className="atelier-head">
+        <div className="workspace-stack tailored-stage">
+          <header className="workspace-head">
             <div className="title-block">
               <h1 className="workspace-title">Movie Log</h1>
               <p className="workspace-status">{ledgerSummary}</p>
             </div>
 
-            <p aria-hidden="true" className="figure-count">
+            <p aria-hidden="true" className="entry-count">
               {issueMark}
             </p>
 
@@ -160,7 +160,7 @@ export function MovieLogWorkspace({
           {statusBanner}
 
           <section
-            className={dropActive ? 'couture-room couture-room-active' : 'couture-room'}
+            className={dropActive ? 'tailored-room tailored-room-active' : 'tailored-room'}
             onDragEnter={() => onDropActiveChange(true)}
             onDragLeave={() => onDropActiveChange(false)}
             onDragOver={(event) => {
@@ -169,13 +169,7 @@ export function MovieLogWorkspace({
             }}
             onDrop={onDrop}
           >
-            <div aria-hidden="true" className="coat-field">
-              <span className="coat-wing coat-wing-left" />
-              <span className="coat-wing coat-wing-right" />
-              <span className="coat-wing coat-ground" />
-            </div>
-
-            <section className="command-strip">
+            <section className="command-bar">
               <button className="note-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
                 Open Note
               </button>
@@ -219,7 +213,7 @@ export function MovieLogWorkspace({
               ) : null}
             </section>
 
-            <section className="entries-panel coat-panel">
+            <section className="entries-panel ledger-surface">
               <div className="records-frame">
                 {filteredHistory.length === 0 ? (
                   <div className="blank-slate blank-slate-entries">

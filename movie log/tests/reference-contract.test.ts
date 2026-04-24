@@ -1,4 +1,4 @@
-// ABOUTME: Verifies that Movie Log keeps one explicit reference contract for the couture ledger workspace.
+// ABOUTME: Verifies that Movie Log keeps one explicit reference contract for the tailored ledger workspace.
 // ABOUTME: Prevents future UI work from drifting back toward rejected utility shells or unrelated cover systems.
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -10,22 +10,24 @@ describe('workspace reference contract', () => {
   it('records the required markers and banned utility-shell traits for the current workspace', async () => {
     const referenceContract = await readFile(referenceContractPath, 'utf8');
 
-    expect(referenceContract).toContain('mist paper field');
-    expect(referenceContract).toContain('tailored black coat');
-    expect(referenceContract).toContain('integrated command strip');
-    expect(referenceContract).toContain('translucent coat planes');
-    expect(referenceContract).toContain('prismatic edge glints');
-    expect(referenceContract).toContain('quiet masthead');
+    expect(referenceContract).toContain('quiet gray field');
+    expect(referenceContract).toContain('tailored black workspace');
+    expect(referenceContract).toContain('integrated command bar');
+    expect(referenceContract).toContain('single ledger surface');
+    expect(referenceContract).toContain('material edge glints');
+    expect(referenceContract).toContain('compact masthead');
     expect(referenceContract).toContain('minimal first viewport');
     expect(referenceContract).toContain('quiet utility controls');
     expect(referenceContract).toContain('readable arrivals list');
     expect(referenceContract).toContain('responsive stack');
-    expect(referenceContract).toContain('couture-stage');
-    expect(referenceContract).toContain('atelier-head');
-    expect(referenceContract).toContain('figure-count');
+    expect(referenceContract).toContain('tailored-stage');
+    expect(referenceContract).toContain('workspace-head');
+    expect(referenceContract).toContain('entry-count');
+    expect(referenceContract).toContain('command-bar');
+    expect(referenceContract).toContain('ledger-surface');
     expect(referenceContract).toContain('coat-field');
-    expect(referenceContract).toContain('command-strip');
-    expect(referenceContract).toContain('coat-panel');
+    expect(referenceContract).toContain('coat-wing');
+    expect(referenceContract).toContain('random prisms');
     expect(referenceContract).toContain('route-tools');
     expect(referenceContract).toContain('olive room field');
     expect(referenceContract).toContain('acid-red masthead');
