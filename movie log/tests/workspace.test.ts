@@ -78,6 +78,10 @@ describe('MovieLogWorkspace', () => {
     expect(findByClass(tree, 'command-bar')).toHaveLength(1);
     expect(findByClass(tree, 'ledger-surface')).toHaveLength(1);
     expect(findByClass(tree, 'records-frame')).toHaveLength(1);
+    expect(findByClass(tree, 'record-menu')).toHaveLength(2);
+    expect(findByClass(tree, 'record-menu-trigger')).toHaveLength(2);
+    expect(findByClass(tree, 'record-menu-panel')).toHaveLength(2);
+    expect(findByClass(tree, 'record-actions')).toHaveLength(0);
     expect(findByClass(tree, 'couture-stage')).toHaveLength(0);
     expect(findByClass(tree, 'atelier-head')).toHaveLength(0);
     expect(findByClass(tree, 'coat-field')).toHaveLength(0);
@@ -95,6 +99,8 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('Add Folder');
     expect(text).toContain('Flow');
     expect(text).toContain('The Plague');
+    expect(text).toContain('Reveal');
+    expect(text).toContain('Copy Path');
     expect(text).toContain('2 entries across 1 folder');
   });
 

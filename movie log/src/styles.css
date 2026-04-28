@@ -180,14 +180,39 @@ button:disabled {
 }
 
 .tailored-room {
+  position: relative;
   width: min(100%, 980px);
   margin: 0 auto;
-  padding: 4px 0 28px;
+  padding: 16px 16px 22px;
+  border: 1px solid rgba(245, 240, 231, 0.14);
+  border-radius: 10px 10px 24px 24px;
+  background:
+    linear-gradient(90deg, transparent 0 49.4%, rgba(245, 240, 231, 0.055) 49.4% 50.6%, transparent 50.6%),
+    linear-gradient(180deg, var(--ink-soft), var(--ink) 34%, #050505);
+  box-shadow:
+    0 34px 68px rgba(7, 7, 7, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.tailored-room-active .ledger-surface,
-.tailored-room-active .command-bar {
+.tailored-room::before {
+  content: '';
+  position: absolute;
+  top: 13px;
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--glint);
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+.tailored-room-active {
   border-color: rgba(216, 47, 67, 0.86);
+}
+
+.tailored-room-active::before {
+  opacity: 1;
 }
 
 .command-bar {
@@ -195,25 +220,14 @@ button:disabled {
   grid-template-columns: auto minmax(220px, 1fr) auto;
   gap: 10px;
   align-items: center;
-  padding: 12px;
-  border: 1px solid rgba(245, 240, 231, 0.16);
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: linear-gradient(180deg, var(--ink-soft), var(--ink));
-  box-shadow: 0 20px 44px rgba(7, 7, 7, 0.22);
-}
-
-.command-bar::before {
-  content: '';
-  grid-column: 1 / -1;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--glint);
-  opacity: 0.78;
+  padding: 18px 0 12px;
+  border-bottom: 1px solid rgba(245, 240, 231, 0.13);
 }
 
 .note-button,
 .command-button,
 .action-button,
+.record-menu-trigger,
 .folder-remove {
   transition:
     border-color 0.14s,
@@ -392,25 +406,13 @@ button:disabled {
 }
 
 .ledger-surface {
-  padding: 18px;
-  border: 1px solid rgba(245, 240, 231, 0.12);
-  border-top: 0;
-  border-radius: 0 0 var(--radius) var(--radius);
-  background:
-    linear-gradient(90deg, transparent 0 49.4%, rgba(245, 240, 231, 0.06) 49.4% 50.6%, transparent 50.6%),
-    linear-gradient(180deg, var(--ink-raised), var(--ink));
-  box-shadow:
-    0 34px 68px rgba(7, 7, 7, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 18px 0 0;
 }
 
 .records-frame {
   min-height: min(650px, calc(100dvh - 250px));
-  padding: 12px 22px;
-  border: 1px solid var(--line-light);
-  border-radius: var(--radius-sm);
-  background: rgba(7, 7, 7, 0.42);
-  overflow: hidden;
+  padding: 8px 22px 0;
+  overflow: visible;
 }
 
 .records-list {
@@ -492,11 +494,55 @@ button:disabled {
   text-overflow: ellipsis;
 }
 
-.record-actions {
+.record-menu {
+  position: relative;
+  justify-self: end;
+}
+
+.record-menu[open] {
+  z-index: 2;
+}
+
+.record-menu-trigger {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  border: 1px solid rgba(245, 240, 231, 0.18);
+  border-radius: var(--radius-sm);
+  background: rgba(245, 240, 231, 0.04);
+  color: rgba(245, 240, 231, 0.7);
+  cursor: pointer;
+  font-family: var(--mono-font);
+  font-size: 0.72rem;
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.record-menu-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.record-menu-trigger:hover,
+.record-menu-trigger:focus-visible,
+.record-menu[open] .record-menu-trigger {
+  outline: none;
+  border-color: var(--edge);
+  background: var(--edge);
+  color: var(--ink);
+}
+
+.record-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
   gap: 6px;
+  padding: 7px;
+  border: 1px solid rgba(245, 240, 231, 0.18);
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.42);
 }
 
 .action-button {
@@ -598,7 +644,7 @@ button:disabled {
   }
 
   .tailored-room {
-    padding-top: 0;
+    padding: 12px 12px 18px;
   }
 
   .command-bar {
@@ -615,23 +661,18 @@ button:disabled {
   }
 
   .ledger-surface {
-    padding: 12px;
+    padding: 12px 0 0;
   }
 
   .records-frame {
     min-height: 390px;
-    padding: 12px;
+    padding: 8px 0 0;
   }
 
   .record-row {
-    grid-template-columns: 1.6rem minmax(0, 1fr);
+    grid-template-columns: 1.6rem minmax(0, 1fr) auto;
     gap: 10px;
     align-items: start;
-  }
-
-  .record-actions {
-    grid-column: 2;
-    justify-content: flex-start;
   }
 
   .record-meta {

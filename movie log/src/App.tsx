@@ -2,6 +2,7 @@
 // ABOUTME: Shapes arrivals and folder controls into one tailored ledger workspace.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
+import { readVisibleHistory } from '../shared/history.js';
 import type { MovieLogState, WatchEntry } from '../shared/types.js';
 
 const emptyState: MovieLogState = {
@@ -68,26 +69,6 @@ function matchesSearch(entry: WatchEntry, searchQuery: string): boolean {
   );
 }
 
-function collapseHistory(entries: WatchEntry[]): WatchEntry[] {
-  const historyByPath = new Map<string, WatchEntry>();
-  const manualEntries: WatchEntry[] = [];
-
-  for (const entry of entries) {
-    if (entry.source !== 'watch') {
-      manualEntries.push(entry);
-      continue;
-    }
-
-    const existing = historyByPath.get(entry.sourcePath);
-
-    if (!existing || entry.watchedAt < existing.watchedAt) {
-      historyByPath.set(entry.sourcePath, entry);
-    }
-  }
-
-  return [...manualEntries, ...historyByPath.values()].sort((left, right) => right.watchedAt.localeCompare(left.watchedAt));
-}
-
 function createLedgerSummary(
   historyCount: number,
   filteredHistory: WatchEntry[],
@@ -131,7 +112,7 @@ export function MovieLogWorkspace({
   searchQuery,
   state
 }: MovieLogWorkspaceProps) {
-  const history = collapseHistory(state.history);
+  const history = readVisibleHistory(state.history);
   const filteredHistory = history.filter((entry) => matchesSearch(entry, searchQuery));
   const ledgerSummary = createLedgerSummary(history.length, filteredHistory, searchQuery, scanInProgress, state.watchedFolders.length);
   const issueMark = String(history.length).padStart(2, '0');
@@ -230,19 +211,24 @@ export function MovieLogWorkspace({
                           </p>
                         </div>
 
-                        <div className="record-actions">
-                          <button className="action-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
-                            Reveal
-                          </button>
-                          {entry.sourceKind === 'file' ? (
-                            <button className="action-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
-                              Open
+                        <details className="record-menu">
+                          <summary className="record-menu-trigger" aria-label={`Actions for ${entry.title}`}>
+                            ...
+                          </summary>
+                          <div className="record-menu-panel">
+                            <button className="action-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
+                              Reveal
                             </button>
-                          ) : null}
-                          <button className="action-button action-button-dim" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
-                            Copy Path
-                          </button>
-                        </div>
+                            {entry.sourceKind === 'file' ? (
+                              <button className="action-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
+                                Open
+                              </button>
+                            ) : null}
+                            <button className="action-button action-button-dim" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
+                              Copy Path
+                            </button>
+                          </div>
+                        </details>
                       </li>
                     ))}
                   </ol>

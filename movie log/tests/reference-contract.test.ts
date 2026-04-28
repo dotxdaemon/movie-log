@@ -14,6 +14,7 @@ describe('workspace reference contract', () => {
     expect(referenceContract).toContain('tailored black workspace');
     expect(referenceContract).toContain('integrated command bar');
     expect(referenceContract).toContain('single ledger surface');
+    expect(referenceContract).toContain('row action menu');
     expect(referenceContract).toContain('material edge glints');
     expect(referenceContract).toContain('compact masthead');
     expect(referenceContract).toContain('minimal first viewport');
@@ -37,5 +38,6 @@ describe('workspace reference contract', () => {
     expect(referenceContract).toContain('history-panel');
     expect(referenceContract).toContain('routes-block');
     expect(referenceContract).toContain('equal split utility grid');
+    expect(referenceContract).toContain('always-visible row action column');
   });
 });

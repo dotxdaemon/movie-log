@@ -8,6 +8,7 @@ This document defines the approved Movie Log workspace inspired by Sean's suppli
 - tailored black workspace: the main record surface is a dark suit-like mass, not a pale rectangular slab
 - integrated command bar: search, note, add-folder, scan, and folder chips live in one surface above the ledger
 - single ledger surface: the arrivals list is the subject and does not compete with side cards or decorative panels
+- row action menu: repeated Reveal/Open/Copy actions are available from a compact row menu so long titles keep the main rhythm
 - material edge glints: color appears only as restrained edge light on focus or active structure
 - compact masthead: `Movie Log`, status, and count stay compact and do not dominate the working surface
 - minimal first viewport: unnecessary helper copy, wall art, separate side cards, and decorative panels are removed
@@ -55,6 +56,7 @@ This document defines the approved Movie Log workspace inspired by Sean's suppli
 - history-panel
 - routes-block
 - equal split utility grid
+- always-visible row action column
 - standalone admin rail
 - glass dashboard cards
 - decorative shell energy that outranks the working surfaces

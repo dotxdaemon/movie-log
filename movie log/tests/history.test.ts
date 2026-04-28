@@ -1,7 +1,7 @@
 // ABOUTME: Verifies that dropped paths become clean watch-history entries with stable titles.
 // ABOUTME: Checks file-title cleanup and newest-first ordering for the local history list.
 import { describe, expect, it } from 'vitest';
-import { createEntryFromPath, sortEntriesByWatchedAt } from '../shared/history.js';
+import { createEntryFromPath, readVisibleHistory, sortEntriesByWatchedAt } from '../shared/history.js';
 
 describe('createEntryFromPath', () => {
   it('uses a folder name as the title and preserves the original path', () => {
@@ -28,5 +28,20 @@ describe('sortEntriesByWatchedAt', () => {
     ]);
 
     expect(sorted.map((entry) => entry.title)).toEqual(['newer', 'older']);
+  });
+});
+
+describe('readVisibleHistory', () => {
+  it('keeps the earliest watched-folder row for each path while preserving manual drops', () => {
+    const visibleHistory = readVisibleHistory([
+      createEntryFromPath('/tmp/Flow.mkv', 'watch', '2026-03-21T08:00:00.000Z', 'file'),
+      createEntryFromPath('/tmp/Flow.mkv', 'watch', '2026-03-19T08:00:00.000Z', 'file'),
+      createEntryFromPath('/tmp/Manual.mkv', 'drop', '2026-03-20T08:00:00.000Z', 'file')
+    ]);
+
+    expect(visibleHistory.map((entry) => `${entry.source}:${entry.title}:${entry.watchedAt}`)).toEqual([
+      'drop:Manual:2026-03-20T08:00:00.000Z',
+      'watch:Flow:2026-03-19T08:00:00.000Z'
+    ]);
   });
 });

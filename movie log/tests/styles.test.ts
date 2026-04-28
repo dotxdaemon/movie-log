@@ -22,4 +22,21 @@ describe('styles.css', () => {
       /\.tab-button:hover,\s*\.panel-button:hover,\s*\.ghost-button:hover\s*\{[^}]*transform:/s
     );
   });
+
+  it('keeps the dark material on one tailored workspace instead of split panels', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).toMatch(/\.tailored-room\s*\{[^}]*background:/s);
+    expect(styles).not.toMatch(/\.command-bar\s*\{[^}]*box-shadow:/s);
+    expect(styles).not.toMatch(/\.ledger-surface\s*\{[^}]*box-shadow:/s);
+    expect(styles).not.toMatch(/\.records-frame\s*\{[^}]*border:/s);
+  });
+
+  it('gives row titles a compact menu instead of a persistent action column', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).toMatch(/\.record-menu\s*\{/);
+    expect(styles).toMatch(/\.record-menu-panel\s*\{/);
+    expect(styles).not.toMatch(/\.record-actions\s*\{/);
+  });
 });

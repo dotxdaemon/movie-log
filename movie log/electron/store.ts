@@ -3,7 +3,7 @@
 import { access, mkdir, open, readFile, rename, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { scanFolderContents, type ScannedFolderItem } from './folder-scan.js';
-import { createEntryFromPath, sortEntriesByWatchedAt } from '../shared/history.js';
+import { createEntryFromPath, readVisibleHistory, sortEntriesByWatchedAt } from '../shared/history.js';
 import type { LibraryItem, MovieLogState, WatchEntry, WatchedFolder } from '../shared/types.js';
 
 const HISTORY_POLICY = 'append-only';
@@ -35,27 +35,7 @@ function mergeHistoryEntries(existingEntries: WatchEntry[], incomingEntries: Wat
     return true;
   });
 
-  return collapseHistoryEntries([...uniqueIncomingEntries, ...existingEntries]);
-}
-
-function collapseHistoryEntries(entries: WatchEntry[]): WatchEntry[] {
-  const watchEntriesByPath = new Map<string, WatchEntry>();
-  const nonWatchEntries: WatchEntry[] = [];
-
-  for (const entry of entries) {
-    if (entry.source !== 'watch') {
-      nonWatchEntries.push(entry);
-      continue;
-    }
-
-    const existing = watchEntriesByPath.get(entry.sourcePath);
-
-    if (!existing || entry.watchedAt < existing.watchedAt) {
-      watchEntriesByPath.set(entry.sourcePath, entry);
-    }
-  }
-
-  return sortEntriesByWatchedAt([...nonWatchEntries, ...watchEntriesByPath.values()]);
+  return readVisibleHistory([...uniqueIncomingEntries, ...existingEntries]);
 }
 
 function sortLibraryItems(items: LibraryItem[]): LibraryItem[] {
@@ -306,7 +286,7 @@ export function createHistoryStore(dataDirectory: string) {
 
   function normalizeState(state: PersistedState): PersistedState {
     return {
-      history: collapseHistoryEntries(state.history),
+      history: readVisibleHistory(state.history),
       historyPolicy: HISTORY_POLICY,
       libraryItems: sortLibraryItems(state.libraryItems),
       knownPathsByFolder: { ...state.knownPathsByFolder },
