@@ -321,7 +321,7 @@ export default function App() {
 
       if (loggedPaths.skippedPaths.length > 0) {
         setErrorMessage(
-          `Logged ${formatCount(loggedPaths.addedCount, 'item')}. Skipped ${formatCount(loggedPaths.skippedPaths.length, 'path')} that could not be read.`
+          `Logged ${formatCount(loggedPaths.addedCount, 'item')}. Skipped ${formatCount(loggedPaths.skippedPaths.length, 'path')} that could not be logged.`
         );
         return;
       }

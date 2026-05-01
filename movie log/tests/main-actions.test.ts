@@ -89,4 +89,29 @@ describe('main actions', () => {
     expect(savedPaths).toEqual(['/Movies/Good.mkv']);
     expect(broadcastCount).toBe(1);
   });
+
+  it('reports readable dropped paths that are not loggable as skipped', async () => {
+    const savedPaths: string[] = [];
+
+    const result = await logPathsFromDrop(['/Movies/Good.mkv', '/Movies/Poster.jpg'], {
+      addHistoryEntries: async (entries) => {
+        savedPaths.push(...entries.map((entry) => entry.sourcePath));
+        return entries;
+      },
+      broadcastState: async () => {},
+      createEntryForPath: async (itemPath) => {
+        if (itemPath === '/Movies/Poster.jpg') {
+          return null;
+        }
+
+        return createEntryFromPath(itemPath, 'drop', '2026-03-19T10:05:00.000Z', 'file');
+      }
+    });
+
+    expect(result).toEqual({
+      addedCount: 1,
+      skippedPaths: ['/Movies/Poster.jpg']
+    });
+    expect(savedPaths).toEqual(['/Movies/Good.mkv']);
+  });
 });

@@ -324,9 +324,12 @@ describe('createFolderMonitor', () => {
     await mkdir(secondFolderPath);
 
     let releaseSecondFolderSync = () => {};
-    let secondFolderSyncStarted = false;
     const secondFolderSync = new Promise<void>((resolve) => {
       releaseSecondFolderSync = resolve;
+    });
+    let resolveSecondFolderSyncStarted = () => {};
+    const secondFolderSyncStarted = new Promise<void>((resolve) => {
+      resolveSecondFolderSyncStarted = resolve;
     });
     const knownByFolder = new Map<string, string[]>();
     const monitor = createFolderMonitor({
@@ -339,7 +342,7 @@ describe('createFolderMonitor', () => {
           return;
         }
 
-        secondFolderSyncStarted = true;
+        resolveSecondFolderSyncStarted();
         await secondFolderSync;
       },
       settleMs: 25
@@ -347,8 +350,9 @@ describe('createFolderMonitor', () => {
 
     await monitor.watchFolder(firstFolderPath);
     await monitor.watchFolder(secondFolderPath);
+    await delay(50);
     await writeFile(join(secondFolderPath, 'Flow.mkv'), 'movie');
-    await waitForFlag(() => secondFolderSyncStarted, 'the second folder sync to start');
+    await secondFolderSyncStarted;
     let unwatchResolved = false;
     const unwatchPromise = monitor.unwatchFolder(firstFolderPath).then(() => {
       unwatchResolved = true;

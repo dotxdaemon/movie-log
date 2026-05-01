@@ -48,6 +48,8 @@ export async function logPathsFromDrop(paths: string[], options: LogPathsFromDro
 
       if (entry) {
         entries.push(entry);
+      } else {
+        skippedPaths.push(itemPath);
       }
     } catch {
       skippedPaths.push(itemPath);
