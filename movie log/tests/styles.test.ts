@@ -27,6 +27,7 @@ describe('styles.css', () => {
     const styles = await readFile(stylesPath, 'utf8');
 
     expect(styles).toMatch(/\.tailored-room\s*\{[^}]*background:/s);
+    expect(styles).not.toMatch(/\.tailored-room\s*\{[^}]*49\.4%[^}]*50\.6%/s);
     expect(styles).not.toMatch(/\.command-bar\s*\{[^}]*box-shadow:/s);
     expect(styles).not.toMatch(/\.ledger-surface\s*\{[^}]*box-shadow:/s);
     expect(styles).not.toMatch(/\.records-frame\s*\{[^}]*border:/s);

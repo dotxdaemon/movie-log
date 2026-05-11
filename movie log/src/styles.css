@@ -186,9 +186,7 @@ button:disabled {
   padding: 16px 16px 22px;
   border: 1px solid rgba(245, 240, 231, 0.14);
   border-radius: 10px 10px 24px 24px;
-  background:
-    linear-gradient(90deg, transparent 0 49.4%, rgba(245, 240, 231, 0.055) 49.4% 50.6%, transparent 50.6%),
-    linear-gradient(180deg, var(--ink-soft), var(--ink) 34%, #050505);
+  background: linear-gradient(180deg, var(--ink-soft), var(--ink) 34%, #050505);
   box-shadow:
     0 34px 68px rgba(7, 7, 7, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
