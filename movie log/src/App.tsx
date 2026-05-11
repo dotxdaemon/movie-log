@@ -2,7 +2,8 @@
 // ABOUTME: Shapes arrivals and folder controls into one tailored ledger workspace.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
-import { readVisibleHistory } from '../shared/history.js';
+import { createDropFeedbackMessage, createScanFeedbackMessage, formatCount } from './feedback.js';
+import { readTitleFromPath, readVisibleHistory } from '../shared/history.js';
 import type { MovieLogState, WatchEntry } from '../shared/types.js';
 
 const emptyState: MovieLogState = {
@@ -48,8 +49,8 @@ function formatEntryType(sourceKind: WatchEntry['sourceKind']): string {
   return sourceKind === 'file' ? 'File' : 'Folder';
 }
 
-function formatCount(count: number, singular: string, plural = `${singular}s`): string {
-  return `${count} ${count === 1 ? singular : plural}`;
+function readEntryTitle(entry: WatchEntry): string {
+  return readTitleFromPath(entry.sourcePath, entry.sourceKind);
 }
 
 function matchesSearch(entry: WatchEntry, searchQuery: string): boolean {
@@ -58,12 +59,14 @@ function matchesSearch(entry: WatchEntry, searchQuery: string): boolean {
   }
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
+  const title = readEntryTitle(entry);
 
   if (!normalizedQuery) {
     return true;
   }
 
   return (
+    title.toLowerCase().includes(normalizedQuery) ||
     entry.title.toLowerCase().includes(normalizedQuery) ||
     entry.sourcePath.toLowerCase().includes(normalizedQuery)
   );
@@ -116,6 +119,8 @@ export function MovieLogWorkspace({
   const filteredHistory = history.filter((entry) => matchesSearch(entry, searchQuery));
   const ledgerSummary = createLedgerSummary(history.length, filteredHistory, searchQuery, scanInProgress, state.watchedFolders.length);
   const issueMark = String(history.length).padStart(2, '0');
+  const visibleFolderItems = state.libraryItems.slice(0, 5);
+  const hiddenFolderItemCount = state.libraryItems.length - visibleFolderItems.length;
   const statusBanner = errorMessage ? (
     <section className="status-banner" role="alert">
       {errorMessage}
@@ -192,6 +197,40 @@ export function MovieLogWorkspace({
                   ))}
                 </ul>
               ) : null}
+
+              {state.watchedFolders.length > 0 ? (
+                <details className="folder-state">
+                  <summary className="folder-state-trigger">
+                    <span>Current Contents</span>
+                    <span>{formatCount(state.libraryItems.length, 'current item')}</span>
+                  </summary>
+                  <div className="folder-state-panel">
+                    <ul className="folder-scan-list">
+                      {state.watchedFolders.map((folder) => (
+                        <li className="folder-scan-row" key={folder.id}>
+                          <span>{folder.name}</span>
+                          <span>{folder.lastScannedAt ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}` : 'Not scanned yet'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {visibleFolderItems.length > 0 ? (
+                      <ol className="folder-content-list">
+                        {visibleFolderItems.map((item) => (
+                          <li className="folder-content-row" key={item.id}>
+                            <strong>{readTitleFromPath(item.sourcePath, item.sourceKind)}</strong>
+                            <span>{item.sourceKind === 'file' ? 'File' : 'Folder'}</span>
+                          </li>
+                        ))}
+                        {hiddenFolderItemCount > 0 ? (
+                          <li className="folder-content-row folder-content-more">{`${formatCount(hiddenFolderItemCount, 'more', 'more')} not shown`}</li>
+                        ) : null}
+                      </ol>
+                    ) : (
+                      <p className="folder-state-empty">No current items from watched folders.</p>
+                    )}
+                  </div>
+                </details>
+              ) : null}
             </section>
 
             <section className="entries-panel ledger-surface">
@@ -205,7 +244,7 @@ export function MovieLogWorkspace({
                     {filteredHistory.map((entry) => (
                       <li className="record-row" key={entry.id}>
                         <div className="record-copy">
-                          <strong className="record-title">{entry.title}</strong>
+                          <strong className="record-title">{readEntryTitle(entry)}</strong>
                           <p className="record-meta">
                             {timestampFormatter.format(new Date(entry.watchedAt))} · {formatSource(entry.source)} · {formatEntryType(entry.sourceKind)}
                           </p>
@@ -320,9 +359,7 @@ export default function App() {
       const loggedPaths = await window.movieLog.logPaths(paths);
 
       if (loggedPaths.skippedPaths.length > 0) {
-        setErrorMessage(
-          `Logged ${formatCount(loggedPaths.addedCount, 'item')}. Skipped ${formatCount(loggedPaths.skippedPaths.length, 'path')} that could not be logged.`
-        );
+        setErrorMessage(createDropFeedbackMessage(loggedPaths));
         return;
       }
 
@@ -367,9 +404,14 @@ export default function App() {
   const handleScanNow = async () => {
     setErrorMessage('');
     setScanInProgress(true);
+    const previousHistoryCount = readVisibleHistory(state.history).length;
 
     try {
       await window.movieLog.scanNow();
+      const nextState = await window.movieLog.getState();
+      const nextHistoryCount = readVisibleHistory(nextState.history).length;
+      updateState(nextState, setState);
+      setErrorMessage(createScanFeedbackMessage(Math.max(0, nextHistoryCount - previousHistoryCount)));
     } catch (error) {
       setErrorMessage((error as Error).message);
     } finally {

@@ -2,7 +2,7 @@
 // ABOUTME: Keeps title cleanup and newest-first ordering deterministic across the desktop app.
 import type { EntryKind, EntrySource, WatchEntry } from './types.js';
 
-function readPathName(sourcePath: string): string {
+export function readPathName(sourcePath: string): string {
   const trimmedPath = sourcePath.replace(/\/+$/, '');
   const slashIndex = trimmedPath.lastIndexOf('/');
   return slashIndex === -1 ? trimmedPath : trimmedPath.slice(slashIndex + 1);
@@ -17,12 +17,36 @@ function inferKindFromPath(sourcePath: string): EntryKind {
   return readExtension(readPathName(sourcePath)) ? 'file' : 'directory';
 }
 
-function titleFromPath(sourcePath: string, sourceKind: EntryKind): string {
+function isReleaseDetail(value: string): boolean {
+  const normalizedValue = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  return (
+    /^\d{3,4}p$/.test(normalizedValue) ||
+    /^(x264|x265|h264|h265|hevc|av1|aac|ac3|eac3|ddp|dts|opus)$/.test(normalizedValue) ||
+    /^(bluray|brrip|webdl|webrip|hdtv|hdrip|dvdrip|remux)$/.test(normalizedValue) ||
+    /^(10bit|8bit|12bit|2audio|multi|atmos|proper|repack)$/.test(normalizedValue) ||
+    /^\d+ch$/.test(normalizedValue)
+  );
+}
+
+export function readTitleFromPath(sourcePath: string, sourceKind: EntryKind = inferKindFromPath(sourcePath)): string {
   const name = readPathName(sourcePath);
 
   if (sourceKind === 'file') {
     const extension = readExtension(name);
-    return extension ? name.slice(0, -extension.length) : name;
+    const nameWithoutExtension = extension ? name.slice(0, -extension.length) : name;
+    const words = nameWithoutExtension.replace(/[-_.]+/g, ' ').split(/\s+/).filter(Boolean);
+    const titleWords: string[] = [];
+
+    for (const word of words) {
+      if (isReleaseDetail(word)) {
+        break;
+      }
+
+      titleWords.push(word);
+    }
+
+    return titleWords.length > 0 ? titleWords.join(' ') : nameWithoutExtension;
   }
 
   return name;
@@ -39,7 +63,7 @@ export function createEntryFromPath(
     source,
     sourceKind,
     sourcePath,
-    title: titleFromPath(sourcePath, sourceKind),
+    title: readTitleFromPath(sourcePath, sourceKind),
     watchedAt
   };
 }

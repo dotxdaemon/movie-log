@@ -18,6 +18,29 @@ describe('createEntryFromPath', () => {
     expect(entry.title).toBe('Mickey 17');
     expect(entry.sourceKind).toBe('file');
   });
+
+  it('removes common release metadata from file titles', () => {
+    const entry = createEntryFromPath(
+      '/Users/seankim/Media Inbox/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
+      'watch',
+      '2026-03-12T08:00:00.000Z'
+    );
+
+    expect(entry.title).toBe('Catch Me If You Can 2002');
+    expect(entry.sourcePath).toBe(
+      '/Users/seankim/Media Inbox/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv'
+    );
+  });
+
+  it('treats release-style pixel counts as metadata even when they are malformed', () => {
+    const entry = createEntryFromPath(
+      '/Users/seankim/Media Inbox/Fantasy.Life.2025.1008p.AMZN.WEB-DL.DDP5.1.H.264-CHORTLE.mkv',
+      'watch',
+      '2026-03-12T08:00:00.000Z'
+    );
+
+    expect(entry.title).toBe('Fantasy Life 2025');
+  });
 });
 
 describe('sortEntriesByWatchedAt', () => {

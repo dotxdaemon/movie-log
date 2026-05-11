@@ -3,6 +3,7 @@
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { MovieLogWorkspace } from '../src/App.js';
+import { createDropFeedbackMessage, createScanFeedbackMessage } from '../src/feedback.js';
 import type { MovieLogState } from '../shared/types.js';
 import { findByClass, renderTree, readText } from './render-tree.js';
 
@@ -159,6 +160,89 @@ describe('MovieLogWorkspace', () => {
     expect(findByClass(tree, 'record-row')).toHaveLength(1);
   });
 
+  it('renders readable titles for release-style filenames', () => {
+    const tree = renderTree(
+      createElement(MovieLogWorkspace, {
+        dropActive: false,
+        errorMessage: '',
+        noteFilePath: '/tmp/movie-log-note.md',
+        onAddWatchedFolders: async () => {},
+        onCopyPath: async () => {},
+        onDrop: noop,
+        onDropActiveChange: noop,
+        onOpenInFinder: async () => {},
+        onOpenItem: async () => {},
+        onRemoveWatchedFolder: async () => {},
+        onScanNow: async () => {},
+        onSearchQueryChange: noop,
+        scanInProgress: false,
+        searchQuery: '',
+        state: {
+          ...state,
+          history: [
+            {
+              id: '2026-03-19T10:00:00.000Z:/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
+              source: 'watch',
+              sourceKind: 'file',
+              sourcePath:
+                '/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
+              title: 'Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS',
+              watchedAt: '2026-03-19T10:00:00.000Z'
+            }
+          ]
+        }
+      })
+    );
+
+    const text = readText(tree);
+    expect(text).toContain('Catch Me If You Can 2002');
+    expect(text).not.toContain('Catch.Me.If.You.Can');
+  });
+
+  it('shows watched-folder scan state and current contents', () => {
+    const tree = renderTree(
+      createElement(MovieLogWorkspace, {
+        dropActive: false,
+        errorMessage: '',
+        noteFilePath: '/tmp/movie-log-note.md',
+        onAddWatchedFolders: async () => {},
+        onCopyPath: async () => {},
+        onDrop: noop,
+        onDropActiveChange: noop,
+        onOpenInFinder: async () => {},
+        onOpenItem: async () => {},
+        onRemoveWatchedFolder: async () => {},
+        onScanNow: async () => {},
+        onSearchQueryChange: noop,
+        scanInProgress: false,
+        searchQuery: '',
+        state: {
+          ...state,
+          libraryItems: [
+            {
+              firstSeenAt: '2026-03-19T10:00:00.000Z',
+              folderId: '/Volumes/blve/movies',
+              folderPath: '/Volumes/blve/movies',
+              id: '/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
+              lastSeenAt: '2026-03-19T10:00:00.000Z',
+              sourceKind: 'file',
+              sourcePath:
+                '/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
+              title: 'Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS'
+            }
+          ]
+        }
+      })
+    );
+
+    const text = readText(tree);
+    expect(findByClass(tree, 'folder-state')).toHaveLength(1);
+    expect(text).toContain('Current Contents');
+    expect(text).toContain('1 current item');
+    expect(text).toContain('Last scanned');
+    expect(text).toContain('Catch Me If You Can 2002');
+  });
+
   it('shows a blank state when search matches nothing', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
@@ -183,5 +267,20 @@ describe('MovieLogWorkspace', () => {
     const text = readText(tree);
     expect(text).toContain('No matches');
     expect(findByClass(tree, 'record-row')).toHaveLength(0);
+  });
+});
+
+describe('workspace feedback messages', () => {
+  it('names skipped paths from a mixed drop', () => {
+    expect(
+      createDropFeedbackMessage({
+        addedCount: 1,
+        skippedPaths: ['/Movies/Poster.jpg', '/Movies/Sample.jpg', '/Movies/Notes.txt', '/Movies/Cover.png']
+      })
+    ).toBe('Logged 1 item. Skipped 4 paths that could not be logged: Poster.jpg, Sample.jpg, Notes.txt, and 1 more.');
+  });
+
+  it('reports a scan that finds no new entries', () => {
+    expect(createScanFeedbackMessage(0)).toBe('Scan finished. No new items found.');
   });
 });
