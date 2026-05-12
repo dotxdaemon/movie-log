@@ -35,7 +35,7 @@ function mergeHistoryEntries(existingEntries: WatchEntry[], incomingEntries: Wat
     return true;
   });
 
-  return readVisibleHistory([...uniqueIncomingEntries, ...existingEntries]);
+  return sortEntriesByWatchedAt([...uniqueIncomingEntries, ...existingEntries]);
 }
 
 function sortLibraryItems(items: LibraryItem[]): LibraryItem[] {
@@ -286,7 +286,7 @@ export function createHistoryStore(dataDirectory: string) {
 
   function normalizeState(state: PersistedState): PersistedState {
     return {
-      history: readVisibleHistory(state.history),
+      history: sortEntriesByWatchedAt(state.history),
       historyPolicy: HISTORY_POLICY,
       libraryItems: sortLibraryItems(state.libraryItems),
       knownPathsByFolder: { ...state.knownPathsByFolder },
@@ -464,7 +464,7 @@ export function createHistoryStore(dataDirectory: string) {
         const state = await readPersistedState();
 
         return {
-          history: sortEntriesByWatchedAt(state.history),
+          history: readVisibleHistory(state.history),
           libraryItems: sortLibraryItems(state.libraryItems),
           watchedFolders: [...state.watchedFolders]
         };

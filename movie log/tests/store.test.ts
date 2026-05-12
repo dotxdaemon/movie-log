@@ -95,6 +95,7 @@ describe('createHistoryStore', () => {
 
   it('keeps the earliest watched-folder entry when the same source path is logged twice', async () => {
     const store = createHistoryStore(dataDirectory);
+    const dataPath = join(dataDirectory, 'movie-log.json');
     const notePath = join(dataDirectory, 'movie-log-note.md');
 
     await store.addHistoryEntry(
@@ -105,12 +106,17 @@ describe('createHistoryStore', () => {
     );
 
     const state = await store.readState();
+    const storedJson = JSON.parse(await readFile(dataPath, 'utf8')) as { history: Array<{ watchedAt: string }> };
     const note = await readFile(notePath, 'utf8');
 
     expect(state.history).toHaveLength(1);
     expect(state.history[0]?.watchedAt).toBe('2026-03-12T08:00:00.000Z');
+    expect(storedJson.history.map((entry) => entry.watchedAt)).toEqual([
+      '2026-03-13T08:00:00.000Z',
+      '2026-03-12T08:00:00.000Z'
+    ]);
     expect(note).toContain('2026-03-12T08:00:00.000Z | Flow | File | Watched Folder | /Users/seankim/Movies/Flow.mkv');
-    expect(note).not.toContain('2026-03-13T08:00:00.000Z');
+    expect(note).toContain('2026-03-13T08:00:00.000Z | Flow | File | Watched Folder | /Users/seankim/Movies/Flow.mkv');
   });
 
   it('preserves overlapping manual and watched-folder writes', async () => {
