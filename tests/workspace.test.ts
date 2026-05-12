@@ -30,7 +30,7 @@ const state: MovieLogState = {
       source: 'watch',
       sourceKind: 'file',
       sourcePath: '/Volumes/blve/movies/The.Plague.2025.1080p.AMZN.WEB-DL.DDP5.1.x265.mkv',
-      title: 'The Plague',
+      title: 'The.Plague.2025.1080p.AMZN.WEB-DL.DDP5.1.x265',
       watchedAt: '2026-03-18T08:15:00.000Z'
     }
   ],
@@ -99,7 +99,7 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('Movie Log');
     expect(text).toContain('Add Folder');
     expect(text).toContain('Flow');
-    expect(text).toContain('The Plague');
+    expect(text).toContain('The.Plague.2025.1080p.AMZN.WEB-DL.DDP5.1.x265');
     expect(text).toContain('Reveal');
     expect(text).toContain('Copy Path');
     expect(text).toContain('2 entries across 1 folder');
@@ -160,7 +160,7 @@ describe('MovieLogWorkspace', () => {
     expect(findByClass(tree, 'record-row')).toHaveLength(1);
   });
 
-  it('renders readable titles for release-style filenames', () => {
+  it('renders filename-stem titles for release-style filenames', () => {
     const tree = renderTree(
       createElement(MovieLogWorkspace, {
         dropActive: false,
@@ -195,8 +195,7 @@ describe('MovieLogWorkspace', () => {
     );
 
     const text = readText(tree);
-    expect(text).toContain('Catch Me If You Can 2002');
-    expect(text).not.toContain('Catch.Me.If.You.Can');
+    expect(text).toContain('Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS');
   });
 
   it('shows watched-folder scan state and current contents', () => {
@@ -240,7 +239,7 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('Current Contents');
     expect(text).toContain('1 current item');
     expect(text).toContain('Last scanned');
-    expect(text).toContain('Catch Me If You Can 2002');
+    expect(text).toContain('Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS');
   });
 
   it('shows a blank state when search matches nothing', () => {

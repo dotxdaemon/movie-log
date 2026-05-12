@@ -119,6 +119,69 @@ describe('createHistoryStore', () => {
     expect(note).toContain('2026-03-13T08:00:00.000Z | Flow | File | Watched Folder | /Users/seankim/Movies/Flow.mkv');
   });
 
+  it('repairs stored titles from source paths', async () => {
+    const dataPath = join(dataDirectory, 'movie-log.json');
+    const notePath = join(dataDirectory, 'movie-log-note.md');
+    const sourcePath = '/Users/seankim/Movies/Fantasy.Life.2025.1008p.AMZN.WEB-DL.DDP5.1.H.264-CHORTLE.mkv';
+    const watchedAt = '2026-03-12T08:00:00.000Z';
+    const title = 'Fantasy.Life.2025.1008p.AMZN.WEB-DL.DDP5.1.H.264-CHORTLE';
+    const shortTitle = 'Fantasy Life 2025';
+
+    await writeFile(
+      dataPath,
+      `${JSON.stringify(
+        {
+          history: [
+            {
+              id: `${watchedAt}:${sourcePath}`,
+              source: 'watch',
+              sourceKind: 'file',
+              sourcePath,
+              title: shortTitle,
+              watchedAt
+            }
+          ],
+          historyPolicy: 'append-only',
+          knownPathsByFolder: {},
+          libraryItems: [
+            {
+              firstSeenAt: watchedAt,
+              folderId: 'folder',
+              folderPath: '/Users/seankim/Movies',
+              id: 'dev:1',
+              lastSeenAt: watchedAt,
+              sourceKind: 'file',
+              sourcePath,
+              title: shortTitle
+            }
+          ],
+          seenKeysByFolder: {},
+          watchedFolders: []
+        },
+        null,
+        2
+      )}\n`
+    );
+    await writeFile(
+      notePath,
+      `# Movie Log\n\n## History\n\n- ${watchedAt} | ${shortTitle} | File | Watched Folder | ${sourcePath}\n\n## Watched Folders\n\n- None\n`
+    );
+
+    const store = createHistoryStore(dataDirectory);
+    const state = await store.readState();
+    const storedJson = JSON.parse(await readFile(dataPath, 'utf8')) as {
+      history: Array<{ title: string }>;
+      libraryItems: Array<{ title: string }>;
+    };
+    const note = await readFile(notePath, 'utf8');
+
+    expect(state.history[0]?.title).toBe(title);
+    expect(storedJson.history[0]?.title).toBe(title);
+    expect(storedJson.libraryItems[0]?.title).toBe(title);
+    expect(note).toContain(`- ${watchedAt} | ${title} | File | Watched Folder | ${sourcePath}`);
+    expect(note).not.toContain(`| ${shortTitle} | File |`);
+  });
+
   it('preserves overlapping manual and watched-folder writes', async () => {
     const store = createHistoryStore(dataDirectory);
 

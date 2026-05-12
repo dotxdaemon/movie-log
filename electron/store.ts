@@ -3,7 +3,7 @@
 import { access, mkdir, open, readFile, rename, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { scanFolderContents, type ScannedFolderItem } from './folder-scan.js';
-import { createEntryFromPath, readVisibleHistory, sortEntriesByWatchedAt } from '../shared/history.js';
+import { createEntryFromPath, readTitleFromPath, readVisibleHistory, sortEntriesByWatchedAt } from '../shared/history.js';
 import type { LibraryItem, MovieLogState, WatchEntry, WatchedFolder } from '../shared/types.js';
 
 const HISTORY_POLICY = 'append-only';
@@ -93,6 +93,16 @@ function restoreDroppedHistoryEntries(storedEntries: WatchEntry[], candidateEntr
 
 function sortLibraryItems(items: LibraryItem[]): LibraryItem[] {
   return [...items].sort((left, right) => left.title.localeCompare(right.title) || left.sourcePath.localeCompare(right.sourcePath));
+}
+
+function titleHistoryEntry(entry: WatchEntry): WatchEntry {
+  const title = readTitleFromPath(entry.sourcePath, entry.sourceKind);
+  return entry.title === title ? entry : { ...entry, title };
+}
+
+function titleLibraryItem(item: LibraryItem): LibraryItem {
+  const title = readTitleFromPath(item.sourcePath, item.sourceKind);
+  return item.title === title ? item : { ...item, title };
 }
 
 function cloneState(state: PersistedState): PersistedState {
@@ -339,9 +349,9 @@ export function createHistoryStore(dataDirectory: string) {
 
   function normalizeState(state: PersistedState): PersistedState {
     return {
-      history: sortEntriesByWatchedAt(state.history),
+      history: sortEntriesByWatchedAt(state.history.map(titleHistoryEntry)),
       historyPolicy: HISTORY_POLICY,
-      libraryItems: sortLibraryItems(state.libraryItems),
+      libraryItems: sortLibraryItems(state.libraryItems.map(titleLibraryItem)),
       knownPathsByFolder: { ...state.knownPathsByFolder },
       seenKeysByFolder: { ...state.seenKeysByFolder },
       watchedFolders: [...state.watchedFolders]
@@ -442,7 +452,7 @@ export function createHistoryStore(dataDirectory: string) {
 
     return {
       ...state,
-      history: restoreDroppedHistoryEntries(storedHistory, state.history)
+      history: restoreDroppedHistoryEntries(storedHistory, state.history).map(titleHistoryEntry)
     };
   }
 
