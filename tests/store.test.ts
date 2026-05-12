@@ -447,6 +447,59 @@ describe('createHistoryStore', () => {
     expect(state.libraryItems[0]?.firstSeenAt).toBe(addedAt);
   });
 
+  it('keeps stored history rows when a repair write has fewer entries', async () => {
+    const watchedFolderPath = join(dataDirectory, 'Movies');
+    const currentFilePath = join(watchedFolderPath, 'Flow.mkv');
+    const absentFilePath = join(watchedFolderPath, 'Absent.mkv');
+    const staleScanTime = '2026-04-07T15:54:20.342Z';
+
+    await mkdir(watchedFolderPath, { recursive: true });
+    await writeFile(currentFilePath, 'flow', 'utf8');
+    await writeFile(
+      join(dataDirectory, 'movie-log.json'),
+      `${JSON.stringify(
+        {
+          history: [
+            createEntryFromPath(currentFilePath, 'watch', staleScanTime, 'file'),
+            createEntryFromPath(absentFilePath, 'watch', '2026-04-06T15:54:20.342Z', 'file')
+          ],
+          historyPolicy: 'append-only',
+          knownPathsByFolder: {
+            [watchedFolderPath]: []
+          },
+          libraryItems: [],
+          seenKeysByFolder: {
+            [watchedFolderPath]: []
+          },
+          watchedFolders: [
+            {
+              addedAt: '2026-03-12T08:00:00.000Z',
+              id: watchedFolderPath,
+              lastScannedAt: staleScanTime,
+              name: 'Movies',
+              path: watchedFolderPath
+            }
+          ]
+        },
+        null,
+        2
+      )}\n`,
+      'utf8'
+    );
+
+    const store = createHistoryStore(dataDirectory);
+    const state = await store.readState();
+    const storedJson = JSON.parse(await readFile(join(dataDirectory, 'movie-log.json'), 'utf8')) as {
+      history: Array<{ sourcePath: string }>;
+    };
+    const note = await readFile(join(dataDirectory, 'movie-log-note.md'), 'utf8');
+
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual(expect.arrayContaining([currentFilePath, absentFilePath]));
+    expect(storedJson.history.map((entry) => entry.sourcePath)).toEqual(expect.arrayContaining([currentFilePath, absentFilePath]));
+    expect(storedJson.history).toHaveLength(2);
+    expect(note).toContain(absentFilePath);
+  });
+
   it('updates history paths when a watched-folder file is renamed in place', async () => {
     const store = createHistoryStore(dataDirectory);
 

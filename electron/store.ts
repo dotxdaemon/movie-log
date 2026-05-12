@@ -38,6 +38,59 @@ function mergeHistoryEntries(existingEntries: WatchEntry[], incomingEntries: Wat
   return sortEntriesByWatchedAt([...uniqueIncomingEntries, ...existingEntries]);
 }
 
+function readHistorySubject(entry: WatchEntry): string {
+  return [entry.source, entry.sourceKind, entry.sourcePath].join('\0');
+}
+
+function countHistorySubjects(entries: WatchEntry[]): Map<string, number> {
+  const counts = new Map<string, number>();
+
+  for (const entry of entries) {
+    const subject = readHistorySubject(entry);
+    counts.set(subject, (counts.get(subject) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+function consumeHistorySubject(counts: Map<string, number>, entry: WatchEntry): boolean {
+  const subject = readHistorySubject(entry);
+  const count = counts.get(subject) ?? 0;
+
+  if (count === 0) {
+    return false;
+  }
+
+  if (count === 1) {
+    counts.delete(subject);
+  } else {
+    counts.set(subject, count - 1);
+  }
+
+  return true;
+}
+
+function restoreDroppedHistoryEntries(storedEntries: WatchEntry[], candidateEntries: WatchEntry[]): WatchEntry[] {
+  const candidateEntryIds = new Set(candidateEntries.map((entry) => entry.id));
+  const representedSubjects = countHistorySubjects(candidateEntries);
+  const entriesToRestore: WatchEntry[] = [];
+
+  for (const storedEntry of storedEntries) {
+    if (candidateEntryIds.has(storedEntry.id)) {
+      consumeHistorySubject(representedSubjects, storedEntry);
+      continue;
+    }
+
+    if (consumeHistorySubject(representedSubjects, storedEntry)) {
+      continue;
+    }
+
+    entriesToRestore.push(storedEntry);
+  }
+
+  return mergeHistoryEntries(candidateEntries, entriesToRestore);
+}
+
 function sortLibraryItems(items: LibraryItem[]): LibraryItem[] {
   return [...items].sort((left, right) => left.title.localeCompare(right.title) || left.sourcePath.localeCompare(right.sourcePath));
 }
@@ -360,6 +413,39 @@ export function createHistoryStore(dataDirectory: string) {
     await rename(dataFilePath, invalidDataFilePath);
   }
 
+  async function readStoredHistoryForWrite(): Promise<WatchEntry[]> {
+    try {
+      const stored = await readFile(dataFilePath, 'utf8');
+      const parsed = JSON.parse(stored) as Partial<PersistedState>;
+      return sortEntriesByWatchedAt(parsed.history ?? []);
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        return [];
+      }
+
+      const code = (error as NodeJS.ErrnoException).code;
+
+      if (code === 'ENOENT') {
+        return [];
+      }
+
+      throw error;
+    }
+  }
+
+  async function protectHistoryForWrite(state: PersistedState): Promise<PersistedState> {
+    const storedHistory = await readStoredHistoryForWrite();
+
+    if (storedHistory.length <= state.history.length) {
+      return state;
+    }
+
+    return {
+      ...state,
+      history: restoreDroppedHistoryEntries(storedHistory, state.history)
+    };
+  }
+
   async function runSerialized<T>(work: () => Promise<T>): Promise<T> {
     const nextTask = stateQueue.catch(() => undefined).then(work);
     stateQueue = nextTask.then(() => undefined, () => undefined);
@@ -399,8 +485,7 @@ export function createHistoryStore(dataDirectory: string) {
 
       if (parsed.historyPolicy !== HISTORY_POLICY && state.history.length === 0 && state.libraryItems.length > 0) {
         state.history = buildHistoryFromLibraryItems(state.libraryItems);
-        await writePersistedState(state);
-        return state;
+        return writePersistedState(state);
       }
 
       let repairedWatchedFolders = false;
@@ -425,8 +510,7 @@ export function createHistoryStore(dataDirectory: string) {
       }
 
       if (repairedWatchedFolders || parsed.historyPolicy !== HISTORY_POLICY || JSON.stringify(parsedState) !== JSON.stringify(state)) {
-        await writePersistedState(state);
-        return state;
+        return writePersistedState(state);
       }
 
       await ensureNoteFile(state);
@@ -435,27 +519,26 @@ export function createHistoryStore(dataDirectory: string) {
       if (error instanceof SyntaxError) {
         const emptyState = cloneState(EMPTY_STATE);
         await preserveUnreadableDataFile();
-        await writePersistedState(emptyState);
-        return emptyState;
+        return writePersistedState(emptyState);
       }
 
       const code = (error as NodeJS.ErrnoException).code;
 
       if (code === 'ENOENT') {
         const emptyState = cloneState(EMPTY_STATE);
-        await writePersistedState(emptyState);
-        return emptyState;
+        return writePersistedState(emptyState);
       }
 
       throw error;
     }
   }
 
-  async function writePersistedState(state: PersistedState): Promise<void> {
-    const normalizedState = normalizeState(state);
+  async function writePersistedState(state: PersistedState): Promise<PersistedState> {
+    const normalizedState = await protectHistoryForWrite(normalizeState(state));
     await mkdir(dataDirectory, { recursive: true });
     await writeFileAtomically(dataFilePath, `${JSON.stringify(normalizedState, null, 2)}\n`);
     await writeFileAtomically(noteFilePath, renderNote(normalizedState));
+    return normalizedState;
   }
 
   return {
