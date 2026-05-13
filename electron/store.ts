@@ -1,6 +1,6 @@
 // ABOUTME: Persists watch history and watched folders as local JSON in the desktop app data directory.
 // ABOUTME: Provides the minimal read and write operations needed by the Electron process and tests.
-import { access, mkdir, open, readFile, rename, stat } from 'node:fs/promises';
+import { access, copyFile, mkdir, open, readFile, rename, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { scanFolderContents, type ScannedFolderItem } from './folder-scan.js';
 import { createEntryFromPath, readTitleFromPath, readVisibleHistory, sortEntriesByWatchedAt } from '../shared/history.js';
@@ -89,6 +89,13 @@ function restoreDroppedHistoryEntries(storedEntries: WatchEntry[], candidateEntr
   }
 
   return mergeHistoryEntries(candidateEntries, entriesToRestore);
+}
+
+function countNoteHistoryRows(note: string): number {
+  const historySection = note.split('\n## Watched Folders\n')[0] ?? note;
+  return historySection
+    .split('\n')
+    .filter((line) => line.startsWith('- ') && !line.includes('Nothing logged yet')).length;
 }
 
 function sortLibraryItems(items: LibraryItem[]): LibraryItem[] {
@@ -443,6 +450,69 @@ export function createHistoryStore(dataDirectory: string) {
     }
   }
 
+  async function pathExists(filePath: string): Promise<boolean> {
+    try {
+      await access(filePath);
+      return true;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+
+      if (code === 'ENOENT') {
+        return false;
+      }
+
+      throw error;
+    }
+  }
+
+  async function readStoredNoteHistoryCount(): Promise<number> {
+    try {
+      return countNoteHistoryRows(await readFile(noteFilePath, 'utf8'));
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+
+      if (code === 'ENOENT') {
+        return 0;
+      }
+
+      throw error;
+    }
+  }
+
+  async function protectNoteForWrite(state: PersistedState): Promise<void> {
+    const storedNoteHistoryCount = await readStoredNoteHistoryCount();
+
+    if (storedNoteHistoryCount <= state.history.length) {
+      return;
+    }
+
+    throw new Error(
+      `Refusing to write Movie Log note with ${state.history.length} history rows over ${storedNoteHistoryCount} existing note history rows.`
+    );
+  }
+
+  async function snapshotExistingFiles(): Promise<void> {
+    const filePaths = [];
+
+    if (await pathExists(dataFilePath)) {
+      filePaths.push(dataFilePath);
+    }
+
+    if (await pathExists(noteFilePath)) {
+      filePaths.push(noteFilePath);
+    }
+
+    if (filePaths.length === 0) {
+      return;
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const snapshotPath = join(dataDirectory, 'history-snapshots', `${timestamp}-${process.hrtime.bigint()}`);
+    await mkdir(snapshotPath, { recursive: true });
+
+    await Promise.all(filePaths.map((filePath) => copyFile(filePath, join(snapshotPath, basename(filePath)))));
+  }
+
   async function protectHistoryForWrite(state: PersistedState): Promise<PersistedState> {
     const storedHistory = await readStoredHistoryForWrite();
 
@@ -546,6 +616,8 @@ export function createHistoryStore(dataDirectory: string) {
   async function writePersistedState(state: PersistedState): Promise<PersistedState> {
     const normalizedState = await protectHistoryForWrite(normalizeState(state));
     await mkdir(dataDirectory, { recursive: true });
+    await protectNoteForWrite(normalizedState);
+    await snapshotExistingFiles();
     await writeFileAtomically(dataFilePath, `${JSON.stringify(normalizedState, null, 2)}\n`);
     await writeFileAtomically(noteFilePath, renderNote(normalizedState));
     return normalizedState;

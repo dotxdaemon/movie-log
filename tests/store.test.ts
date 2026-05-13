@@ -563,6 +563,79 @@ describe('createHistoryStore', () => {
     expect(note).toContain(absentFilePath);
   });
 
+  it('creates durable file snapshots before replacing store files', async () => {
+    const store = createHistoryStore(dataDirectory);
+    const dataPath = join(dataDirectory, 'movie-log.json');
+    const notePath = join(dataDirectory, 'movie-log-note.md');
+
+    await store.addHistoryEntry(
+      createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'watch', '2026-03-12T08:00:00.000Z', 'file')
+    );
+
+    const firstJson = await readFile(dataPath, 'utf8');
+    const firstNote = await readFile(notePath, 'utf8');
+
+    await store.addHistoryEntry(
+      createEntryFromPath('/Users/seankim/Movies/Severance.mkv', 'watch', '2026-03-13T08:00:00.000Z', 'file')
+    );
+
+    const snapshotRoot = join(dataDirectory, 'history-snapshots');
+    const snapshotDirectories = await readdir(snapshotRoot);
+    const snapshots = await Promise.all(
+      snapshotDirectories.map(async (snapshotDirectory) => ({
+        json: await readFile(join(snapshotRoot, snapshotDirectory, 'movie-log.json'), 'utf8'),
+        note: await readFile(join(snapshotRoot, snapshotDirectory, 'movie-log-note.md'), 'utf8')
+      }))
+    );
+
+    expect(snapshots).toContainEqual({
+      json: firstJson,
+      note: firstNote
+    });
+  });
+
+  it('refuses to replace the readable note with fewer history rows', async () => {
+    const dataPath = join(dataDirectory, 'movie-log.json');
+    const notePath = join(dataDirectory, 'movie-log-note.md');
+    const storedEntry = createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'watch', '2026-03-12T08:00:00.000Z', 'file');
+    const missingNoteRow =
+      '- 2026-03-11T08:00:00.000Z | Missing.mkv | File | Watched Folder | /Users/seankim/Movies/Missing.mkv';
+
+    await writeFile(
+      dataPath,
+      `${JSON.stringify(
+        {
+          history: [storedEntry],
+          historyPolicy: 'append-only',
+          knownPathsByFolder: {},
+          libraryItems: [],
+          seenKeysByFolder: {},
+          watchedFolders: []
+        },
+        null,
+        2
+      )}\n`,
+      'utf8'
+    );
+    await writeFile(
+      notePath,
+      `# Movie Log\n\n## History\n\n- ${storedEntry.watchedAt} | ${storedEntry.title} | File | Watched Folder | ${storedEntry.sourcePath}\n${missingNoteRow}\n\n## Watched Folders\n\n- None\n`,
+      'utf8'
+    );
+
+    const store = createHistoryStore(dataDirectory);
+
+    await expect(store.addWatchedFolder('/Users/seankim/Movies')).rejects.toThrow(
+      'Refusing to write Movie Log note'
+    );
+
+    const storedJson = JSON.parse(await readFile(dataPath, 'utf8')) as { watchedFolders: unknown[] };
+    const note = await readFile(notePath, 'utf8');
+
+    expect(storedJson.watchedFolders).toEqual([]);
+    expect(note).toContain(missingNoteRow);
+  });
+
   it('updates history paths when a watched-folder file is renamed in place', async () => {
     const store = createHistoryStore(dataDirectory);
 
