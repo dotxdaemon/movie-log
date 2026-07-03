@@ -251,7 +251,7 @@ export function MovieLogWorkspace({
                         </div>
 
                         <details className="record-menu">
-                          <summary className="record-menu-trigger" aria-label={`Actions for ${entry.title}`}>
+                          <summary className="record-menu-trigger" aria-label={`Actions for ${readEntryTitle(entry)}`}>
                             ...
                           </summary>
                           <div className="record-menu-panel">
