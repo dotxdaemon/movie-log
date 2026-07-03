@@ -182,6 +182,46 @@ describe('createFolderMonitor', () => {
     expect(changedFolders).toEqual([inboxPath, inboxPath]);
   });
 
+  it('survives a watcher error and re-attaches the folder watcher', async () => {
+    const inboxPath = join(rootDirectory, 'Media Inbox');
+    await mkdir(inboxPath);
+
+    const fakeWatchers: Array<{ closed: boolean; directoryPath: string; errorListeners: Array<() => void> }> = [];
+    const knownByFolder = new Map<string, string[]>();
+    const monitor = createFolderMonitor({
+      loadKnownPaths: async (folderPath) => knownByFolder.get(folderPath) ?? [],
+      saveKnownPaths: async (folderPath, knownPaths) => {
+        knownByFolder.set(folderPath, knownPaths);
+      },
+      onChange: async () => {},
+      settleMs: 25,
+      watchDirectory: (directoryPath: string) => {
+        const record = { closed: false, directoryPath, errorListeners: [] as Array<() => void> };
+        fakeWatchers.push(record);
+
+        return {
+          close: () => {
+            record.closed = true;
+          },
+          on: (_event: 'error', listener: () => void) => {
+            record.errorListeners.push(listener);
+          }
+        };
+      }
+    });
+
+    await monitor.watchFolder(inboxPath);
+    expect(fakeWatchers).toHaveLength(1);
+
+    for (const listener of fakeWatchers[0].errorListeners) {
+      listener();
+    }
+
+    await waitForFlag(() => fakeWatchers.length === 2 && fakeWatchers[0].closed, 'the folder watcher to recover');
+    expect(fakeWatchers[1].directoryPath).toBe(inboxPath);
+    await monitor.dispose();
+  });
+
   it('does not keep rescanning a watched folder while it is idle', async () => {
     const inboxPath = join(rootDirectory, 'Media Inbox');
     await mkdir(inboxPath);

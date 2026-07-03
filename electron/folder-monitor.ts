@@ -1,15 +1,21 @@
 // ABOUTME: Watches top-level inbox folders and reports when a watched folder needs one refresh.
 // ABOUTME: Uses real filesystem scans with a short settle delay so one batch of arrivals stays one update.
 import { stat } from 'node:fs/promises';
-import { watch, type FSWatcher } from 'node:fs';
+import { watch } from 'node:fs';
 import { dirname } from 'node:path';
 import { scanFolderContents } from './folder-scan.js';
+
+interface FolderWatcher {
+  close(): void;
+  on(event: 'error', listener: () => void): void;
+}
 
 interface FolderMonitorOptions {
   loadKnownPaths(folderPath: string): Promise<string[]>;
   saveKnownPaths(folderPath: string, knownPaths: string[]): Promise<void>;
   onChange(folderPath: string): Promise<void> | void;
   settleMs?: number;
+  watchDirectory?(directoryPath: string, onDirectoryEvent: () => void): FolderWatcher;
 }
 
 function sameValues(left: string[], right: string[]): boolean {
@@ -18,8 +24,9 @@ function sameValues(left: string[], right: string[]): boolean {
 
 export function createFolderMonitor(options: FolderMonitorOptions) {
   const settleMs = options.settleMs ?? 400;
-  const watchers = new Map<string, FSWatcher>();
-  const missingFolderWatchers = new Map<string, FSWatcher>();
+  const watchDirectory = options.watchDirectory ?? ((directoryPath, onDirectoryEvent) => watch(directoryPath, onDirectoryEvent));
+  const watchers = new Map<string, FolderWatcher>();
+  const missingFolderWatchers = new Map<string, FolderWatcher>();
   const scheduledSyncs = new Map<string, NodeJS.Timeout>();
   const syncChainsByFolder = new Map<string, Promise<void>>();
   const pendingSyncsByFolder = new Map<string, Set<Promise<void>>>();
@@ -46,8 +53,27 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
     });
   }
 
-  function closeWatcher(watcher: FSWatcher | undefined): void {
+  function closeWatcher(watcher: FolderWatcher | undefined): void {
     watcher?.close();
+  }
+
+  function recoverFolderWatcher(folderPath: string): void {
+    closeWatcher(watchers.get(folderPath));
+    watchers.delete(folderPath);
+    clearScheduledSync(folderPath);
+    void attachWhenPresent(folderPath)
+      .then(async () => {
+        if (!watchers.has(folderPath)) {
+          await watchMissingFolder(folderPath);
+        }
+      })
+      .catch(() => undefined);
+  }
+
+  function recoverMissingFolderWatcher(folderPath: string): void {
+    closeWatcher(missingFolderWatchers.get(folderPath));
+    missingFolderWatchers.delete(folderPath);
+    void watchMissingFolder(folderPath).catch(() => undefined);
   }
 
   async function findNearestExistingParent(folderPath: string): Promise<string> {
@@ -191,10 +217,13 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
       missingFolderWatchers.delete(folderPath);
     }
 
-    const folderWatcher = watch(folderPath, () => {
+    const folderWatcher = watchDirectory(folderPath, () => {
       scheduleSync(folderPath);
     });
 
+    folderWatcher.on('error', () => {
+      recoverFolderWatcher(folderPath);
+    });
     watchers.set(folderPath, folderWatcher);
   }
 
@@ -225,10 +254,13 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
     }
 
     const parentPath = await findNearestExistingParent(folderPath);
-    const parentWatcher = watch(parentPath, () => {
-      void attachWhenPresent(folderPath);
+    const parentWatcher = watchDirectory(parentPath, () => {
+      void attachWhenPresent(folderPath).catch(() => undefined);
     });
 
+    parentWatcher.on('error', () => {
+      recoverMissingFolderWatcher(folderPath);
+    });
     missingFolderWatchers.set(folderPath, parentWatcher);
   }
 
