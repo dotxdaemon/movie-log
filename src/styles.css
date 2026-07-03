@@ -2,24 +2,24 @@
 /* ABOUTME: Deep black base with prismatic crystal accents and angular geometry. */
 
 :root {
-  /* Void palette — the black suit */
-  --void: #05050a;
-  --void-2: #0b0b11;
-  --void-3: #13131b;
-  --void-4: #1c1c26;
+  /* Paper — the dark field the workspace sits on */
+  --paper: #05050a;
+  --paper-2: #0b0b11;
+  --paper-3: #13131b;
+  --paper-4: #1c1c26;
 
-  /* Chrome — near-white ink on black */
-  --chrome: #ededf5;
-  --chrome-dim: rgba(237, 237, 245, 0.6);
-  --chrome-muted: rgba(237, 237, 245, 0.38);
-  --chrome-ghost: rgba(237, 237, 245, 0.1);
-  --chrome-faint: rgba(237, 237, 245, 0.05);
+  /* Ink — near-white marks on the dark field */
+  --ink: #ededf5;
+  --ink-dim: rgba(237, 237, 245, 0.6);
+  --ink-muted: rgba(237, 237, 245, 0.38);
+  --ink-ghost: rgba(237, 237, 245, 0.1);
+  --ink-faint: rgba(237, 237, 245, 0.05);
 
-  /* The prism — iridescent coat gradient */
-  --prism: linear-gradient(90deg, #5eead4 0%, #818cf8 22%, #e879f9 44%, #f472b6 60%, #fb923c 78%, #a3e635 100%);
-  --prism-violet: #818cf8;
-  --prism-pink: #e879f9;
-  --prism-teal: #5eead4;
+  /* Glint — iridescent edge light on the tailored surface */
+  --glint: linear-gradient(90deg, #5eead4 0%, #818cf8 22%, #e879f9 44%, #f472b6 60%, #fb923c 78%, #a3e635 100%);
+  --glint-violet: #818cf8;
+  --glint-pink: #e879f9;
+  --glint-teal: #5eead4;
 
   /* Accents */
   --focus: #a78bfa;
@@ -31,9 +31,6 @@
   --line-bright: rgba(237, 237, 245, 0.16);
   --edge: rgba(237, 237, 245, 0.9);
 
-  /* Keep legacy glint name pointing to prism */
-  --glint: var(--prism);
-
   --radius: 6px;
   --radius-sm: 4px;
 
@@ -41,11 +38,11 @@
   --body-font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
   --mono-font: "SF Mono", Menlo, Consolas, monospace;
 
-  color: var(--chrome);
+  color: var(--ink);
   font-family: var(--body-font);
   font-size: 14px;
   line-height: 1.5;
-  background: var(--void);
+  background: var(--paper);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -57,7 +54,7 @@
 body {
   margin: 0;
   min-height: 100dvh;
-  background: var(--void);
+  background: var(--paper);
 }
 
 #root {
@@ -84,8 +81,8 @@ button:disabled {
 }
 
 ::selection {
-  background: var(--prism-violet);
-  color: var(--void);
+  background: var(--glint-violet);
+  color: var(--paper);
 }
 
 /* ── Shell ───────────────────────────────────── */
@@ -93,7 +90,7 @@ button:disabled {
 .workspace-shell {
   position: relative;
   min-height: 100dvh;
-  background: var(--void);
+  background: var(--paper);
   overflow: hidden;
 }
 
@@ -164,7 +161,7 @@ button:disabled {
 
 .workspace-title {
   margin: 0;
-  color: var(--chrome);
+  color: var(--ink);
   font-family: var(--display-font);
   font-size: 2.8rem;
   font-style: italic;
@@ -175,7 +172,7 @@ button:disabled {
 
 .workspace-status {
   margin: 8px 0 0;
-  color: var(--chrome-muted);
+  color: var(--ink-muted);
   font-family: var(--mono-font);
   font-size: 0.68rem;
   letter-spacing: 0.06em;
@@ -184,7 +181,7 @@ button:disabled {
 
 .entry-count {
   margin: 0;
-  background: var(--prism);
+  background: var(--glint);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -217,7 +214,7 @@ button:disabled {
   padding: 16px 16px 24px;
   border: 1px solid var(--line);
   border-radius: 8px 8px 20px 20px;
-  background: linear-gradient(180deg, var(--void-3) 0%, var(--void-2) 30%, var(--void) 100%);
+  background: linear-gradient(180deg, var(--paper-3) 0%, var(--paper-2) 30%, var(--paper) 100%);
   box-shadow:
     0 40px 80px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(237, 237, 245, 0.04),
@@ -233,7 +230,7 @@ button:disabled {
   right: 0;
   height: 3px;
   border-radius: 8px 8px 0 0;
-  background: var(--prism);
+  background: var(--glint);
   opacity: 0.85;
   pointer-events: none;
 }
@@ -293,8 +290,8 @@ button:disabled {
   padding: 8px 14px;
   border: 1px solid var(--line-bright);
   border-radius: var(--radius-sm);
-  background: var(--chrome-faint);
-  color: var(--chrome-dim);
+  background: var(--ink-faint);
+  color: var(--ink-dim);
   font-family: var(--mono-font);
   font-size: 0.66rem;
   font-weight: 700;
@@ -308,22 +305,22 @@ button:disabled {
 .command-button:hover:enabled,
 .command-button:focus-visible {
   outline: none;
-  border-color: var(--chrome-dim);
-  background: var(--chrome-ghost);
-  color: var(--chrome);
+  border-color: var(--ink-dim);
+  background: var(--ink-ghost);
+  color: var(--ink);
 }
 
 .command-button-primary {
-  border-color: var(--prism-violet);
+  border-color: var(--glint-violet);
   background: rgba(129, 140, 248, 0.14);
-  color: var(--prism-violet);
+  color: var(--glint-violet);
 }
 
 .command-button-primary:hover:enabled,
 .command-button-primary:focus-visible {
-  border-color: var(--prism-violet);
+  border-color: var(--glint-violet);
   background: rgba(129, 140, 248, 0.24);
-  color: var(--chrome);
+  color: var(--ink);
   box-shadow: 0 0 16px rgba(129, 140, 248, 0.2);
 }
 
@@ -341,7 +338,7 @@ button:disabled {
   top: 50%;
   width: 7px;
   height: 7px;
-  border: 1px solid var(--chrome-dim);
+  border: 1px solid var(--ink-dim);
   border-radius: 50%;
   transform: translateY(-50%);
   pointer-events: none;
@@ -354,7 +351,7 @@ button:disabled {
   top: calc(50% + 4px);
   width: 6px;
   height: 1px;
-  background: var(--chrome-dim);
+  background: var(--ink-dim);
   transform: rotate(42deg);
   pointer-events: none;
 }
@@ -365,15 +362,15 @@ button:disabled {
   padding: 8px 14px 8px 32px;
   border: 1px solid var(--line-bright);
   border-radius: var(--radius-sm);
-  background: var(--chrome-faint);
-  color: var(--chrome);
+  background: var(--ink-faint);
+  color: var(--ink);
   font-family: var(--mono-font);
   font-size: 0.74rem;
   letter-spacing: 0.02em;
 }
 
 .workspace-search input::placeholder {
-  color: var(--chrome-muted);
+  color: var(--ink-muted);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -382,7 +379,7 @@ button:disabled {
   outline: none;
   border-color: rgba(129, 140, 248, 0.5);
   background: rgba(129, 140, 248, 0.06);
-  box-shadow: inset 0 -1px 0 var(--prism-violet);
+  box-shadow: inset 0 -1px 0 var(--glint-violet);
 }
 
 .command-actions {
@@ -413,7 +410,7 @@ button:disabled {
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  background: var(--chrome-faint);
+  background: var(--ink-faint);
 }
 
 .folder-info {
@@ -422,7 +419,7 @@ button:disabled {
 
 .folder-name {
   display: block;
-  color: var(--chrome);
+  color: var(--ink);
   font-family: var(--body-font);
   font-size: 0.8rem;
   font-weight: 700;
@@ -434,7 +431,7 @@ button:disabled {
 
 .folder-meta {
   margin: 2px 0 0;
-  color: var(--chrome-muted);
+  color: var(--ink-muted);
   font-family: var(--mono-font);
   font-size: 0.58rem;
   letter-spacing: 0.04em;
@@ -448,7 +445,7 @@ button:disabled {
   padding: 4px 7px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  color: var(--chrome-muted);
+  color: var(--ink-muted);
   font-family: var(--mono-font);
   font-size: 0.58rem;
   font-weight: 700;
@@ -476,7 +473,7 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: var(--chrome-dim);
+  color: var(--ink-dim);
   cursor: pointer;
   font-family: var(--mono-font);
   font-size: 0.62rem;
@@ -491,7 +488,7 @@ button:disabled {
 }
 
 .folder-state-trigger:focus-visible {
-  outline: 1px solid var(--prism-violet);
+  outline: 1px solid var(--glint-violet);
   outline-offset: 4px;
 }
 
@@ -516,7 +513,7 @@ button:disabled {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
-  color: var(--chrome-muted);
+  color: var(--ink-muted);
   font-family: var(--mono-font);
   font-size: 0.6rem;
   letter-spacing: 0.04em;
@@ -526,7 +523,7 @@ button:disabled {
 .folder-content-row strong {
   min-width: 0;
   overflow: hidden;
-  color: var(--chrome);
+  color: var(--ink);
   font-family: var(--body-font);
   font-size: 0.78rem;
   text-overflow: ellipsis;
@@ -537,7 +534,7 @@ button:disabled {
 
 .folder-content-more,
 .folder-state-empty {
-  color: var(--chrome-muted);
+  color: var(--ink-muted);
 }
 
 .folder-state-empty {
@@ -587,7 +584,7 @@ button:disabled {
 
 .record-row::before {
   content: counter(record, decimal-leading-zero);
-  color: var(--chrome-muted);
+  color: var(--ink-muted);
   font-family: var(--mono-font);
   font-size: 0.64rem;
   font-weight: 700;
@@ -603,7 +600,7 @@ button:disabled {
   top: 0.75rem;
   bottom: 0.75rem;
   width: 2px;
-  background: var(--prism);
+  background: var(--glint);
   opacity: 0;
   transition: opacity 0.14s;
   border-radius: 2px;
@@ -627,7 +624,7 @@ button:disabled {
 
 .record-title {
   margin: 0;
-  color: var(--chrome);
+  color: var(--ink);
   font-family: var(--body-font);
   font-size: 1rem;
   font-weight: 650;
@@ -639,7 +636,7 @@ button:disabled {
 
 .record-meta {
   margin: 0;
-  color: var(--chrome-muted);
+  color: var(--ink-muted);
   font-family: var(--mono-font);
   font-size: 0.62rem;
   letter-spacing: 0.03em;
@@ -667,8 +664,8 @@ button:disabled {
   height: 30px;
   border: 1px solid var(--line-bright);
   border-radius: var(--radius-sm);
-  background: var(--chrome-faint);
-  color: var(--chrome-dim);
+  background: var(--ink-faint);
+  color: var(--ink-dim);
   cursor: pointer;
   font-family: var(--mono-font);
   font-size: 0.7rem;
@@ -684,9 +681,9 @@ button:disabled {
 .record-menu-trigger:focus-visible,
 .record-menu[open] .record-menu-trigger {
   outline: none;
-  border-color: var(--prism-violet);
+  border-color: var(--glint-violet);
   background: rgba(129, 140, 248, 0.12);
-  color: var(--chrome);
+  color: var(--ink);
 }
 
 .record-menu-panel {
@@ -698,7 +695,7 @@ button:disabled {
   padding: 6px;
   border: 1px solid var(--line-bright);
   border-radius: var(--radius-sm);
-  background: var(--void-3);
+  background: var(--paper-3);
   box-shadow:
     0 20px 40px rgba(0, 0, 0, 0.7),
     0 0 0 1px rgba(237, 237, 245, 0.04);
@@ -708,8 +705,8 @@ button:disabled {
   padding: 5px 9px;
   border: 1px solid var(--line-bright);
   border-radius: var(--radius-sm);
-  background: var(--chrome-faint);
-  color: var(--chrome-dim);
+  background: var(--ink-faint);
+  color: var(--ink-dim);
   font-family: var(--mono-font);
   font-size: 0.6rem;
   font-weight: 700;
@@ -721,13 +718,13 @@ button:disabled {
 .action-button:hover:enabled,
 .action-button:focus-visible {
   outline: none;
-  border-color: var(--chrome-dim);
-  background: var(--chrome-ghost);
-  color: var(--chrome);
+  border-color: var(--ink-dim);
+  background: var(--ink-ghost);
+  color: var(--ink);
 }
 
 .action-button-dim {
-  color: var(--chrome-muted);
+  color: var(--ink-muted);
 }
 
 /* ── Blank slate ─────────────────────────────── */
@@ -746,7 +743,7 @@ button:disabled {
 
 .blank-title {
   margin: 0;
-  color: var(--chrome-muted);
+  color: var(--ink-muted);
   font-family: var(--display-font);
   font-size: 2rem;
   font-style: italic;
@@ -765,12 +762,12 @@ button:disabled {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--void-4);
+  background: var(--paper-4);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--prism-violet);
+  background: var(--glint-violet);
 }
 
 /* ── Responsive ──────────────────────────────── */
