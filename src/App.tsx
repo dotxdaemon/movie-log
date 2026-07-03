@@ -2,7 +2,9 @@
 // ABOUTME: Shapes arrivals and folder controls into one tailored ledger workspace.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
-import { createDropFeedbackMessage, createScanFeedbackMessage, formatCount } from './feedback.js';
+import { guardDragNavigation } from './drag-guard.js';
+import { createDropFeedbackMessage, createScanFeedbackMessage, formatCount, type WorkspaceFeedback } from './feedback.js';
+import { closeRecordMenuFromAction, closeRecordMenusOutside } from './record-menu.js';
 import { readTitleFromPath, readVisibleHistory } from '../shared/history.js';
 import type { MovieLogState, WatchEntry } from '../shared/types.js';
 
@@ -19,12 +21,13 @@ const timestampFormatter = new Intl.DateTimeFormat(undefined, {
 
 interface MovieLogWorkspaceProps {
   dropActive: boolean;
-  errorMessage: string;
+  feedback: WorkspaceFeedback | null;
   noteFilePath: string;
   onAddWatchedFolders(): Promise<void>;
   onCopyPath(itemPath: string): Promise<void>;
   onDrop(event: DragEvent<HTMLElement>): Promise<void> | void;
   onDropActiveChange(isActive: boolean): void;
+  onFeedbackDismiss(): void;
   onOpenInFinder(itemPath: string): Promise<void>;
   onOpenItem(itemPath: string): Promise<void>;
   onRemoveWatchedFolder(folderId: string): Promise<void>;
@@ -53,22 +56,18 @@ function readEntryTitle(entry: WatchEntry): string {
   return readTitleFromPath(entry.sourcePath, entry.sourceKind);
 }
 
-function matchesSearch(entry: WatchEntry, searchQuery: string): boolean {
-  if (!searchQuery) {
-    return true;
-  }
-
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-  const title = readEntryTitle(entry);
-
+function matchesSearch(entry: WatchEntry, normalizedQuery: string): boolean {
   if (!normalizedQuery) {
     return true;
   }
 
+  const query = normalizedQuery.toLowerCase();
+  const title = readEntryTitle(entry);
+
   return (
-    title.toLowerCase().includes(normalizedQuery) ||
-    entry.title.toLowerCase().includes(normalizedQuery) ||
-    entry.sourcePath.toLowerCase().includes(normalizedQuery)
+    title.toLowerCase().includes(query) ||
+    entry.title.toLowerCase().includes(query) ||
+    entry.sourcePath.toLowerCase().includes(query)
   );
 }
 
@@ -100,12 +99,13 @@ function createLedgerSummary(
 
 export function MovieLogWorkspace({
   dropActive,
-  errorMessage,
+  feedback,
   noteFilePath,
   onAddWatchedFolders,
   onCopyPath,
   onDrop,
   onDropActiveChange,
+  onFeedbackDismiss,
   onOpenInFinder,
   onOpenItem,
   onRemoveWatchedFolder,
@@ -116,14 +116,21 @@ export function MovieLogWorkspace({
   state
 }: MovieLogWorkspaceProps) {
   const history = readVisibleHistory(state.history);
-  const filteredHistory = history.filter((entry) => matchesSearch(entry, searchQuery));
-  const ledgerSummary = createLedgerSummary(history.length, filteredHistory, searchQuery, scanInProgress, state.watchedFolders.length);
+  const normalizedQuery = searchQuery.trim();
+  const filteredHistory = history.filter((entry) => matchesSearch(entry, normalizedQuery));
+  const ledgerSummary = createLedgerSummary(history.length, filteredHistory, normalizedQuery, scanInProgress, state.watchedFolders.length);
   const issueMark = String(history.length).padStart(2, '0');
   const visibleFolderItems = state.libraryItems.slice(0, 5);
   const hiddenFolderItemCount = state.libraryItems.length - visibleFolderItems.length;
-  const statusBanner = errorMessage ? (
-    <section className="status-banner" role="alert">
-      {errorMessage}
+  const statusBanner = feedback ? (
+    <section
+      className={feedback.tone === 'notice' ? 'status-banner status-banner-notice' : 'status-banner'}
+      role={feedback.tone === 'notice' ? 'status' : 'alert'}
+    >
+      <span className="status-message">{feedback.message}</span>
+      <button aria-label="Dismiss message" className="status-dismiss" onClick={onFeedbackDismiss} type="button">
+        ×
+      </button>
     </section>
   ) : null;
 
@@ -148,7 +155,13 @@ export function MovieLogWorkspace({
           <section
             className={dropActive ? 'tailored-room tailored-room-active' : 'tailored-room'}
             onDragEnter={() => onDropActiveChange(true)}
-            onDragLeave={() => onDropActiveChange(false)}
+            onDragLeave={(event) => {
+              if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                return;
+              }
+
+              onDropActiveChange(false);
+            }}
             onDragOver={(event) => {
               event.preventDefault();
               onDropActiveChange(true);
@@ -163,6 +176,11 @@ export function MovieLogWorkspace({
                 <input
                   id="workspace-search-input"
                   onChange={(event) => onSearchQueryChange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      onSearchQueryChange('');
+                    }
+                  }}
                   placeholder="Search…"
                   type="search"
                   value={searchQuery}
@@ -187,7 +205,9 @@ export function MovieLogWorkspace({
                   {state.watchedFolders.map((folder) => (
                     <li className="folder-row" key={folder.id}>
                       <div className="folder-info">
-                        <strong className="folder-name">{folder.name}</strong>
+                        <strong className="folder-name" title={folder.path}>
+                          {folder.name}
+                        </strong>
                         <p className="folder-meta">{`Added ${timestampFormatter.format(new Date(folder.addedAt))}`}</p>
                       </div>
                       <button className="folder-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
@@ -217,7 +237,7 @@ export function MovieLogWorkspace({
                       <ol className="folder-content-list">
                         {visibleFolderItems.map((item) => (
                           <li className="folder-content-row" key={item.id}>
-                            <strong>{readTitleFromPath(item.sourcePath, item.sourceKind)}</strong>
+                            <strong title={item.sourcePath}>{readTitleFromPath(item.sourcePath, item.sourceKind)}</strong>
                             <span>{item.sourceKind === 'file' ? 'File' : 'Folder'}</span>
                           </li>
                         ))}
@@ -237,14 +257,17 @@ export function MovieLogWorkspace({
               <div className="records-frame">
                 {filteredHistory.length === 0 ? (
                   <div className="blank-slate blank-slate-entries">
-                    <p className="blank-title">{searchQuery ? 'No matches' : 'Nothing here yet'}</p>
+                    <p className="blank-title">{normalizedQuery ? 'No matches' : 'Nothing here yet'}</p>
+                    {normalizedQuery ? null : <p className="blank-hint">Drop files here or add a watched folder.</p>}
                   </div>
                 ) : (
                   <ol className="records-list">
                     {filteredHistory.map((entry) => (
                       <li className="record-row" key={entry.id}>
                         <div className="record-copy">
-                          <strong className="record-title">{readEntryTitle(entry)}</strong>
+                          <strong className="record-title" title={entry.sourcePath}>
+                            {readEntryTitle(entry)}
+                          </strong>
                           <p className="record-meta">
                             {timestampFormatter.format(new Date(entry.watchedAt))} · {formatSource(entry.source)} · {formatEntryType(entry.sourceKind)}
                           </p>
@@ -252,18 +275,39 @@ export function MovieLogWorkspace({
 
                         <details className="record-menu">
                           <summary className="record-menu-trigger" aria-label={`Actions for ${readEntryTitle(entry)}`}>
-                            ...
+                            ⋯
                           </summary>
                           <div className="record-menu-panel">
-                            <button className="action-button" onClick={() => void onOpenInFinder(entry.sourcePath)} type="button">
+                            <button
+                              className="action-button"
+                              onClick={(event) => {
+                                closeRecordMenuFromAction(event.currentTarget);
+                                void onOpenInFinder(entry.sourcePath);
+                              }}
+                              type="button"
+                            >
                               Reveal
                             </button>
                             {entry.sourceKind === 'file' ? (
-                              <button className="action-button" onClick={() => void onOpenItem(entry.sourcePath)} type="button">
+                              <button
+                                className="action-button"
+                                onClick={(event) => {
+                                  closeRecordMenuFromAction(event.currentTarget);
+                                  void onOpenItem(entry.sourcePath);
+                                }}
+                                type="button"
+                              >
                                 Open
                               </button>
                             ) : null}
-                            <button className="action-button action-button-dim" onClick={() => void onCopyPath(entry.sourcePath)} type="button">
+                            <button
+                              className="action-button action-button-dim"
+                              onClick={(event) => {
+                                closeRecordMenuFromAction(event.currentTarget);
+                                void onCopyPath(entry.sourcePath);
+                              }}
+                              type="button"
+                            >
                               Copy Path
                             </button>
                           </div>
@@ -284,35 +328,46 @@ export function MovieLogWorkspace({
 export default function App() {
   const [state, setState] = useState<MovieLogState>(emptyState);
   const [dropActive, setDropActive] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [feedback, setFeedback] = useState<WorkspaceFeedback | null>(null);
   const [noteFilePath, setNoteFilePath] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [scanInProgress, setScanInProgress] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
+    let hasLiveState = false;
     document.documentElement.dataset.movieLogCaptureReady = 'false';
 
-    const loadAppData = async () => {
-      const [nextState, nextNoteFilePath] = await Promise.all([
-        window.movieLog.getState(),
-        window.movieLog.getNoteFilePath()
-      ]);
-
-      if (!isMounted) {
-        return;
-      }
-
+    const unsubscribe = window.movieLog.subscribe((nextState) => {
+      hasLiveState = true;
       updateState(nextState, setState);
-      setNoteFilePath(nextNoteFilePath);
-      document.documentElement.dataset.movieLogCaptureReady = 'true';
+    });
+
+    const loadAppData = async () => {
+      try {
+        const [nextState, nextNoteFilePath] = await Promise.all([
+          window.movieLog.getState(),
+          window.movieLog.getNoteFilePath()
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!hasLiveState) {
+          updateState(nextState, setState);
+        }
+
+        setNoteFilePath(nextNoteFilePath);
+        document.documentElement.dataset.movieLogCaptureReady = 'true';
+      } catch (error) {
+        if (isMounted) {
+          setFeedback({ message: (error as Error).message, tone: 'error' });
+        }
+      }
     };
 
     void loadAppData();
-
-    const unsubscribe = window.movieLog.subscribe((nextState) => {
-      updateState(nextState, setState);
-    });
 
     return () => {
       isMounted = false;
@@ -321,37 +376,52 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const releaseDragGuard = guardDragNavigation(window);
+    const closeMenusOutside = (event: PointerEvent) => {
+      closeRecordMenusOutside(document, event.target);
+    };
+
+    document.addEventListener('pointerdown', closeMenusOutside);
+
+    return () => {
+      releaseDragGuard();
+      document.removeEventListener('pointerdown', closeMenusOutside);
+    };
+  }, []);
+
   const handleAddWatchedFolders = async () => {
-    setErrorMessage('');
+    setFeedback(null);
 
     try {
       await window.movieLog.addWatchedFolders();
     } catch (error) {
-      setErrorMessage((error as Error).message);
+      setFeedback({ message: (error as Error).message, tone: 'error' });
     }
   };
 
   const handleCopyPath = async (itemPath: string) => {
-    setErrorMessage('');
+    setFeedback(null);
 
     try {
       await window.movieLog.copyPath(itemPath);
+      setFeedback({ message: 'Path copied.', tone: 'notice' });
     } catch (error) {
-      setErrorMessage((error as Error).message);
+      setFeedback({ message: (error as Error).message, tone: 'error' });
     }
   };
 
   const handleDrop = async (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
     setDropActive(false);
-    setErrorMessage('');
+    setFeedback(null);
 
     const paths = Array.from(event.dataTransfer.files)
       .map((file) => window.movieLog.pathForFile(file))
       .filter((itemPath) => itemPath.length > 0);
 
     if (paths.length === 0) {
-      setErrorMessage('Drop a Finder file or folder so Movie Log can read its full path.');
+      setFeedback({ message: 'Drop a Finder file or folder so Movie Log can read its full path.', tone: 'error' });
       return;
     }
 
@@ -359,50 +429,53 @@ export default function App() {
       const loggedPaths = await window.movieLog.logPaths(paths);
 
       if (loggedPaths.skippedPaths.length > 0) {
-        setErrorMessage(createDropFeedbackMessage(loggedPaths));
+        setFeedback({ message: createDropFeedbackMessage(loggedPaths), tone: 'error' });
         return;
       }
 
       if (loggedPaths.addedCount === 0) {
-        setErrorMessage('Only folders and likely media files are logged. Hidden files and junk are ignored.');
+        setFeedback({ message: 'Only folders and likely media files are logged. Hidden files and junk are ignored.', tone: 'error' });
+        return;
       }
+
+      setFeedback({ message: `Logged ${formatCount(loggedPaths.addedCount, 'item')}.`, tone: 'notice' });
     } catch (error) {
-      setErrorMessage((error as Error).message);
+      setFeedback({ message: (error as Error).message, tone: 'error' });
     }
   };
 
   const handleOpenInFinder = async (itemPath: string) => {
-    setErrorMessage('');
+    setFeedback(null);
 
     try {
       await window.movieLog.openInFinder(itemPath);
     } catch (error) {
-      setErrorMessage((error as Error).message);
+      setFeedback({ message: (error as Error).message, tone: 'error' });
     }
   };
 
   const handleOpenItem = async (itemPath: string) => {
-    setErrorMessage('');
+    setFeedback(null);
 
     try {
       await window.movieLog.openItem(itemPath);
     } catch (error) {
-      setErrorMessage((error as Error).message);
+      setFeedback({ message: (error as Error).message, tone: 'error' });
     }
   };
 
   const handleRemoveWatchedFolder = async (folderId: string) => {
-    setErrorMessage('');
+    setFeedback(null);
 
     try {
       await window.movieLog.removeWatchedFolder(folderId);
     } catch (error) {
-      setErrorMessage((error as Error).message);
+      setFeedback({ message: (error as Error).message, tone: 'error' });
     }
   };
 
   const handleScanNow = async () => {
-    setErrorMessage('');
+    setFeedback(null);
     setScanInProgress(true);
     const previousHistoryCount = readVisibleHistory(state.history).length;
 
@@ -411,9 +484,9 @@ export default function App() {
       const nextState = await window.movieLog.getState();
       const nextHistoryCount = readVisibleHistory(nextState.history).length;
       updateState(nextState, setState);
-      setErrorMessage(createScanFeedbackMessage(Math.max(0, nextHistoryCount - previousHistoryCount)));
+      setFeedback({ message: createScanFeedbackMessage(Math.max(0, nextHistoryCount - previousHistoryCount)), tone: 'notice' });
     } catch (error) {
-      setErrorMessage((error as Error).message);
+      setFeedback({ message: (error as Error).message, tone: 'error' });
     } finally {
       setScanInProgress(false);
     }
@@ -422,12 +495,13 @@ export default function App() {
   return (
     <MovieLogWorkspace
       dropActive={dropActive}
-      errorMessage={errorMessage}
+      feedback={feedback}
       noteFilePath={noteFilePath}
       onAddWatchedFolders={handleAddWatchedFolders}
       onCopyPath={handleCopyPath}
       onDrop={handleDrop}
       onDropActiveChange={setDropActive}
+      onFeedbackDismiss={() => setFeedback(null)}
       onOpenInFinder={handleOpenInFinder}
       onOpenItem={handleOpenItem}
       onRemoveWatchedFolder={handleRemoveWatchedFolder}

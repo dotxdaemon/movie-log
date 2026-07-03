@@ -3,6 +3,13 @@
 import { readPathName } from '../shared/history.js';
 import type { LogPathsResult } from '../shared/types.js';
 
+export type FeedbackTone = 'error' | 'notice';
+
+export interface WorkspaceFeedback {
+  message: string;
+  tone: FeedbackTone;
+}
+
 export function formatCount(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }

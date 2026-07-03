@@ -1,7 +1,7 @@
 // ABOUTME: Verifies that the renderer workspace resolves into one tailored ledger composition.
 // ABOUTME: Uses a resolved React tree so the visual contract can regress without brittle markup snapshots.
 import { createElement } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MovieLogWorkspace } from '../src/App.js';
 import { createDropFeedbackMessage, createScanFeedbackMessage } from '../src/feedback.js';
 import type { MovieLogState } from '../shared/types.js';
@@ -48,27 +48,34 @@ const state: MovieLogState = {
 
 function noop(): void {}
 
+type WorkspaceProps = Parameters<typeof MovieLogWorkspace>[0];
+
+const baseProps: WorkspaceProps = {
+  dropActive: false,
+  feedback: null,
+  noteFilePath: '/tmp/movie-log-note.md',
+  onAddWatchedFolders: async () => {},
+  onCopyPath: async () => {},
+  onDrop: noop,
+  onDropActiveChange: noop,
+  onFeedbackDismiss: noop,
+  onOpenInFinder: async () => {},
+  onOpenItem: async () => {},
+  onRemoveWatchedFolder: async () => {},
+  onScanNow: async () => {},
+  onSearchQueryChange: noop,
+  scanInProgress: false,
+  searchQuery: '',
+  state
+};
+
+function renderWorkspace(overrides: Partial<WorkspaceProps> = {}) {
+  return renderTree(createElement(MovieLogWorkspace, { ...baseProps, ...overrides }));
+}
+
 describe('MovieLogWorkspace', () => {
   it('renders a tailored workspace with one integrated command bar and ledger surface', () => {
-    const tree = renderTree(
-      createElement(MovieLogWorkspace, {
-        dropActive: false,
-        errorMessage: '',
-        noteFilePath: '/tmp/movie-log-note.md',
-        onAddWatchedFolders: async () => {},
-        onCopyPath: async () => {},
-        onDrop: noop,
-        onDropActiveChange: noop,
-        onOpenInFinder: async () => {},
-        onOpenItem: async () => {},
-        onRemoveWatchedFolder: async () => {},
-        onScanNow: async () => {},
-        onSearchQueryChange: noop,
-        scanInProgress: false,
-        searchQuery: '',
-        state
-      })
-    );
+    const tree = renderWorkspace();
 
     expect(findByClass(tree, 'workspace-stack')).toHaveLength(1);
     expect(findByClass(tree, 'tailored-stage')).toHaveLength(1);
@@ -106,25 +113,7 @@ describe('MovieLogWorkspace', () => {
   });
 
   it('keeps the count inside the header instead of a separate oversized mark', () => {
-    const tree = renderTree(
-      createElement(MovieLogWorkspace, {
-        dropActive: false,
-        errorMessage: '',
-        noteFilePath: '/tmp/movie-log-note.md',
-        onAddWatchedFolders: async () => {},
-        onCopyPath: async () => {},
-        onDrop: noop,
-        onDropActiveChange: noop,
-        onOpenInFinder: async () => {},
-        onOpenItem: async () => {},
-        onRemoveWatchedFolder: async () => {},
-        onScanNow: async () => {},
-        onSearchQueryChange: noop,
-        scanInProgress: false,
-        searchQuery: '',
-        state
-      })
-    );
+    const tree = renderWorkspace();
 
     const head = findByClass(tree, 'workspace-head');
     expect(head).toHaveLength(1);
@@ -134,25 +123,7 @@ describe('MovieLogWorkspace', () => {
   });
 
   it('shows filtered results when searching', () => {
-    const tree = renderTree(
-      createElement(MovieLogWorkspace, {
-        dropActive: false,
-        errorMessage: '',
-        noteFilePath: '/tmp/movie-log-note.md',
-        onAddWatchedFolders: async () => {},
-        onCopyPath: async () => {},
-        onDrop: noop,
-        onDropActiveChange: noop,
-        onOpenInFinder: async () => {},
-        onOpenItem: async () => {},
-        onRemoveWatchedFolder: async () => {},
-        onScanNow: async () => {},
-        onSearchQueryChange: noop,
-        scanInProgress: false,
-        searchQuery: 'Flow',
-        state
-      })
-    );
+    const tree = renderWorkspace({ searchQuery: 'Flow' });
 
     const text = readText(tree);
     expect(text).toContain('1 result from 2 entries');
@@ -160,79 +131,152 @@ describe('MovieLogWorkspace', () => {
     expect(findByClass(tree, 'record-row')).toHaveLength(1);
   });
 
+  it('treats whitespace-only search as no search', () => {
+    const tree = renderWorkspace({ searchQuery: '   ' });
+
+    const text = readText(tree);
+    expect(text).toContain('2 entries across 1 folder');
+    expect(text).not.toContain('result from');
+    expect(findByClass(tree, 'record-row')).toHaveLength(2);
+  });
+
+  it('clears the search when Escape is pressed', () => {
+    const onSearchQueryChange = vi.fn();
+    const tree = renderWorkspace({ onSearchQueryChange, searchQuery: 'Flow' });
+
+    const search = findByClass(tree, 'workspace-search')[0];
+    const input = search.children.find((node) => node.type === 'input');
+    expect(input).toBeDefined();
+    const onKeyDown = input?.props.onKeyDown as (event: { key: string }) => void;
+    onKeyDown({ key: 'a' });
+    onKeyDown({ key: 'Escape' });
+
+    expect(onSearchQueryChange).toHaveBeenCalledTimes(1);
+    expect(onSearchQueryChange).toHaveBeenCalledWith('');
+  });
+
+  it('keeps the drop highlight while dragging over child elements', () => {
+    const onDropActiveChange = vi.fn();
+    const tree = renderWorkspace({ dropActive: true, onDropActiveChange });
+
+    const room = findByClass(tree, 'tailored-room')[0];
+    const onDragLeave = room.props.onDragLeave as (event: {
+      currentTarget: { contains(node: unknown): boolean };
+      relatedTarget: unknown;
+    }) => void;
+
+    onDragLeave({ currentTarget: { contains: () => true }, relatedTarget: {} });
+    expect(onDropActiveChange).not.toHaveBeenCalled();
+
+    onDragLeave({ currentTarget: { contains: () => false }, relatedTarget: null });
+    expect(onDropActiveChange).toHaveBeenCalledWith(false);
+  });
+
+  it('shows error feedback in an alert banner with a dismiss control', () => {
+    const onFeedbackDismiss = vi.fn();
+    const tree = renderWorkspace({
+      feedback: { message: 'Could not open the file.', tone: 'error' },
+      onFeedbackDismiss
+    });
+
+    const banner = findByClass(tree, 'status-banner');
+    expect(banner).toHaveLength(1);
+    expect(banner[0].props.role).toBe('alert');
+    expect(banner[0].className).not.toContain('status-banner-notice');
+    expect(readText(banner)).toContain('Could not open the file.');
+
+    const dismiss = findByClass(banner, 'status-dismiss');
+    expect(dismiss).toHaveLength(1);
+    (dismiss[0].props.onClick as () => void)();
+    expect(onFeedbackDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows notice feedback in a status banner instead of an alert', () => {
+    const tree = renderWorkspace({
+      feedback: { message: 'Scan finished. No new items found.', tone: 'notice' }
+    });
+
+    const banner = findByClass(tree, 'status-banner');
+    expect(banner).toHaveLength(1);
+    expect(banner[0].className).toContain('status-banner-notice');
+    expect(banner[0].props.role).toBe('status');
+    expect(readText(banner)).toContain('Scan finished. No new items found.');
+  });
+
+  it('closes the row menu after choosing an action', async () => {
+    const onOpenInFinder = vi.fn(async () => {});
+    const tree = renderWorkspace({ onOpenInFinder });
+
+    const revealButton = findByClass(tree, 'action-button')[0];
+    const removeAttribute = vi.fn();
+    const onClick = revealButton.props.onClick as (event: {
+      currentTarget: { closest(selector: string): { removeAttribute(name: string): void } | null };
+    }) => void;
+    onClick({ currentTarget: { closest: () => ({ removeAttribute }) } });
+
+    expect(removeAttribute).toHaveBeenCalledWith('open');
+    expect(onOpenInFinder).toHaveBeenCalledWith('/Volumes/blve/movies/Flow.mkv');
+  });
+
+  it('reveals full source paths on truncated titles', () => {
+    const tree = renderWorkspace();
+
+    const titles = findByClass(tree, 'record-title');
+    expect(titles[0].props.title).toBe('/Volumes/blve/movies/Flow.mkv');
+
+    const folderNames = findByClass(tree, 'folder-name');
+    expect(folderNames[0].props.title).toBe('/Volumes/blve/movies');
+  });
+
+  it('offers drop and folder guidance when the ledger is empty', () => {
+    const tree = renderWorkspace({ state: { ...state, history: [] } });
+
+    const text = readText(tree);
+    expect(text).toContain('Nothing here yet');
+    expect(text).toContain('Drop files here or add a watched folder.');
+  });
+
   it('renders filename-stem titles for release-style filenames', () => {
-    const tree = renderTree(
-      createElement(MovieLogWorkspace, {
-        dropActive: false,
-        errorMessage: '',
-        noteFilePath: '/tmp/movie-log-note.md',
-        onAddWatchedFolders: async () => {},
-        onCopyPath: async () => {},
-        onDrop: noop,
-        onDropActiveChange: noop,
-        onOpenInFinder: async () => {},
-        onOpenItem: async () => {},
-        onRemoveWatchedFolder: async () => {},
-        onScanNow: async () => {},
-        onSearchQueryChange: noop,
-        scanInProgress: false,
-        searchQuery: '',
-        state: {
-          ...state,
-          history: [
-            {
-              id: '2026-03-19T10:00:00.000Z:/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
-              source: 'watch',
-              sourceKind: 'file',
-              sourcePath:
-                '/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
-              title: 'Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS',
-              watchedAt: '2026-03-19T10:00:00.000Z'
-            }
-          ]
-        }
-      })
-    );
+    const tree = renderWorkspace({
+      state: {
+        ...state,
+        history: [
+          {
+            id: '2026-03-19T10:00:00.000Z:/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
+            source: 'watch',
+            sourceKind: 'file',
+            sourcePath:
+              '/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
+            title: 'Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS',
+            watchedAt: '2026-03-19T10:00:00.000Z'
+          }
+        ]
+      }
+    });
 
     const text = readText(tree);
     expect(text).toContain('Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS');
   });
 
   it('shows watched-folder scan state and current contents', () => {
-    const tree = renderTree(
-      createElement(MovieLogWorkspace, {
-        dropActive: false,
-        errorMessage: '',
-        noteFilePath: '/tmp/movie-log-note.md',
-        onAddWatchedFolders: async () => {},
-        onCopyPath: async () => {},
-        onDrop: noop,
-        onDropActiveChange: noop,
-        onOpenInFinder: async () => {},
-        onOpenItem: async () => {},
-        onRemoveWatchedFolder: async () => {},
-        onScanNow: async () => {},
-        onSearchQueryChange: noop,
-        scanInProgress: false,
-        searchQuery: '',
-        state: {
-          ...state,
-          libraryItems: [
-            {
-              firstSeenAt: '2026-03-19T10:00:00.000Z',
-              folderId: '/Volumes/blve/movies',
-              folderPath: '/Volumes/blve/movies',
-              id: '/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
-              lastSeenAt: '2026-03-19T10:00:00.000Z',
-              sourceKind: 'file',
-              sourcePath:
-                '/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
-              title: 'Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS'
-            }
-          ]
-        }
-      })
-    );
+    const tree = renderWorkspace({
+      state: {
+        ...state,
+        libraryItems: [
+          {
+            firstSeenAt: '2026-03-19T10:00:00.000Z',
+            folderId: '/Volumes/blve/movies',
+            folderPath: '/Volumes/blve/movies',
+            id: '/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
+            lastSeenAt: '2026-03-19T10:00:00.000Z',
+            sourceKind: 'file',
+            sourcePath:
+              '/Volumes/blve/movies/Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS.mkv',
+            title: 'Catch.Me.If.You.Can.2002.BluRay.1080p.x265.10bit.2Audio.MNHD-FRDS'
+          }
+        ]
+      }
+    });
 
     const text = readText(tree);
     expect(findByClass(tree, 'folder-state')).toHaveLength(1);
@@ -243,25 +287,7 @@ describe('MovieLogWorkspace', () => {
   });
 
   it('shows a blank state when search matches nothing', () => {
-    const tree = renderTree(
-      createElement(MovieLogWorkspace, {
-        dropActive: false,
-        errorMessage: '',
-        noteFilePath: '/tmp/movie-log-note.md',
-        onAddWatchedFolders: async () => {},
-        onCopyPath: async () => {},
-        onDrop: noop,
-        onDropActiveChange: noop,
-        onOpenInFinder: async () => {},
-        onOpenItem: async () => {},
-        onRemoveWatchedFolder: async () => {},
-        onScanNow: async () => {},
-        onSearchQueryChange: noop,
-        scanInProgress: false,
-        searchQuery: 'missing',
-        state
-      })
-    );
+    const tree = renderWorkspace({ searchQuery: 'missing' });
 
     const text = readText(tree);
     expect(text).toContain('No matches');
