@@ -20,7 +20,11 @@ import { isTrackableMediaItem } from '../shared/media-items.js';
 import type { EntryKind, MovieLogState, WatchEntry } from '../shared/types.js';
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
-prepareAppRuntime(app);
+prepareAppRuntime(app, {
+  showWindow: () => {
+    void showMainWindow();
+  }
+});
 const dataDirectory = process.env.MOVIE_LOG_DATA_DIR ?? join(app.getPath('userData'), 'movie-log');
 const historyStore = createHistoryStore(dataDirectory);
 let watchedFolderSync: ReturnType<typeof createWatchedFolderSync>;

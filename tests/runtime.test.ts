@@ -6,16 +6,21 @@ import { prepareAppRuntime } from '../electron/runtime.js';
 describe('prepareAppRuntime', () => {
   it('keeps hardware acceleration enabled before naming the app', () => {
     const disableHardwareAcceleration = vi.fn();
+    const on = vi.fn();
     const quit = vi.fn();
     const requestSingleInstanceLock = vi.fn(() => true);
     const setName = vi.fn();
 
-    prepareAppRuntime({
-      disableHardwareAcceleration,
-      quit,
-      requestSingleInstanceLock,
-      setName
-    });
+    prepareAppRuntime(
+      {
+        disableHardwareAcceleration,
+        on,
+        quit,
+        requestSingleInstanceLock,
+        setName
+      },
+      { showWindow: vi.fn() }
+    );
 
     expect(requestSingleInstanceLock).toHaveBeenCalledTimes(1);
     expect(disableHardwareAcceleration).not.toHaveBeenCalled();
@@ -26,20 +31,48 @@ describe('prepareAppRuntime', () => {
 
   it('quits immediately when another Movie Log instance already owns the lock', () => {
     const disableHardwareAcceleration = vi.fn();
+    const on = vi.fn();
     const quit = vi.fn();
     const requestSingleInstanceLock = vi.fn(() => false);
     const setName = vi.fn();
 
-    prepareAppRuntime({
-      disableHardwareAcceleration,
-      quit,
-      requestSingleInstanceLock,
-      setName
-    });
+    prepareAppRuntime(
+      {
+        disableHardwareAcceleration,
+        on,
+        quit,
+        requestSingleInstanceLock,
+        setName
+      },
+      { showWindow: vi.fn() }
+    );
 
     expect(requestSingleInstanceLock).toHaveBeenCalledTimes(1);
     expect(quit).toHaveBeenCalledTimes(1);
     expect(disableHardwareAcceleration).not.toHaveBeenCalled();
     expect(setName).not.toHaveBeenCalled();
+    expect(on).not.toHaveBeenCalled();
+  });
+
+  it('shows the window when a second instance launch is attempted', () => {
+    const listeners = new Map<string, () => void>();
+    const showWindow = vi.fn();
+
+    prepareAppRuntime(
+      {
+        disableHardwareAcceleration: vi.fn(),
+        on: (event: 'second-instance', listener: () => void) => {
+          listeners.set(event, listener);
+        },
+        quit: vi.fn(),
+        requestSingleInstanceLock: vi.fn(() => true),
+        setName: vi.fn()
+      },
+      { showWindow }
+    );
+
+    expect(showWindow).not.toHaveBeenCalled();
+    listeners.get('second-instance')?.();
+    expect(showWindow).toHaveBeenCalledTimes(1);
   });
 });
