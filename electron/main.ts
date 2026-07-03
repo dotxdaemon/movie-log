@@ -53,11 +53,19 @@ async function readState(): Promise<MovieLogState> {
 }
 
 async function broadcastState(): Promise<void> {
-  if (!mainWindow) {
+  const windowToNotify = mainWindow;
+
+  if (!windowToNotify) {
     return;
   }
 
-  mainWindow.webContents.send('movie-log:state-changed', await readState());
+  const state = await readState();
+
+  if (windowToNotify.isDestroyed() || windowToNotify.webContents.isDestroyed()) {
+    return;
+  }
+
+  windowToNotify.webContents.send('movie-log:state-changed', state);
 }
 
 async function openPath(itemPath: string): Promise<void> {
