@@ -222,6 +222,60 @@ describe('createFolderMonitor', () => {
     await monitor.dispose();
   });
 
+  it('reports a failed folder sync and continues watching later changes', async () => {
+    const inboxPath = join(rootDirectory, 'Media Inbox');
+    await mkdir(inboxPath);
+
+    const fakeWatchers: Array<{ closed: boolean; onDirectoryEvent: () => void }> = [];
+    const knownByFolder = new Map<string, string[]>();
+    const reportedErrors: unknown[] = [];
+    let changeAttempts = 0;
+    const monitor = createFolderMonitor({
+      loadKnownPaths: async (folderPath) => knownByFolder.get(folderPath) ?? [],
+      onChange: async () => {
+        changeAttempts += 1;
+
+        if (changeAttempts === 1) {
+          throw new Error('folder sync failed');
+        }
+      },
+      onError: (error: unknown) => {
+        reportedErrors.push(error);
+      },
+      saveKnownPaths: async (folderPath, knownPaths) => {
+        knownByFolder.set(folderPath, knownPaths);
+      },
+      settleMs: 0,
+      watchDirectory: (_directoryPath, onDirectoryEvent) => {
+        const record = { closed: false, onDirectoryEvent };
+        fakeWatchers.push(record);
+
+        return {
+          close: () => {
+            record.closed = true;
+          },
+          on: () => {}
+        };
+      }
+    });
+
+    try {
+      await monitor.watchFolder(inboxPath);
+      await writeFile(join(inboxPath, 'First.mkv'), 'first');
+      fakeWatchers[0].onDirectoryEvent();
+      await waitForFlag(() => reportedErrors.length === 1, 'the folder sync error to be reported');
+
+      await writeFile(join(inboxPath, 'Second.mkv'), 'second');
+      fakeWatchers[0].onDirectoryEvent();
+      await waitForFlag(() => changeAttempts === 2, 'the next folder change to be processed');
+      await expect(monitor.dispose()).resolves.toBeUndefined();
+
+      expect((reportedErrors[0] as Error).message).toBe('folder sync failed');
+    } finally {
+      await monitor.dispose().catch(() => undefined);
+    }
+  });
+
   it('does not keep rescanning a watched folder while it is idle', async () => {
     const inboxPath = join(rootDirectory, 'Media Inbox');
     await mkdir(inboxPath);

@@ -14,6 +14,7 @@ interface FolderMonitorOptions {
   loadKnownPaths(folderPath: string): Promise<string[]>;
   saveKnownPaths(folderPath: string, knownPaths: string[]): Promise<void>;
   onChange(folderPath: string): Promise<void> | void;
+  onError?(error: unknown): void;
   settleMs?: number;
   watchDirectory?(directoryPath: string, onDirectoryEvent: () => void): FolderWatcher;
 }
@@ -23,6 +24,7 @@ function sameValues(left: string[], right: string[]): boolean {
 }
 
 export function createFolderMonitor(options: FolderMonitorOptions) {
+  const reportError = options.onError ?? ((error: unknown) => console.error(error));
   const settleMs = options.settleMs ?? 400;
   const watchDirectory = options.watchDirectory ?? ((directoryPath, onDirectoryEvent) => watch(directoryPath, onDirectoryEvent));
   const watchers = new Map<string, FolderWatcher>();
@@ -189,7 +191,10 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
       const previousSync = syncChainsByFolder.get(folderPath) ?? Promise.resolve();
       const nextSync = previousSync
         .catch(() => undefined)
-        .then(async () => syncFolder(folderPath, true, syncVersion));
+        .then(async () => syncFolder(folderPath, true, syncVersion))
+        .catch((error: unknown) => {
+          reportError(error);
+        });
 
       syncChainsByFolder.set(folderPath, nextSync);
       trackPendingSync(
