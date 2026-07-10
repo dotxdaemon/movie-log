@@ -33,6 +33,7 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
   const syncChainsByFolder = new Map<string, Promise<void>>();
   const pendingSyncsByFolder = new Map<string, Set<Promise<void>>>();
   const syncVersionsByFolder = new Map<string, number>();
+  let watchGeneration = 0;
 
   function readSyncVersion(folderPath: string): number {
     return syncVersionsByFolder.get(folderPath) ?? 0;
@@ -60,22 +61,24 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
   }
 
   function recoverFolderWatcher(folderPath: string): void {
+    const recoveryGeneration = watchGeneration;
     closeWatcher(watchers.get(folderPath));
     watchers.delete(folderPath);
     clearScheduledSync(folderPath);
-    void attachWhenPresent(folderPath)
+    void attachWhenPresent(folderPath, recoveryGeneration)
       .then(async () => {
-        if (!watchers.has(folderPath)) {
-          await watchMissingFolder(folderPath);
+        if (watchGeneration === recoveryGeneration && !watchers.has(folderPath)) {
+          await watchMissingFolder(folderPath, recoveryGeneration);
         }
       })
       .catch(() => undefined);
   }
 
   function recoverMissingFolderWatcher(folderPath: string): void {
+    const recoveryGeneration = watchGeneration;
     closeWatcher(missingFolderWatchers.get(folderPath));
     missingFolderWatchers.delete(folderPath);
-    void watchMissingFolder(folderPath).catch(() => undefined);
+    void watchMissingFolder(folderPath, recoveryGeneration).catch(() => undefined);
   }
 
   async function findNearestExistingParent(folderPath: string): Promise<string> {
@@ -120,7 +123,12 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
     }
   }
 
-  async function syncFolder(folderPath: string, emitNewItems: boolean, syncVersion: number): Promise<void> {
+  async function syncFolder(
+    folderPath: string,
+    emitNewItems: boolean,
+    syncVersion: number,
+    expectedWatchGeneration: number
+  ): Promise<void> {
     let currentPaths: string[] = [];
     let folderIsMissing = false;
 
@@ -129,7 +137,7 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
       const knownPaths = await options.loadKnownPaths(folderPath);
       currentPaths = (await scanFolderContents(folderPath)).map((item) => item.sourcePath);
 
-      if (readSyncVersion(folderPath) !== syncVersion) {
+      if (readSyncVersion(folderPath) !== syncVersion || watchGeneration !== expectedWatchGeneration) {
         return;
       }
 
@@ -139,7 +147,7 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
 
       await options.saveKnownPaths(folderPath, currentPaths);
 
-      if (readSyncVersion(folderPath) !== syncVersion) {
+      if (readSyncVersion(folderPath) !== syncVersion || watchGeneration !== expectedWatchGeneration) {
         return;
       }
 
@@ -161,13 +169,17 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
       return;
     }
 
+    if (watchGeneration !== expectedWatchGeneration) {
+      return;
+    }
+
     clearScheduledSync(folderPath);
     const knownPaths = await options.loadKnownPaths(folderPath);
 
     if (!sameValues(knownPaths, currentPaths)) {
       await options.saveKnownPaths(folderPath, currentPaths);
 
-      if (readSyncVersion(folderPath) !== syncVersion) {
+      if (readSyncVersion(folderPath) !== syncVersion || watchGeneration !== expectedWatchGeneration) {
         return;
       }
 
@@ -179,19 +191,20 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
     advanceSyncVersion(folderPath);
     closeWatcher(watchers.get(folderPath));
     watchers.delete(folderPath);
-    await watchMissingFolder(folderPath);
+    await watchMissingFolder(folderPath, expectedWatchGeneration);
   }
 
   function scheduleSync(folderPath: string): void {
     clearScheduledSync(folderPath);
     const syncVersion = readSyncVersion(folderPath);
+    const expectedWatchGeneration = watchGeneration;
 
     const timeout = setTimeout(() => {
       scheduledSyncs.delete(folderPath);
       const previousSync = syncChainsByFolder.get(folderPath) ?? Promise.resolve();
       const nextSync = previousSync
         .catch(() => undefined)
-        .then(async () => syncFolder(folderPath, true, syncVersion))
+        .then(async () => syncFolder(folderPath, true, syncVersion, expectedWatchGeneration))
         .catch((error: unknown) => {
           reportError(error);
         });
@@ -232,7 +245,7 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
     watchers.set(folderPath, folderWatcher);
   }
 
-  async function attachWhenPresent(folderPath: string): Promise<void> {
+  async function attachWhenPresent(folderPath: string, expectedWatchGeneration = watchGeneration): Promise<void> {
     if (watchers.has(folderPath)) {
       return;
     }
@@ -249,16 +262,25 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
       throw error;
     }
 
+    if (watchGeneration !== expectedWatchGeneration) {
+      return;
+    }
+
     attachFolderWatcher(folderPath);
     scheduleSync(folderPath);
   }
 
-  async function watchMissingFolder(folderPath: string): Promise<void> {
+  async function watchMissingFolder(folderPath: string, expectedWatchGeneration = watchGeneration): Promise<void> {
     if (watchers.has(folderPath) || missingFolderWatchers.has(folderPath)) {
       return;
     }
 
     const parentPath = await findNearestExistingParent(folderPath);
+
+    if (watchGeneration !== expectedWatchGeneration) {
+      return;
+    }
+
     const parentWatcher = watchDirectory(parentPath, () => {
       void attachWhenPresent(folderPath).catch(() => undefined);
     });
@@ -306,6 +328,8 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
     },
 
     async dispose(): Promise<void> {
+      watchGeneration += 1;
+
       for (const timeout of scheduledSyncs.values()) {
         clearTimeout(timeout);
       }

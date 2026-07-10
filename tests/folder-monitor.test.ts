@@ -222,6 +222,39 @@ describe('createFolderMonitor', () => {
     await monitor.dispose();
   });
 
+  it('does not recover a folder watcher after background work is disposed', async () => {
+    const inboxPath = join(rootDirectory, 'Media Inbox');
+    await mkdir(inboxPath);
+
+    const fakeWatchers: Array<{ closed: boolean; errorListeners: Array<() => void> }> = [];
+    const monitor = createFolderMonitor({
+      loadKnownPaths: async () => [],
+      onChange: async () => {},
+      saveKnownPaths: async () => {},
+      watchDirectory: () => {
+        const record = { closed: false, errorListeners: [] as Array<() => void> };
+        fakeWatchers.push(record);
+
+        return {
+          close: () => {
+            record.closed = true;
+          },
+          on: (_event: 'error', listener: () => void) => {
+            record.errorListeners.push(listener);
+          }
+        };
+      }
+    });
+
+    await monitor.watchFolder(inboxPath);
+    fakeWatchers[0].errorListeners[0]();
+    await monitor.dispose();
+    await delay(50);
+
+    expect(fakeWatchers).toHaveLength(1);
+    expect(fakeWatchers.every((watcher) => watcher.closed)).toBe(true);
+  });
+
   it('reports a failed folder sync and continues watching later changes', async () => {
     const inboxPath = join(rootDirectory, 'Media Inbox');
     await mkdir(inboxPath);
