@@ -200,10 +200,12 @@ describe('createWatchedFolderSync', () => {
     expect(order).toEqual(['scan']);
   });
 
-  it('reuses an in-flight refresh when Scan Now runs for the same watched folder', async () => {
+  it('queues a fresh Scan Now refresh behind an in-flight folder update', async () => {
     const order: string[] = [];
     let releaseScan = () => {};
     let scanStarted = false;
+    let scanCount = 0;
+    let currentItems = [scannedItem('/Movies/Scan/Flow.mkv')];
     const blockedScan = new Promise<void>((resolve) => {
       releaseScan = resolve;
     });
@@ -213,14 +215,20 @@ describe('createWatchedFolderSync', () => {
       },
       listWatchedFolders: async () => [watchedFolder('/Movies/Scan')],
       now: () => '2026-03-16T13:00:00.000Z',
-      saveFolderContents: async () => {
-        order.push('save');
+      saveFolderContents: async (_folderPath, items) => {
+        order.push(`save:${items.map((item) => item.sourcePath).join(',')}`);
       },
       scanFolder: async () => {
+        scanCount += 1;
         scanStarted = true;
-        order.push('scan');
-        await blockedScan;
-        return [scannedItem('/Movies/Scan/Flow.mkv')];
+        order.push(`scan:${scanCount}`);
+        const scannedItems = [...currentItems];
+
+        if (scanCount === 1) {
+          await blockedScan;
+        }
+
+        return scannedItems;
       },
       watchFolder: async () => {}
     });
@@ -231,10 +239,18 @@ describe('createWatchedFolderSync', () => {
       expect(scanStarted).toBe(true);
     });
 
+    currentItems = [scannedItem('/Movies/Scan/Flow.mkv'), scannedItem('/Movies/Scan/Heat.mkv')];
     const scanNowRefresh = watchedFolderSync.refreshWatchedFolders();
     releaseScan();
     await Promise.all([liveRefresh, scanNowRefresh]);
 
-    expect(order).toEqual(['scan', 'save', 'broadcast']);
+    expect(order).toEqual([
+      'scan:1',
+      'save:/Movies/Scan/Flow.mkv',
+      'broadcast',
+      'scan:2',
+      'save:/Movies/Scan/Flow.mkv,/Movies/Scan/Heat.mkv',
+      'broadcast'
+    ]);
   });
 });
