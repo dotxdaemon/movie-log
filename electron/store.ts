@@ -98,6 +98,14 @@ function countNoteHistoryRows(note: string): number {
     .filter((line) => line.startsWith('- ') && !line.includes('Nothing logged yet')).length;
 }
 
+function encodeNoteField(value: string): string {
+  return value
+    .replaceAll('\\', '\\\\')
+    .replaceAll('\r', '\\r')
+    .replaceAll('\n', '\\n')
+    .replaceAll('|', '\\|');
+}
+
 function sortLibraryItems(items: LibraryItem[]): LibraryItem[] {
   return [...items].sort((left, right) => left.title.localeCompare(right.title) || left.sourcePath.localeCompare(right.sourcePath));
 }
@@ -374,9 +382,9 @@ export function createHistoryStore(dataDirectory: string) {
     } else {
       for (const entry of sortEntriesByWatchedAt(state.history)) {
         lines.push(
-          `- ${entry.watchedAt} | ${entry.title} | ${entry.sourceKind === 'file' ? 'File' : 'Folder'} | ${
+          `- ${encodeNoteField(entry.watchedAt)} | ${encodeNoteField(entry.title)} | ${entry.sourceKind === 'file' ? 'File' : 'Folder'} | ${
             entry.source === 'drop' ? 'Manual Drop' : 'Watched Folder'
-          } | ${entry.sourcePath}`
+          } | ${encodeNoteField(entry.sourcePath)}`
         );
       }
     }
@@ -388,7 +396,9 @@ export function createHistoryStore(dataDirectory: string) {
     } else {
       for (const folder of state.watchedFolders) {
         lines.push(
-          `- ${folder.name} | ${folder.path}${folder.lastScannedAt ? ` | Last scanned ${folder.lastScannedAt}` : ''}`
+          `- ${encodeNoteField(folder.name)} | ${encodeNoteField(folder.path)}${
+            folder.lastScannedAt ? ` | Last scanned ${encodeNoteField(folder.lastScannedAt)}` : ''
+          }`
         );
       }
     }

@@ -720,6 +720,29 @@ describe('createHistoryStore', () => {
     expect(note).toContain(missingNoteRow);
   });
 
+  it('keeps newline characters in filenames from creating extra note rows', async () => {
+    const moviesPath = join(dataDirectory, 'Movies');
+    const filePath = join(moviesPath, 'Flow\n- forged.mkv');
+    const store = createHistoryStore(dataDirectory);
+
+    await mkdir(moviesPath, { recursive: true });
+    await writeFile(filePath, 'movie', 'utf8');
+    await store.addHistoryEntry(createEntryFromPath(filePath, 'drop', '2026-07-09T12:00:00.000Z', 'file'));
+
+    await expect(store.addWatchedFolder(join(dataDirectory, 'Inbox'))).resolves.toBeDefined();
+
+    const note = await readFile(join(dataDirectory, 'movie-log-note.md'), 'utf8');
+    const historyRows = note
+      .split('\n## Watched Folders\n')[0]
+      .split('\n')
+      .filter((line) => line.startsWith('- '));
+
+    expect(historyRows).toHaveLength(1);
+    expect(note).toContain('Flow\\n- forged | File | Manual Drop');
+    expect(note).toContain(`| ${moviesPath}/Flow\\n- forged.mkv`);
+    expect(note).not.toContain('\n- forged');
+  });
+
   it('updates history paths when a watched-folder file is renamed in place', async () => {
     const store = createHistoryStore(dataDirectory);
 
