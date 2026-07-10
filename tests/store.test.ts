@@ -1,10 +1,11 @@
 // ABOUTME: Verifies that the desktop app persists watch history and watched folders on disk.
 // ABOUTME: Uses real temporary files so the store behavior matches the local desktop runtime.
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { link, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { scanFolderContents } from '../electron/folder-scan.js';
 import { createHistoryStore } from '../electron/store.js';
 import { createEntryFromPath } from '../shared/history.js';
 
@@ -317,6 +318,35 @@ describe('createHistoryStore', () => {
 
     expect(firstScan.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
     expect(secondScan).toEqual([]);
+  });
+
+  it('keeps both hard-linked paths after an unchanged second scan', async () => {
+    const watchedFolderPath = join(dataDirectory, 'Movies');
+    const firstFilePath = join(watchedFolderPath, 'One.mkv');
+    const secondFilePath = join(watchedFolderPath, 'Two.mkv');
+    const store = createHistoryStore(dataDirectory);
+
+    await mkdir(watchedFolderPath, { recursive: true });
+    await writeFile(firstFilePath, 'movie', 'utf8');
+    await link(firstFilePath, secondFilePath);
+    await store.addWatchedFolder(watchedFolderPath);
+
+    const items = await scanFolderContents(watchedFolderPath);
+    await store.syncWatchedFolderContents(watchedFolderPath, items, '2026-03-12T09:00:00.000Z');
+    await store.syncWatchedFolderContents(watchedFolderPath, items, '2026-03-13T09:00:00.000Z');
+
+    const state = await store.readState();
+    const storedJson = JSON.parse(await readFile(join(dataDirectory, 'movie-log.json'), 'utf8')) as {
+      history: Array<{ sourcePath: string }>;
+    };
+    const note = await readFile(join(dataDirectory, 'movie-log-note.md'), 'utf8');
+    const expectedPaths = [firstFilePath, secondFilePath];
+
+    expect(state.history.map((entry) => entry.sourcePath).sort()).toEqual(expectedPaths);
+    expect(state.libraryItems.map((item) => item.sourcePath).sort()).toEqual(expectedPaths);
+    expect(storedJson.history.map((entry) => entry.sourcePath).sort()).toEqual(expectedPaths);
+    expect(note.split(`| ${firstFilePath}`).length - 1).toBe(1);
+    expect(note.split(`| ${secondFilePath}`).length - 1).toBe(1);
   });
 
   it('does not rewrite persisted files when a watched-folder scan finds no changes', async () => {

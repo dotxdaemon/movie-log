@@ -227,6 +227,47 @@ interface WatchedFolderSyncOutcome {
   entriesToAdd: WatchEntry[];
 }
 
+function matchExistingFolderItems(
+  existingItems: LibraryItem[],
+  scannedItems: ScannedFolderItem[]
+): Map<string, LibraryItem> {
+  const existingItemsByPath = new Map(existingItems.map((item) => [item.sourcePath, item]));
+  const existingItemsByKey = new Map<string, LibraryItem[]>();
+
+  for (const item of existingItems) {
+    const matchingItems = existingItemsByKey.get(item.id) ?? [];
+    matchingItems.push(item);
+    existingItemsByKey.set(item.id, matchingItems);
+  }
+
+  const matchedItemsByPath = new Map<string, LibraryItem>();
+  const matchedItems = new Set<LibraryItem>();
+
+  for (const item of scannedItems) {
+    const existing = existingItemsByPath.get(item.sourcePath);
+
+    if (existing) {
+      matchedItemsByPath.set(item.sourcePath, existing);
+      matchedItems.add(existing);
+    }
+  }
+
+  for (const item of scannedItems) {
+    if (matchedItemsByPath.has(item.sourcePath)) {
+      continue;
+    }
+
+    const existing = existingItemsByKey.get(item.itemKey)?.find((candidate) => !matchedItems.has(candidate));
+
+    if (existing) {
+      matchedItemsByPath.set(item.sourcePath, existing);
+      matchedItems.add(existing);
+    }
+  }
+
+  return matchedItemsByPath;
+}
+
 function applyWatchedFolderSync(
   state: PersistedState,
   folder: WatchedFolder,
@@ -234,14 +275,13 @@ function applyWatchedFolderSync(
   scannedAt: string
 ): WatchedFolderSyncOutcome {
   const currentFolderItems = state.libraryItems.filter((item) => item.folderId === folder.id);
-  const existingItemsById = new Map(currentFolderItems.map((item) => [item.id, item]));
-  const existingItemsByPath = new Map(currentFolderItems.map((item) => [item.sourcePath, item]));
+  const matchedItemsByPath = matchExistingFolderItems(currentFolderItems, items);
   const existingSeenKeys = state.seenKeysByFolder[folder.path] ?? [];
   const hasSeenKeys = hasStoredFolderValues(state.seenKeysByFolder, folder.path);
   const seenKeys = new Set(existingSeenKeys);
   const historyPaths = new Set(state.history.map((entry) => entry.sourcePath));
   const nextItems: LibraryItem[] = items.map((item) => {
-    const existing = existingItemsById.get(item.itemKey) ?? existingItemsByPath.get(item.sourcePath);
+    const existing = matchedItemsByPath.get(item.sourcePath);
 
     return {
       firstSeenAt: readItemFirstSeenAt(existing?.firstSeenAt, item.addedAt, scannedAt),
@@ -260,7 +300,7 @@ function applyWatchedFolderSync(
   const hasSamePaths = sameValues(existingPaths, nextPaths);
   const hasSameKeys = sameValues(existingSeenKeys, nextKeys);
   const hasSameFirstSeenAt = nextItems.every((item) => {
-    const existing = existingItemsById.get(item.id) ?? existingItemsByPath.get(item.sourcePath);
+    const existing = matchedItemsByPath.get(item.sourcePath);
     return existing?.firstSeenAt === item.firstSeenAt;
   });
   const entriesToAdd = !hasSeenKeys
@@ -269,7 +309,9 @@ function applyWatchedFolderSync(
         scannedAt
       )
     : buildWatchEntries(
-        items.filter((item) => !seenKeys.has(item.itemKey)),
+        currentFolderItems.length === 0
+          ? items.filter((item) => !seenKeys.has(item.itemKey))
+          : items.filter((item) => !matchedItemsByPath.has(item.sourcePath)),
         scannedAt
       );
 
@@ -290,7 +332,7 @@ function applyWatchedFolderSync(
   let nextHistory = state.history;
 
   for (const nextItem of nextItems) {
-    const previousItem = existingItemsById.get(nextItem.id);
+    const previousItem = matchedItemsByPath.get(nextItem.sourcePath);
 
     if (
       !previousItem ||
