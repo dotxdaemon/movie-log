@@ -563,6 +563,60 @@ describe('createHistoryStore', () => {
     expect(note).toContain(absentFilePath);
   });
 
+  it('keeps stored history rows when a repair finds the same number of different items', async () => {
+    const watchedFolderPath = join(dataDirectory, 'Movies');
+    const currentFilePath = join(watchedFolderPath, 'Current.mkv');
+    const absentFilePath = join(watchedFolderPath, 'Absent.mkv');
+    const staleScanTime = '2026-04-07T15:54:20.342Z';
+
+    await mkdir(watchedFolderPath, { recursive: true });
+    await writeFile(currentFilePath, 'current', 'utf8');
+    await writeFile(
+      join(dataDirectory, 'movie-log.json'),
+      `${JSON.stringify(
+        {
+          history: [createEntryFromPath(absentFilePath, 'watch', staleScanTime, 'file')],
+          historyPolicy: 'append-only',
+          knownPathsByFolder: {
+            [watchedFolderPath]: []
+          },
+          libraryItems: [],
+          seenKeysByFolder: {
+            [watchedFolderPath]: []
+          },
+          watchedFolders: [
+            {
+              addedAt: '2026-03-12T08:00:00.000Z',
+              id: watchedFolderPath,
+              lastScannedAt: staleScanTime,
+              name: 'Movies',
+              path: watchedFolderPath
+            }
+          ]
+        },
+        null,
+        2
+      )}\n`,
+      'utf8'
+    );
+
+    const store = createHistoryStore(dataDirectory);
+    const state = await store.readState();
+    const storedJson = JSON.parse(await readFile(join(dataDirectory, 'movie-log.json'), 'utf8')) as {
+      history: Array<{ sourcePath: string }>;
+    };
+    const note = await readFile(join(dataDirectory, 'movie-log-note.md'), 'utf8');
+
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual(
+      expect.arrayContaining([currentFilePath, absentFilePath])
+    );
+    expect(storedJson.history.map((entry) => entry.sourcePath)).toEqual(
+      expect.arrayContaining([currentFilePath, absentFilePath])
+    );
+    expect(storedJson.history).toHaveLength(2);
+    expect(note).toContain(absentFilePath);
+  });
+
   it('creates durable file snapshots before replacing store files', async () => {
     const store = createHistoryStore(dataDirectory);
     const dataPath = join(dataDirectory, 'movie-log.json');

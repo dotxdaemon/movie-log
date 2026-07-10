@@ -581,11 +581,15 @@ export function createHistoryStore(dataDirectory: string) {
           continue;
         }
 
+        const storedFolderHistory = state.history.filter(
+          (entry) => entry.source === 'watch' && entry.sourcePath.startsWith(`${folder.path}/`)
+        );
         state.history = state.history.filter(
           (entry) => entry.source !== 'watch' || !entry.sourcePath.startsWith(`${folder.path}/`)
         );
 
         const outcome = applyWatchedFolderSync(state, folder, items, new Date().toISOString());
+        state.history = restoreDroppedHistoryEntries(storedFolderHistory, state.history);
         repairedWatchedFolders = repairedWatchedFolders || outcome.changed;
       }
 
