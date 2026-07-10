@@ -4,6 +4,7 @@ import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import { guardDragNavigation } from './drag-guard.js';
 import { createDropFeedbackMessage, createScanFeedbackMessage, formatCount, type WorkspaceFeedback } from './feedback.js';
+import { groupEntriesByDay } from './ledger-groups.js';
 import { closeRecordMenuFromAction, closeRecordMenusOutside } from './record-menu.js';
 import { readTitleFromPath, readVisibleHistory } from '../shared/history.js';
 import type { MovieLogState, WatchEntry } from '../shared/types.js';
@@ -16,6 +17,10 @@ const emptyState: MovieLogState = {
 
 const timestampFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
+  timeStyle: 'short'
+});
+
+const timeFormatter = new Intl.DateTimeFormat(undefined, {
   timeStyle: 'short'
 });
 
@@ -48,8 +53,11 @@ function formatSource(source: WatchEntry['source']): string {
   return source === 'drop' ? 'Manual Drop' : 'Watched Folder';
 }
 
-function formatEntryType(sourceKind: WatchEntry['sourceKind']): string {
-  return sourceKind === 'file' ? 'File' : 'Folder';
+function formatEntryMeta(entry: WatchEntry): string {
+  const timeLabel = timeFormatter.format(new Date(entry.watchedAt));
+  const kindSuffix = entry.sourceKind === 'directory' ? ' · Folder' : '';
+
+  return `${timeLabel} · ${formatSource(entry.source)}${kindSuffix}`;
 }
 
 function readEntryTitle(entry: WatchEntry): string {
@@ -167,6 +175,10 @@ export function MovieLogWorkspace({
                 Open Note
               </button>
               <label className="workspace-search" htmlFor="workspace-search-input">
+                <svg aria-hidden="true" className="search-glyph" fill="none" height="14" viewBox="0 0 14 14" width="14">
+                  <circle cx="6" cy="6" r="4.4" stroke="currentColor" strokeWidth="1.4" />
+                  <path d="m9.4 9.4 3.1 3.1" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+                </svg>
                 <input
                   id="workspace-search-input"
                   onChange={(event) => onSearchQueryChange(event.target.value)}
@@ -175,7 +187,7 @@ export function MovieLogWorkspace({
                       onSearchQueryChange('');
                     }
                   }}
-                  placeholder="Search…"
+                  placeholder="Search the log…"
                   type="search"
                   value={searchQuery}
                 />
@@ -256,62 +268,76 @@ export function MovieLogWorkspace({
                   </div>
                 ) : (
                   <ol className="records-list">
-                    {filteredHistory.map((entry) => (
-                      <li className="record-row" key={entry.id}>
-                        <div className="record-copy">
-                          <strong className="record-title" title={entry.sourcePath}>
-                            {readEntryTitle(entry)}
-                          </strong>
-                          <p className="record-meta">
-                            {timestampFormatter.format(new Date(entry.watchedAt))} · {formatSource(entry.source)} · {formatEntryType(entry.sourceKind)}
-                          </p>
-                        </div>
+                    {groupEntriesByDay(filteredHistory, new Date()).map((group) => (
+                      <li className="record-day" key={group.key}>
+                        <h2 className="record-day-title">{group.label}</h2>
+                        <ol className="record-day-list">
+                          {group.entries.map((entry) => (
+                            <li className="record-row" key={entry.id}>
+                              <div className="record-copy">
+                                <strong className="record-title" title={entry.sourcePath}>
+                                  {readEntryTitle(entry)}
+                                </strong>
+                                <p className="record-meta" title={timestampFormatter.format(new Date(entry.watchedAt))}>
+                                  {formatEntryMeta(entry)}
+                                </p>
+                              </div>
 
-                        <details className="record-menu">
-                          <summary className="record-menu-trigger" aria-label={`Actions for ${readEntryTitle(entry)}`}>
-                            ⋯
-                          </summary>
-                          <div className="record-menu-panel">
-                            <button
-                              className="action-button"
-                              onClick={(event) => {
-                                closeRecordMenuFromAction(event.currentTarget);
-                                void onOpenInFinder(entry.sourcePath);
-                              }}
-                              type="button"
-                            >
-                              Reveal
-                            </button>
-                            {entry.sourceKind === 'file' ? (
-                              <button
-                                className="action-button"
-                                onClick={(event) => {
-                                  closeRecordMenuFromAction(event.currentTarget);
-                                  void onOpenItem(entry.sourcePath);
-                                }}
-                                type="button"
-                              >
-                                Open
-                              </button>
-                            ) : null}
-                            <button
-                              className="action-button action-button-dim"
-                              onClick={(event) => {
-                                closeRecordMenuFromAction(event.currentTarget);
-                                void onCopyPath(entry.sourcePath);
-                              }}
-                              type="button"
-                            >
-                              Copy Path
-                            </button>
-                          </div>
-                        </details>
+                              <details className="record-menu">
+                                <summary className="record-menu-trigger" aria-label={`Actions for ${readEntryTitle(entry)}`}>
+                                  ⋯
+                                </summary>
+                                <div className="record-menu-panel">
+                                  <button
+                                    className="action-button"
+                                    onClick={(event) => {
+                                      closeRecordMenuFromAction(event.currentTarget);
+                                      void onOpenInFinder(entry.sourcePath);
+                                    }}
+                                    type="button"
+                                  >
+                                    Reveal
+                                  </button>
+                                  {entry.sourceKind === 'file' ? (
+                                    <button
+                                      className="action-button"
+                                      onClick={(event) => {
+                                        closeRecordMenuFromAction(event.currentTarget);
+                                        void onOpenItem(entry.sourcePath);
+                                      }}
+                                      type="button"
+                                    >
+                                      Open
+                                    </button>
+                                  ) : null}
+                                  <button
+                                    className="action-button action-button-dim"
+                                    onClick={(event) => {
+                                      closeRecordMenuFromAction(event.currentTarget);
+                                      void onCopyPath(entry.sourcePath);
+                                    }}
+                                    type="button"
+                                  >
+                                    Copy Path
+                                  </button>
+                                </div>
+                              </details>
+                            </li>
+                          ))}
+                        </ol>
                       </li>
                     ))}
                   </ol>
                 )}
               </div>
             </section>
+
+            {dropActive ? (
+              <div aria-hidden="true" className="drop-overlay">
+                <p className="drop-overlay-title">Drop to log it</p>
+                <p className="drop-overlay-hint">Files and folders are recorded with their full paths</p>
+              </div>
+            ) : null}
           </section>
         </div>
       }

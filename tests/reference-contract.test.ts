@@ -21,6 +21,10 @@ describe('workspace reference contract', () => {
     expect(referenceContract).toContain('quiet utility controls');
     expect(referenceContract).toContain('readable arrivals list');
     expect(referenceContract).toContain('responsive stack');
+    expect(referenceContract).toContain('day-grouped arrivals');
+    expect(referenceContract).toContain('drop affordance');
+    expect(referenceContract).toContain('lamp accent');
+    expect(referenceContract).toContain('readable type scale');
     expect(referenceContract).toContain('tailored-stage');
     expect(referenceContract).toContain('workspace-head');
     expect(referenceContract).toContain('workspace-status');

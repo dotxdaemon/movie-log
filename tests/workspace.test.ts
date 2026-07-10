@@ -123,6 +123,24 @@ describe('MovieLogWorkspace', () => {
     expect(readText(head).match(/2 entries/g)).toHaveLength(1);
   });
 
+  it('groups the ledger into calendar-day sections', () => {
+    const tree = renderWorkspace();
+
+    expect(findByClass(tree, 'record-day')).toHaveLength(2);
+    expect(findByClass(tree, 'record-day-title')).toHaveLength(2);
+    expect(findByClass(tree, 'record-row')).toHaveLength(2);
+  });
+
+  it('shows a drop affordance overlay only while dragging', () => {
+    const idle = renderWorkspace();
+    expect(findByClass(idle, 'drop-overlay')).toHaveLength(0);
+
+    const active = renderWorkspace({ dropActive: true });
+    const overlay = findByClass(active, 'drop-overlay');
+    expect(overlay).toHaveLength(1);
+    expect(readText(overlay)).toContain('Drop to log');
+  });
+
   it('shows filtered results when searching', () => {
     const tree = renderWorkspace({ searchQuery: 'Flow' });
 
