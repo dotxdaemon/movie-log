@@ -80,7 +80,7 @@ describe('MovieLogWorkspace', () => {
     expect(findByClass(tree, 'workspace-stack')).toHaveLength(1);
     expect(findByClass(tree, 'tailored-stage')).toHaveLength(1);
     expect(findByClass(tree, 'workspace-head')).toHaveLength(1);
-    expect(findByClass(tree, 'entry-count')).toHaveLength(1);
+    expect(findByClass(tree, 'entry-count')).toHaveLength(0);
     expect(findByClass(tree, 'workspace-search')).toHaveLength(1);
     expect(findByClass(tree, 'tailored-room')).toHaveLength(1);
     expect(findByClass(tree, 'command-bar')).toHaveLength(1);
@@ -112,14 +112,15 @@ describe('MovieLogWorkspace', () => {
     expect(text).toContain('2 entries across 1 folder');
   });
 
-  it('keeps the count inside the header instead of a separate oversized mark', () => {
+  it('uses the ledger summary as the only entry count', () => {
     const tree = renderWorkspace();
 
     const head = findByClass(tree, 'workspace-head');
     expect(head).toHaveLength(1);
     expect(findByClass(head, 'workspace-title')).toHaveLength(1);
-    expect(findByClass(head, 'entry-count')).toHaveLength(1);
+    expect(findByClass(head, 'entry-count')).toHaveLength(0);
     expect(findByClass(tree, 'issue-mark')).toHaveLength(0);
+    expect(readText(head).match(/2 entries/g)).toHaveLength(1);
   });
 
   it('shows filtered results when searching', () => {
