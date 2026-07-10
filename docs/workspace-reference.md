@@ -7,17 +7,17 @@ This document defines the approved Movie Log workspace inspired by Sean's suppli
 - quiet gray field: the app sits on a pale gray-beige ground with fine grain
 - tailored black workspace: the main record surface is a dark suit-like mass, not a pale rectangular slab
 - integrated command bar: search, note, add-folder, scan, and folder chips live in one surface above the ledger
-- single ledger surface: the arrivals list is the subject and does not compete with side cards or decorative panels
+- single ledger surface: the arrivals list is the subject and does not compete with a decorative outer frame, side cards, or panels
 - row action menu: repeated Reveal/Open/Copy actions are available from a compact row menu so long titles keep the main rhythm
-- material edge glints: color appears only as restrained edge light on focus or active structure
-- compact masthead: `Movie Log`, status, and count stay compact and do not dominate the working surface
+- material edge glints: color appears only as restrained row or focus light, never as a workspace frame
+- compact masthead: `Movie Log` and its status summary stay compact, with the summary as the only entry count
 - minimal first viewport: unnecessary helper copy, wall art, separate side cards, and decorative panels are removed
 - quiet utility controls: search, note, scan, and add-folder controls stay usable without taking headline rank
 - readable arrivals list: history rows remain scannable with real titles, timestamps, and actions
 - responsive stack: narrow widths keep controls first and the arrivals ledger second
 - tailored-stage
 - workspace-head
-- entry-count
+- workspace-status
 - command-bar
 - ledger-surface
 

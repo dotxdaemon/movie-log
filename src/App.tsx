@@ -119,7 +119,6 @@ export function MovieLogWorkspace({
   const normalizedQuery = searchQuery.trim();
   const filteredHistory = history.filter((entry) => matchesSearch(entry, normalizedQuery));
   const ledgerSummary = createLedgerSummary(history.length, filteredHistory, normalizedQuery, scanInProgress, state.watchedFolders.length);
-  const issueMark = String(history.length).padStart(2, '0');
   const visibleFolderItems = state.libraryItems.slice(0, 5);
   const hiddenFolderItemCount = state.libraryItems.length - visibleFolderItems.length;
   const statusBanner = feedback ? (
@@ -143,11 +142,6 @@ export function MovieLogWorkspace({
               <h1 className="workspace-title">Movie Log</h1>
               <p className="workspace-status">{ledgerSummary}</p>
             </div>
-
-            <p aria-hidden="true" className="entry-count">
-              {issueMark}
-            </p>
-
           </header>
 
           {statusBanner}

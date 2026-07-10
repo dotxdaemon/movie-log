@@ -1,5 +1,5 @@
-/* ABOUTME: Styles the Movie Log desktop workspace in a dark iridescent fashion aesthetic. */
-/* ABOUTME: Deep black base with prismatic crystal accents and angular geometry. */
+/* ABOUTME: Styles the Movie Log desktop workspace as a quiet monochrome ledger. */
+/* ABOUTME: Keeps spectral color limited to focused and interactive edges. */
 
 :root {
   /* Paper — the dark field the workspace sits on */
@@ -91,35 +91,6 @@ button:disabled {
   position: relative;
   min-height: 100dvh;
   background: var(--paper);
-  overflow: hidden;
-}
-
-/* Angular geometric ink-splatter shapes */
-.workspace-shell::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 60% 40% at 80% 10%, rgba(129, 140, 248, 0.06) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 60% at 10% 80%, rgba(232, 121, 249, 0.05) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 30% at 50% 50%, rgba(94, 234, 212, 0.03) 0%, transparent 70%);
-}
-
-/* Angular diagonal accent — top-right geometric shape */
-.workspace-shell::after {
-  content: '';
-  position: fixed;
-  top: -20%;
-  right: -10%;
-  width: 55%;
-  height: 110%;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(135deg, rgba(129, 140, 248, 0.04) 0%, rgba(232, 121, 249, 0.02) 50%, transparent 70%);
-  clip-path: polygon(30% 0%, 100% 0%, 100% 100%, 0% 100%, 15% 40%);
-  transform: skewY(-3deg);
 }
 
 .workspace-stage,
@@ -133,25 +104,21 @@ button:disabled {
 .workspace-stack {
   position: relative;
   min-height: 100dvh;
-  max-width: 1180px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 28px 32px 40px;
+  padding: 24px 32px 40px;
 }
 
 .tailored-stage {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 20px;
+  gap: 14px;
 }
 
 /* ── Header ──────────────────────────────────── */
 
 .workspace-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 18px;
-  padding-bottom: 16px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -163,7 +130,7 @@ button:disabled {
   margin: 0;
   color: var(--ink);
   font-family: var(--display-font);
-  font-size: 2.8rem;
+  font-size: 2.2rem;
   font-style: italic;
   font-weight: 900;
   line-height: 0.92;
@@ -171,25 +138,12 @@ button:disabled {
 }
 
 .workspace-status {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--ink-muted);
   font-family: var(--mono-font);
   font-size: 0.68rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.entry-count {
-  margin: 0;
-  background: var(--glint);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-family: var(--display-font);
-  font-size: 2.4rem;
-  font-style: italic;
-  font-weight: 900;
-  line-height: 0.92;
 }
 
 /* ── Status banner ───────────────────────────── */
@@ -243,59 +197,22 @@ button:disabled {
   opacity: 1;
 }
 
-/* ── Main card ───────────────────────────────── */
+/* ── Main workspace ──────────────────────────── */
 
 .tailored-room {
   position: relative;
-  width: min(100%, 980px);
-  margin: 0 auto;
-  padding: 16px 16px 24px;
-  border: 1px solid var(--line);
-  border-radius: 8px 8px 20px 20px;
-  background: linear-gradient(180deg, var(--paper-3) 0%, var(--paper-2) 30%, var(--paper) 100%);
-  box-shadow:
-    0 40px 80px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(237, 237, 245, 0.04),
-    inset 0 1px 0 rgba(237, 237, 245, 0.05);
-}
-
-/* Iridescent top strip — the coat's prismatic sheen */
-.tailored-room::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  border-radius: 8px 8px 0 0;
-  background: var(--glint);
-  opacity: 0.85;
-  pointer-events: none;
-}
-
-/* Subtle angular corner accent */
-.tailored-room::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  right: 0;
-  width: 120px;
-  height: 120px;
-  pointer-events: none;
-  background: radial-gradient(ellipse at top right, rgba(232, 121, 249, 0.06), transparent 70%);
-  border-radius: 0 8px 0 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .tailored-room-active {
-  border-color: rgba(167, 139, 250, 0.45);
-  box-shadow:
-    0 40px 80px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(167, 139, 250, 0.2),
-    inset 0 1px 0 rgba(237, 237, 245, 0.05);
-}
-
-.tailored-room-active::before {
-  opacity: 1;
+  background: rgba(167, 139, 250, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.35);
 }
 
 /* ── Command bar ─────────────────────────────── */
@@ -305,7 +222,7 @@ button:disabled {
   grid-template-columns: auto minmax(220px, 1fr) auto;
   gap: 10px;
   align-items: center;
-  padding: 18px 0 14px;
+  padding: 8px 0 12px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -324,11 +241,11 @@ button:disabled {
 
 .note-button,
 .command-button {
-  min-height: 36px;
-  padding: 8px 14px;
-  border: 1px solid var(--line-bright);
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background: var(--ink-faint);
+  background: transparent;
   color: var(--ink-dim);
   font-family: var(--mono-font);
   font-size: 0.66rem;
@@ -343,23 +260,21 @@ button:disabled {
 .command-button:hover:enabled,
 .command-button:focus-visible {
   outline: none;
-  border-color: var(--ink-dim);
-  background: var(--ink-ghost);
+  border-color: var(--line-bright);
+  background: var(--ink-faint);
   color: var(--ink);
 }
 
 .command-button-primary {
-  border-color: var(--glint-violet);
-  background: rgba(129, 140, 248, 0.14);
-  color: var(--glint-violet);
+  border-color: var(--line-bright);
+  color: var(--ink);
 }
 
 .command-button-primary:hover:enabled,
 .command-button-primary:focus-visible {
-  border-color: var(--glint-violet);
-  background: rgba(129, 140, 248, 0.24);
+  border-color: var(--focus);
+  background: rgba(167, 139, 250, 0.08);
   color: var(--ink);
-  box-shadow: 0 0 16px rgba(129, 140, 248, 0.2);
 }
 
 /* ── Search ──────────────────────────────────── */
@@ -400,7 +315,7 @@ button:disabled {
   padding: 8px 14px 8px 32px;
   border: 1px solid var(--line-bright);
   border-radius: var(--radius-sm);
-  background: var(--ink-faint);
+  background: transparent;
   color: var(--ink);
   font-family: var(--mono-font);
   font-size: 0.74rem;
@@ -432,10 +347,10 @@ button:disabled {
   grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 16px;
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 2px 0 0;
 }
 
 .folder-row {
@@ -443,12 +358,12 @@ button:disabled {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  min-width: 220px;
-  max-width: 340px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--ink-faint);
+  min-width: 0;
+  max-width: none;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .folder-info {
@@ -502,15 +417,15 @@ button:disabled {
 
 .folder-state {
   grid-column: 1 / -1;
-  border-top: 1px solid var(--line);
-  padding-top: 10px;
+  border-top: 0;
+  padding-top: 0;
 }
 
 .folder-state-trigger {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 8px;
   color: var(--ink-dim);
   cursor: pointer;
   font-family: var(--mono-font);
@@ -590,12 +505,12 @@ button:disabled {
 }
 
 .ledger-surface {
-  padding: 18px 0 0;
+  padding: 10px 0 0;
 }
 
 .records-frame {
   min-height: min(650px, calc(100dvh - 250px));
-  padding: 0 22px;
+  padding: 0;
   overflow: visible;
 }
 
@@ -630,7 +545,7 @@ button:disabled {
   text-align: right;
 }
 
-/* Iridescent stripe on hover — the coat's prismatic edge */
+/* Spectral color is reserved for the active row edge. */
 .record-row::after {
   content: '';
   position: absolute;
@@ -845,15 +760,11 @@ button:disabled {
   }
 
   .workspace-title {
-    font-size: 2.2rem;
-  }
-
-  .entry-count {
     font-size: 2rem;
   }
 
   .tailored-room {
-    padding: 12px 12px 18px;
+    padding: 0;
   }
 
   .command-bar {

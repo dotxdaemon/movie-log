@@ -23,7 +23,7 @@ describe('workspace reference contract', () => {
     expect(referenceContract).toContain('responsive stack');
     expect(referenceContract).toContain('tailored-stage');
     expect(referenceContract).toContain('workspace-head');
-    expect(referenceContract).toContain('entry-count');
+    expect(referenceContract).toContain('workspace-status');
     expect(referenceContract).toContain('command-bar');
     expect(referenceContract).toContain('ledger-surface');
     expect(referenceContract).toContain('coat-field');
