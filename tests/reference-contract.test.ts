@@ -1,5 +1,5 @@
-// ABOUTME: Verifies that Movie Log keeps one explicit reference contract for the tailored ledger workspace.
-// ABOUTME: Prevents future UI work from drifting back toward rejected utility shells or unrelated cover systems.
+// ABOUTME: Verifies that Movie Log keeps one explicit contract for the character-sheet dossier workspace.
+// ABOUTME: Separates required markers from banned traits so visual drift cannot pass by wording alone.
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -7,41 +7,33 @@ import { describe, expect, it } from 'vitest';
 const referenceContractPath = fileURLToPath(new URL('../docs/workspace-reference.md', import.meta.url));
 
 describe('workspace reference contract', () => {
-  it('records the required markers and banned utility-shell traits for the current workspace', async () => {
+  it('records the character-sheet dossier markers separately from the rejected tailored-ledger shell', async () => {
     const referenceContract = await readFile(referenceContractPath, 'utf8');
+    const requiredMarkers = referenceContract.split('## Required Markers')[1]?.split('## Disallowed Markers')[0] ?? '';
+    const disallowedMarkers = referenceContract.split('## Disallowed Markers')[1] ?? '';
 
-    expect(referenceContract).toContain('quiet gray field');
-    expect(referenceContract).toContain('tailored black workspace');
-    expect(referenceContract).toContain('integrated command bar');
-    expect(referenceContract).toContain('single ledger surface');
-    expect(referenceContract).toContain('row action menu');
-    expect(referenceContract).toContain('material edge glints');
-    expect(referenceContract).toContain('compact masthead');
-    expect(referenceContract).toContain('minimal first viewport');
-    expect(referenceContract).toContain('quiet utility controls');
-    expect(referenceContract).toContain('readable arrivals list');
-    expect(referenceContract).toContain('responsive stack');
-    expect(referenceContract).toContain('day-grouped arrivals');
-    expect(referenceContract).toContain('drop affordance');
-    expect(referenceContract).toContain('lamp accent');
-    expect(referenceContract).toContain('readable type scale');
-    expect(referenceContract).toContain('tailored-stage');
-    expect(referenceContract).toContain('workspace-head');
-    expect(referenceContract).toContain('workspace-status');
-    expect(referenceContract).toContain('command-bar');
-    expect(referenceContract).toContain('ledger-surface');
-    expect(referenceContract).toContain('coat-field');
-    expect(referenceContract).toContain('coat-wing');
-    expect(referenceContract).toContain('random prisms');
-    expect(referenceContract).toContain('route-tools');
-    expect(referenceContract).toContain('olive room field');
-    expect(referenceContract).toContain('acid-red masthead');
-    expect(referenceContract).toContain('framed wall gallery');
-    expect(referenceContract).toContain('botanical edge');
-    expect(referenceContract).toContain('history-layout');
-    expect(referenceContract).toContain('history-panel');
-    expect(referenceContract).toContain('routes-block');
-    expect(referenceContract).toContain('equal split utility grid');
-    expect(referenceContract).toContain('always-visible row action column');
+    expect(referenceContract).toContain('/Users/seankim/Desktop/Screenshot 2026-07-12 at 4.37.01');
+    expect(requiredMarkers).toContain('70 to 80 percent pale field');
+    expect(requiredMarkers).toContain('icy lavender');
+    expect(requiredMarkers).toContain('graphite structural spine');
+    expect(requiredMarkers).toContain('rare burgundy seam');
+    expect(requiredMarkers).toContain('tall diary focal body');
+    expect(requiredMarkers).toContain('asymmetrical annotation studies');
+    expect(requiredMarkers).toContain('exposed seam lines');
+    expect(requiredMarkers).toContain('narrow silhouettes');
+    expect(requiredMarkers).toContain('disciplined negative space');
+    expect(requiredMarkers).toContain('working-surface-first mapping');
+    expect(requiredMarkers).toContain('original interface');
+    expect(requiredMarkers).toContain('does not copy the character');
+    expect(requiredMarkers).not.toContain('warm porcelain');
+    expect(requiredMarkers).not.toContain('lamp accent');
+    expect(requiredMarkers).not.toContain('tailored-room');
+
+    expect(disallowedMarkers).toContain('warm porcelain');
+    expect(disallowedMarkers).toContain('lamp accent');
+    expect(disallowedMarkers).toContain('tailored-room');
+    expect(disallowedMarkers).toContain('pill-shaped controls');
+    expect(disallowedMarkers).toContain('dashboard cards');
+    expect(disallowedMarkers).toContain('rail + slab + inspector');
   });
 });

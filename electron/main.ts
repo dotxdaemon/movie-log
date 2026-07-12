@@ -40,6 +40,13 @@ let mainWindow: BrowserWindow | null = null;
 let backgroundWorkRunning = false;
 let isQuitting = false;
 let statusItem: Tray | null = null;
+const captureRequested = Boolean(process.env.MOVIE_LOG_CAPTURE_PATH);
+const captureWidth = Number(process.env.MOVIE_LOG_CAPTURE_WIDTH ?? 1180);
+const captureHeight = Number(process.env.MOVIE_LOG_CAPTURE_HEIGHT ?? 788);
+
+if (captureRequested && (!Number.isInteger(captureWidth) || !Number.isInteger(captureHeight) || captureWidth < 320 || captureHeight < 640)) {
+  throw new Error(`Capture dimensions must be whole numbers at least 320x640. Received ${captureWidth}x${captureHeight}.`);
+}
 
 async function createEntryForPath(itemPath: string, source: 'drop' | 'watch'): Promise<WatchEntry | null> {
   const itemStats = await stat(itemPath);
@@ -114,7 +121,47 @@ async function captureIfRequested(): Promise<void> {
   }
 
   await new Promise((resolve) => setTimeout(resolve, 300));
+  const layout = (await mainWindow.webContents.executeJavaScript(`
+    (() => {
+      const root = document.documentElement;
+      const body = document.body;
+      const archiveSpine = document.querySelector('.archive-spine');
+      const mobileNavigation = document.querySelector('.mobile-nav');
+      return {
+        archiveSpineDisplay: archiveSpine ? getComputedStyle(archiveSpine).display : '',
+        clientWidth: root.clientWidth,
+        mobileNavigationDisplay: mobileNavigation ? getComputedStyle(mobileNavigation).display : '',
+        scrollWidth: Math.max(root.scrollWidth, body ? body.scrollWidth : 0)
+      };
+    })()
+  `)) as {
+    archiveSpineDisplay: string;
+    clientWidth: number;
+    mobileNavigationDisplay: string;
+    scrollWidth: number;
+  };
+
+  if (layout.scrollWidth > layout.clientWidth) {
+    throw new Error(`Capture has horizontal overflow: ${layout.scrollWidth}px content in a ${layout.clientWidth}px viewport.`);
+  }
+
+  if (captureWidth <= 700 && (layout.archiveSpineDisplay !== 'none' || layout.mobileNavigationDisplay === 'none')) {
+    throw new Error('Mobile capture did not replace the desktop spine with the mobile navigation.');
+  }
+
+  if (captureWidth > 700 && (layout.archiveSpineDisplay === 'none' || layout.mobileNavigationDisplay !== 'none')) {
+    throw new Error('Desktop capture did not keep the structural spine visible and mobile navigation hidden.');
+  }
+
   const image = await mainWindow.webContents.capturePage();
+  const imageSize = image.getSize();
+
+  if (imageSize.width !== captureWidth || imageSize.height !== captureHeight) {
+    throw new Error(
+      `Capture dimensions ${imageSize.width}x${imageSize.height} did not match ${captureWidth}x${captureHeight}.`
+    );
+  }
+
   await mkdir(dirname(process.env.MOVIE_LOG_CAPTURE_PATH), { recursive: true });
   await writeFile(process.env.MOVIE_LOG_CAPTURE_PATH, image.toPNG());
   app.quit();
@@ -122,11 +169,12 @@ async function captureIfRequested(): Promise<void> {
 
 async function createWindow(): Promise<void> {
   mainWindow = new BrowserWindow({
-    width: 1180,
-    height: 820,
+    width: captureRequested ? captureWidth : 1180,
+    height: captureRequested ? captureHeight : 820,
     minWidth: 390,
     minHeight: 640,
-    backgroundColor: '#eae7e0',
+    useContentSize: captureRequested,
+    backgroundColor: '#f5f3f6',
     title: 'Movie Log',
     webPreferences: {
       preload: join(currentDirectory, 'preload.cjs')

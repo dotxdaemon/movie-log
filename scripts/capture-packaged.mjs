@@ -7,7 +7,9 @@ import { join } from 'node:path';
 import process from 'node:process';
 import { resolveInstalledAppPath } from './package-paths.mjs';
 
-const capturePath = join(homedir(), '.codex-artifacts', 'movie-log-packaged.png');
+const capturePath = process.env.MOVIE_LOG_CAPTURE_PATH ?? join(homedir(), '.codex-artifacts', 'movie-log-packaged.png');
+const captureWidth = process.env.MOVIE_LOG_CAPTURE_WIDTH ?? '1180';
+const captureHeight = process.env.MOVIE_LOG_CAPTURE_HEIGHT ?? '788';
 const packagedAppPath = join(resolveInstalledAppPath(), 'Contents', 'MacOS', 'Electron');
 const packagedAppProcessPattern = `${resolveInstalledAppPath()}/Contents/MacOS/Electron`;
 const captureStartedAt = Date.now();
@@ -25,7 +27,9 @@ await new Promise((resolve, reject) => {
     shell: false,
     env: {
       ...process.env,
-      MOVIE_LOG_CAPTURE_PATH: capturePath
+      MOVIE_LOG_CAPTURE_HEIGHT: captureHeight,
+      MOVIE_LOG_CAPTURE_PATH: capturePath,
+      MOVIE_LOG_CAPTURE_WIDTH: captureWidth
     }
   });
 

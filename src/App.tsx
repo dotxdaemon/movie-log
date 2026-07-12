@@ -1,5 +1,5 @@
 // ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
-// ABOUTME: Shapes arrivals and folder controls into one tailored ledger workspace.
+// ABOUTME: Shapes arrivals and folder controls into one character-sheet dossier workspace.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import { guardDragNavigation } from './drag-guard.js';
@@ -27,6 +27,7 @@ const timeFormatter = new Intl.DateTimeFormat(undefined, {
 interface MovieLogWorkspaceProps {
   dropActive: boolean;
   feedback: WorkspaceFeedback | null;
+  loading: boolean;
   noteFilePath: string;
   onAddWatchedFolders(): Promise<void>;
   onCopyPath(itemPath: string): Promise<void>;
@@ -105,9 +106,27 @@ function createLedgerSummary(
   return `${formatCount(historyCount, 'entry', 'entries')} across ${formatCount(watchedFolderCount, 'folder')}`;
 }
 
+type ControlIconName = 'diary' | 'folder' | 'note' | 'scan';
+
+const controlIconPaths: Record<ControlIconName, string> = {
+  diary: 'M3 2.5h7.5v9H3zM5 5h3.5M5 7.25h3.5M5 9.5h2',
+  folder: 'M1.75 4h4l1-1.5h5.5v8.75H1.75z',
+  note: 'M3 1.75h6.5l2 2v8.5H3zM9.5 1.75v2h2M5 6.5h4.5M5 8.75h4.5',
+  scan: 'M3.5 2H2v3.5M10.5 2H12v3.5M3.5 12H2V8.5M10.5 12H12V8.5M4.5 7h5'
+};
+
+function ControlIcon({ name }: { name: ControlIconName }) {
+  return (
+    <svg aria-hidden="true" className="control-icon" fill="none" height="14" viewBox="0 0 14 14" width="14">
+      <path d={controlIconPaths[name]} stroke="currentColor" strokeLinecap="square" strokeLinejoin="miter" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
 export function MovieLogWorkspace({
   dropActive,
   feedback,
+  loading,
   noteFilePath,
   onAddWatchedFolders,
   onCopyPath,
@@ -141,43 +160,94 @@ export function MovieLogWorkspace({
     </section>
   ) : null;
 
+  const navigationRail = (
+    <>
+      <div aria-label="Movie Log" className="spine-mark">
+        <span>ML</span>
+        <small>01</small>
+      </div>
+      <div aria-current="page" className="spine-current">
+        <ControlIcon name="diary" />
+        <span>Diary</span>
+      </div>
+      <button
+        className="spine-action"
+        disabled={!noteFilePath}
+        onClick={() => void onOpenItem(noteFilePath)}
+        type="button"
+      >
+        <ControlIcon name="note" />
+        <span>Note</span>
+      </button>
+      <p className="spine-caption">Arrival archive</p>
+    </>
+  );
+
+  const mobileNavigation = (
+    <>
+      <span aria-current="page" className="mobile-nav-current">
+        <ControlIcon name="diary" />
+        <span>Diary</span>
+      </span>
+      <button className="mobile-nav-action" onClick={() => void onAddWatchedFolders()} type="button">
+        <ControlIcon name="folder" />
+        <span>Add</span>
+      </button>
+      <button
+        className="mobile-nav-action"
+        disabled={state.watchedFolders.length === 0 || scanInProgress}
+        onClick={() => void onScanNow()}
+        type="button"
+      >
+        <ControlIcon name="scan" />
+        <span>Scan</span>
+      </button>
+      <button
+        className="mobile-nav-action"
+        disabled={!noteFilePath}
+        onClick={() => void onOpenItem(noteFilePath)}
+        type="button"
+      >
+        <ControlIcon name="note" />
+        <span>Note</span>
+      </button>
+    </>
+  );
+
   return (
     <AppShell
+      mobileNavigation={mobileNavigation}
+      navigationRail={navigationRail}
       workspaceStage={
-        <div className="workspace-stack tailored-stage">
-          <header className="workspace-head">
+        <div
+          className={dropActive ? 'dossier-canvas dossier-canvas-active' : 'dossier-canvas'}
+          onDragEnter={() => onDropActiveChange(true)}
+          onDragLeave={(event) => {
+            if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+              return;
+            }
+
+            onDropActiveChange(false);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            onDropActiveChange(true);
+          }}
+          onDrop={onDrop}
+        >
+          <header className="dossier-head">
             <div className="title-block">
+              <p className="section-index">01 / DIARY</p>
               <h1 className="workspace-title">Movie Log</h1>
               <p className="workspace-status">{ledgerSummary}</p>
             </div>
-          </header>
 
-          {statusBanner}
-
-          <section
-            className={dropActive ? 'tailored-room tailored-room-active' : 'tailored-room'}
-            onDragEnter={() => onDropActiveChange(true)}
-            onDragLeave={(event) => {
-              if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                return;
-              }
-
-              onDropActiveChange(false);
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              onDropActiveChange(true);
-            }}
-            onDrop={onDrop}
-          >
-            <section className="command-bar">
-              <button className="note-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
-                Open Note
-              </button>
-              <label className="workspace-search" htmlFor="workspace-search-input">
+            <label className="dossier-search workspace-search" htmlFor="workspace-search-input">
+              <span className="search-label">Search archive</span>
+              <span className="search-field">
                 <svg aria-hidden="true" className="search-glyph" fill="none" height="14" viewBox="0 0 14 14" width="14">
                   <circle cx="6" cy="6" r="4.4" stroke="currentColor" strokeWidth="1.4" />
-                  <path d="m9.4 9.4 3.1 3.1" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+                  <path d="m9.4 9.4 3.1 3.1" stroke="currentColor" strokeLinecap="square" strokeWidth="1.4" />
                 </svg>
                 <input
                   id="workspace-search-input"
@@ -187,81 +257,56 @@ export function MovieLogWorkspace({
                       onSearchQueryChange('');
                     }
                   }}
-                  placeholder="Search the log…"
+                  placeholder="Title or path"
                   type="search"
                   value={searchQuery}
                 />
-              </label>
-              <div className="command-actions">
-                <button className="command-button command-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
-                  Add Folder
-                </button>
-                <button
-                  className="command-button"
-                  disabled={state.watchedFolders.length === 0 || scanInProgress}
-                  onClick={() => void onScanNow()}
-                  type="button"
-                >
-                  {scanInProgress ? 'Scanning…' : 'Scan Now'}
+              </span>
+            </label>
+
+            <div className="head-actions">
+              <button className="command-button command-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
+                <ControlIcon name="folder" />
+                <span>Add Folder</span>
+              </button>
+              <button
+                className="command-button"
+                disabled={state.watchedFolders.length === 0 || scanInProgress}
+                onClick={() => void onScanNow()}
+                type="button"
+              >
+                <ControlIcon name="scan" />
+                <span>{scanInProgress ? 'Scanning…' : 'Scan Now'}</span>
+              </button>
+            </div>
+          </header>
+
+          {statusBanner}
+
+          <div className="dossier-grid">
+            <section className="diary-body">
+              <div className="diary-shoulder">
+                <div>
+                  <span className="diary-label">Chronological diary</span>
+                  <span className="diary-rule" />
+                </div>
+                <button className="note-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
+                  Open Note
                 </button>
               </div>
 
-              {state.watchedFolders.length > 0 ? (
-                <ul className="folder-list">
-                  {state.watchedFolders.map((folder) => (
-                    <li className="folder-row" key={folder.id}>
-                      <div className="folder-info">
-                        <strong className="folder-name" title={folder.path}>
-                          {folder.name}
-                        </strong>
-                        <p className="folder-meta">{`Added ${timestampFormatter.format(new Date(folder.addedAt))}`}</p>
-                      </div>
-                      <button className="folder-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
-                        Remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-
-              {state.watchedFolders.length > 0 ? (
-                <details className="folder-state">
-                  <summary className="folder-state-trigger">
-                    <span>Current Contents</span>
-                    <span>{formatCount(state.libraryItems.length, 'current item')}</span>
-                  </summary>
-                  <div className="folder-state-panel">
-                    <ul className="folder-scan-list">
-                      {state.watchedFolders.map((folder) => (
-                        <li className="folder-scan-row" key={folder.id}>
-                          <span>{folder.name}</span>
-                          <span>{folder.lastScannedAt ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}` : 'Not scanned yet'}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    {visibleFolderItems.length > 0 ? (
-                      <ol className="folder-content-list">
-                        {visibleFolderItems.map((item) => (
-                          <li className="folder-content-row" key={item.id}>
-                            <strong title={item.sourcePath}>{readTitleFromPath(item.sourcePath, item.sourceKind)}</strong>
-                            <span>{item.sourceKind === 'file' ? 'File' : 'Folder'}</span>
-                          </li>
-                        ))}
-                        {hiddenFolderItemCount > 0 ? (
-                          <li className="folder-content-row folder-content-more">{`${formatCount(hiddenFolderItemCount, 'more', 'more')} not shown`}</li>
-                        ) : null}
-                      </ol>
-                    ) : (
-                      <p className="folder-state-empty">No current items from watched folders.</p>
-                    )}
-                  </div>
-                </details>
-              ) : null}
-            </section>
-
-            <section className="entries-panel ledger-surface">
               <div className="records-frame">
-                {filteredHistory.length === 0 ? (
+                {loading ? (
+                  <div aria-label="Loading movie log" className="diary-loading" role="status">
+                    <span className="visually-hidden">Loading diary</span>
+                    {Array.from({ length: 5 }, (_, index) => (
+                      <div className="loading-row" key={index}>
+                        <span />
+                        <span />
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredHistory.length === 0 ? (
                   <div className="blank-slate blank-slate-entries">
                     <p className="blank-title">{normalizedQuery ? 'No matches' : 'Nothing here yet'}</p>
                     {normalizedQuery ? null : <p className="blank-hint">Drop files here or add a watched folder.</p>}
@@ -332,13 +377,84 @@ export function MovieLogWorkspace({
               </div>
             </section>
 
-            {dropActive ? (
-              <div aria-hidden="true" className="drop-overlay">
-                <p className="drop-overlay-title">Drop to log it</p>
-                <p className="drop-overlay-hint">Files and folders are recorded with their full paths</p>
-              </div>
-            ) : null}
-          </section>
+            <aside aria-label="Folder context" className="context-studies">
+              <section className="route-study">
+                <div className="study-head">
+                  <span className="study-index">A</span>
+                  <h2>Watched folders</h2>
+                </div>
+                {state.watchedFolders.length > 0 ? (
+                  <ul className="folder-list">
+                    {state.watchedFolders.map((folder) => (
+                      <li className="folder-row" key={folder.id}>
+                        <div className="folder-info">
+                          <strong className="folder-name" title={folder.path}>
+                            {folder.name}
+                          </strong>
+                          <p className="folder-meta">{`Added ${timestampFormatter.format(new Date(folder.addedAt))}`}</p>
+                        </div>
+                        <button className="folder-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="study-empty">No watched folder.</p>
+                )}
+              </section>
+
+              <details className="inventory-study folder-state">
+                <summary className="folder-state-trigger">
+                  <span className="study-index">B</span>
+                  <span>Current Contents</span>
+                  <span>{formatCount(state.libraryItems.length, 'current item')}</span>
+                </summary>
+                <div className="folder-state-panel">
+                  <ul className="folder-scan-list">
+                    {state.watchedFolders.map((folder) => (
+                      <li className="folder-scan-row" key={folder.id}>
+                        <span>{folder.name}</span>
+                        <span>{folder.lastScannedAt ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}` : 'Not scanned yet'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {visibleFolderItems.length > 0 ? (
+                    <ol className="folder-content-list">
+                      {visibleFolderItems.map((item) => (
+                        <li className="folder-content-row" key={item.id}>
+                          <strong title={item.sourcePath}>{readTitleFromPath(item.sourcePath, item.sourceKind)}</strong>
+                          <span>{item.sourceKind === 'file' ? 'File' : 'Folder'}</span>
+                        </li>
+                      ))}
+                      {hiddenFolderItemCount > 0 ? (
+                        <li className="folder-content-row folder-content-more">{`${formatCount(hiddenFolderItemCount, 'more', 'more')} not shown`}</li>
+                      ) : null}
+                    </ol>
+                  ) : (
+                    <p className="folder-state-empty">No current items from watched folders.</p>
+                  )}
+                </div>
+              </details>
+
+              <section className="note-study">
+                <div className="study-head">
+                  <span className="study-index">C</span>
+                  <h2>Readable note</h2>
+                </div>
+                <button className="note-study-action" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
+                  Open Note
+                </button>
+              </section>
+            </aside>
+          </div>
+
+          {dropActive ? (
+            <div aria-hidden="true" className="drop-overlay">
+              <p className="drop-overlay-title">Drop to log it</p>
+              <p className="drop-overlay-hint">Files and folders are recorded with their full paths</p>
+            </div>
+          ) : null}
         </div>
       }
     />
@@ -349,6 +465,7 @@ export default function App() {
   const [state, setState] = useState<MovieLogState>(emptyState);
   const [dropActive, setDropActive] = useState(false);
   const [feedback, setFeedback] = useState<WorkspaceFeedback | null>(null);
+  const [loading, setLoading] = useState(true);
   const [noteFilePath, setNoteFilePath] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [scanInProgress, setScanInProgress] = useState(false);
@@ -383,6 +500,10 @@ export default function App() {
       } catch (error) {
         if (isMounted) {
           setFeedback({ message: (error as Error).message, tone: 'error' });
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
         }
       }
     };
@@ -516,6 +637,7 @@ export default function App() {
     <MovieLogWorkspace
       dropActive={dropActive}
       feedback={feedback}
+      loading={loading}
       noteFilePath={noteFilePath}
       onAddWatchedFolders={handleAddWatchedFolders}
       onCopyPath={handleCopyPath}

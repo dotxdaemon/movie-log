@@ -23,13 +23,14 @@ describe('styles.css', () => {
     );
   });
 
-  it('keeps the dark material on one tailored workspace instead of split panels', async () => {
+  it('keeps the focal diary on the pale field instead of restoring the tailored dark slab', async () => {
     const styles = await readFile(stylesPath, 'utf8');
 
-    expect(styles).toMatch(/\.tailored-room\s*\{[^}]*background:/s);
-    expect(styles).not.toMatch(/\.tailored-room\s*\{[^}]*49\.4%[^}]*50\.6%/s);
-    expect(styles).not.toMatch(/\.command-bar\s*\{[^}]*box-shadow:/s);
-    expect(styles).not.toMatch(/\.ledger-surface\s*\{[^}]*box-shadow:/s);
+    expect(styles).toMatch(/\.dossier-stage\s*\{[^}]*background:\s*var\(--canvas\)/s);
+    expect(styles).toMatch(/\.diary-body\s*\{[^}]*background:\s*var\(--surface\)/s);
+    expect(styles).not.toMatch(/\.tailored-room\s*\{/s);
+    expect(styles).not.toMatch(/\.command-bar\s*\{/s);
+    expect(styles).not.toMatch(/\.ledger-surface\s*\{/s);
     expect(styles).not.toMatch(/\.records-frame\s*\{[^}]*border:/s);
   });
 
@@ -39,5 +40,14 @@ describe('styles.css', () => {
     expect(styles).toMatch(/\.record-menu\s*\{/);
     expect(styles).toMatch(/\.record-menu-panel\s*\{/);
     expect(styles).not.toMatch(/\.record-actions\s*\{/);
+  });
+
+  it('keeps the phone search input at a non-zooming size above the safe mobile action bar', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+    const phoneStyles = styles.split('@media (max-width: 700px)')[1] ?? '';
+
+    expect(phoneStyles).toMatch(/\.dossier-search input\s*\{[^}]*font-size:\s*1rem/s);
+    expect(phoneStyles).toMatch(/\.mobile-nav\s*\{[^}]*safe-area-inset-bottom/s);
+    expect(phoneStyles).toMatch(/\.mobile-nav-action\s*\{[^}]*min-height:\s*48px/s);
   });
 });

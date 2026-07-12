@@ -1,4 +1,4 @@
-// ABOUTME: Verifies that the renderer workspace resolves into one tailored ledger composition.
+// ABOUTME: Verifies that the renderer workspace resolves into one character-sheet dossier composition.
 // ABOUTME: Uses a resolved React tree so the visual contract can regress without brittle markup snapshots.
 import { createElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -53,6 +53,7 @@ type WorkspaceProps = Parameters<typeof MovieLogWorkspace>[0];
 const baseProps: WorkspaceProps = {
   dropActive: false,
   feedback: null,
+  loading: false,
   noteFilePath: '/tmp/movie-log-note.md',
   onAddWatchedFolders: async () => {},
   onCopyPath: async () => {},
@@ -74,17 +75,21 @@ function renderWorkspace(overrides: Partial<WorkspaceProps> = {}) {
 }
 
 describe('MovieLogWorkspace', () => {
-  it('renders a tailored workspace with one integrated command bar and ledger surface', () => {
+  it('renders an asymmetrical dossier shell around every existing working surface', () => {
     const tree = renderWorkspace();
 
-    expect(findByClass(tree, 'workspace-stack')).toHaveLength(1);
-    expect(findByClass(tree, 'tailored-stage')).toHaveLength(1);
-    expect(findByClass(tree, 'workspace-head')).toHaveLength(1);
+    expect(findByClass(tree, 'dossier-shell')).toHaveLength(1);
+    expect(findByClass(tree, 'archive-spine')).toHaveLength(1);
+    expect(findByClass(tree, 'dossier-stage')).toHaveLength(1);
+    expect(findByClass(tree, 'dossier-canvas')).toHaveLength(1);
+    expect(findByClass(tree, 'dossier-head')).toHaveLength(1);
+    expect(findByClass(tree, 'dossier-search')).toHaveLength(1);
+    expect(findByClass(tree, 'diary-body')).toHaveLength(1);
+    expect(findByClass(tree, 'context-studies')).toHaveLength(1);
+    expect(findByClass(tree, 'route-study')).toHaveLength(1);
+    expect(findByClass(tree, 'inventory-study')).toHaveLength(1);
+    expect(findByClass(tree, 'mobile-nav')).toHaveLength(1);
     expect(findByClass(tree, 'entry-count')).toHaveLength(0);
-    expect(findByClass(tree, 'workspace-search')).toHaveLength(1);
-    expect(findByClass(tree, 'tailored-room')).toHaveLength(1);
-    expect(findByClass(tree, 'command-bar')).toHaveLength(1);
-    expect(findByClass(tree, 'ledger-surface')).toHaveLength(1);
     expect(findByClass(tree, 'records-frame')).toHaveLength(1);
     expect(findByClass(tree, 'record-menu')).toHaveLength(2);
     expect(findByClass(tree, 'record-menu-trigger')).toHaveLength(2);
@@ -101,6 +106,10 @@ describe('MovieLogWorkspace', () => {
     expect(findByClass(tree, 'routes-frame')).toHaveLength(0);
     expect(findByClass(tree, 'botanical-edge')).toHaveLength(0);
     expect(findByClass(tree, 'prism')).toHaveLength(0);
+    expect(findByClass(tree, 'tailored-stage')).toHaveLength(0);
+    expect(findByClass(tree, 'tailored-room')).toHaveLength(0);
+    expect(findByClass(tree, 'command-bar')).toHaveLength(0);
+    expect(findByClass(tree, 'ledger-surface')).toHaveLength(0);
     expect(findByClass(tree, 'record-row')).toHaveLength(2);
     const text = readText(tree);
     expect(text).toContain('Movie Log');
@@ -115,7 +124,7 @@ describe('MovieLogWorkspace', () => {
   it('uses the ledger summary as the only entry count', () => {
     const tree = renderWorkspace();
 
-    const head = findByClass(tree, 'workspace-head');
+    const head = findByClass(tree, 'dossier-head');
     expect(head).toHaveLength(1);
     expect(findByClass(head, 'workspace-title')).toHaveLength(1);
     expect(findByClass(head, 'entry-count')).toHaveLength(0);
@@ -164,7 +173,8 @@ describe('MovieLogWorkspace', () => {
     const tree = renderWorkspace({ onSearchQueryChange, searchQuery: 'Flow' });
 
     const search = findByClass(tree, 'workspace-search')[0];
-    const input = search.children.find((node) => node.type === 'input');
+    const searchField = findByClass(search.children, 'search-field')[0];
+    const input = searchField.children.find((node) => node.type === 'input');
     expect(input).toBeDefined();
     const onKeyDown = input?.props.onKeyDown as (event: { key: string }) => void;
     onKeyDown({ key: 'a' });
@@ -178,8 +188,8 @@ describe('MovieLogWorkspace', () => {
     const onDropActiveChange = vi.fn();
     const tree = renderWorkspace({ dropActive: true, onDropActiveChange });
 
-    const room = findByClass(tree, 'tailored-room')[0];
-    const onDragLeave = room.props.onDragLeave as (event: {
+    const canvas = findByClass(tree, 'dossier-canvas')[0];
+    const onDragLeave = canvas.props.onDragLeave as (event: {
       currentTarget: { contains(node: unknown): boolean };
       relatedTarget: unknown;
     }) => void;
@@ -311,6 +321,15 @@ describe('MovieLogWorkspace', () => {
     const text = readText(tree);
     expect(text).toContain('No matches');
     expect(findByClass(tree, 'record-row')).toHaveLength(0);
+  });
+
+  it('preserves the diary geometry while the first state snapshot loads', () => {
+    const tree = renderWorkspace({ loading: true });
+
+    expect(findByClass(tree, 'diary-loading')).toHaveLength(1);
+    expect(findByClass(tree, 'loading-row')).toHaveLength(5);
+    expect(readText(tree)).toContain('Loading diary');
+    expect(findByClass(tree, 'blank-slate')).toHaveLength(0);
   });
 });
 

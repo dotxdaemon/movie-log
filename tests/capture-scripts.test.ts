@@ -34,4 +34,16 @@ describe('capture pipeline', () => {
     expect(packagedCaptureScript).not.toContain("join(process.cwd(), 'release', 'mac', 'Movie Log.app'");
     expect(packageManifest.scripts['open:mac']).toContain("/Applications/Movie Log.app");
   });
+
+  it('supports exact installed-app capture profiles and rejects overflow or wrong dimensions', () => {
+    expect(packagedCaptureScript).toContain('MOVIE_LOG_CAPTURE_PATH');
+    expect(packagedCaptureScript).toContain('MOVIE_LOG_CAPTURE_WIDTH');
+    expect(packagedCaptureScript).toContain('MOVIE_LOG_CAPTURE_HEIGHT');
+    expect(mainProcess).toContain('useContentSize');
+    expect(mainProcess).toContain('scrollWidth');
+    expect(mainProcess).toContain('clientWidth');
+    expect(mainProcess).toContain('image.getSize()');
+    expect(mainProcess).toContain('Capture dimensions');
+    expect(mainProcess).toContain('horizontal overflow');
+  });
 });
