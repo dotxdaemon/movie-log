@@ -76,6 +76,39 @@ describe('createHistoryStore', () => {
     expect(state.watchedFolders[0]?.path).toBe('/Users/seankim/Media Inbox');
   });
 
+  it('persists diary annotations without reducing append-only history or note rows', async () => {
+    const store = createHistoryStore(dataDirectory);
+    const entry = createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'drop', '2026-03-12T08:00:00.000Z');
+    await store.addHistoryEntry(entry);
+    const notePath = join(dataDirectory, 'movie-log-note.md');
+    const noteBefore = await readFile(notePath, 'utf8');
+
+    await store.updateHistoryEntry(entry.id, {
+      favorite: true,
+      rating: 4.5,
+      review: 'Quiet, precise, and unexpectedly moving.',
+      rewatch: true,
+      tags: ['Animation', 'Drama'],
+      viewingFormat: 'Digital'
+    });
+
+    const reloaded = createHistoryStore(dataDirectory);
+    const state = await reloaded.readState();
+    const noteAfter = await readFile(notePath, 'utf8');
+
+    expect(state.history[0]).toMatchObject({
+      favorite: true,
+      rating: 4.5,
+      review: 'Quiet, precise, and unexpectedly moving.',
+      rewatch: true,
+      tags: ['Animation', 'Drama'],
+      viewingFormat: 'Digital'
+    });
+    expect(noteAfter.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(
+      noteBefore.split('\n').filter((line) => line.startsWith('- ')).length
+    );
+  });
+
   it('does not rewrite the readable note when state is only being read', async () => {
     const store = createHistoryStore(dataDirectory);
 

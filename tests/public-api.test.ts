@@ -28,4 +28,15 @@ describe('Movie Log public API', () => {
     expect(appSource).toContain('loggedPaths.addedCount');
     expect(appSource).toContain('loggedPaths.skippedPaths');
   });
+
+  it('exposes native media selection and persistent entry annotation actions', async () => {
+    const preloadSource = await readFile(join(rootDirectory, 'electron', 'preload.cjs'), 'utf8');
+    const sharedTypesSource = await readFile(join(rootDirectory, 'shared', 'types.ts'), 'utf8');
+
+    expect(sharedTypesSource).toContain('chooseLogPaths(): Promise<string[]>;');
+    expect(sharedTypesSource).toContain('updateEntry(entryId: string, details: EntryDetails): Promise<WatchEntry | null>;');
+    expect(sharedTypesSource).toContain('logPaths(paths: string[], details?: LogEntryDetails): Promise<LogPathsResult>;');
+    expect(preloadSource).toContain("chooseLogPaths: () => ipcRenderer.invoke('movie-log:choose-log-paths')");
+    expect(preloadSource).toContain("updateEntry: (entryId, details) => ipcRenderer.invoke('movie-log:update-entry', entryId, details)");
+  });
 });
