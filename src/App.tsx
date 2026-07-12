@@ -2,12 +2,14 @@
 // ABOUTME: Shapes arrivals and folder controls into one character-sheet dossier workspace.
 import { startTransition, useEffect, useState, type DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
+import { ArchiveApplication } from './archive-application.js';
+import { defaultArchiveFilters, type ArchiveView, type DiaryMode } from './archive-model.js';
 import { guardDragNavigation } from './drag-guard.js';
 import { createDropFeedbackMessage, createScanFeedbackMessage, formatCount, type WorkspaceFeedback } from './feedback.js';
 import { groupEntriesByDay } from './ledger-groups.js';
 import { closeRecordMenuFromAction, closeRecordMenusOutside } from './record-menu.js';
 import { readTitleFromPath, readVisibleHistory } from '../shared/history.js';
-import type { MovieLogState, WatchEntry } from '../shared/types.js';
+import type { EntryDetails, LogEntryDetails, MovieLogState, WatchEntry } from '../shared/types.js';
 
 const emptyState: MovieLogState = {
   history: [],
@@ -462,13 +464,20 @@ export function MovieLogWorkspace({
 }
 
 export default function App() {
+  const [activeView, setActiveView] = useState<ArchiveView>('diary');
+  const [dataFilePath, setDataFilePath] = useState('');
+  const [diaryMode, setDiaryMode] = useState<DiaryMode>('timeline');
   const [state, setState] = useState<MovieLogState>(emptyState);
   const [dropActive, setDropActive] = useState(false);
   const [feedback, setFeedback] = useState<WorkspaceFeedback | null>(null);
   const [loading, setLoading] = useState(true);
+  const [logPanelOpen, setLogPanelOpen] = useState(false);
   const [noteFilePath, setNoteFilePath] = useState('');
+  const [pendingLogPaths, setPendingLogPaths] = useState<string[]>([]);
+  const [filters, setFilters] = useState(defaultArchiveFilters);
   const [searchQuery, setSearchQuery] = useState('');
   const [scanInProgress, setScanInProgress] = useState(false);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -482,8 +491,9 @@ export default function App() {
 
     const loadAppData = async () => {
       try {
-        const [nextState, nextNoteFilePath] = await Promise.all([
+        const [nextState, nextDataFilePath, nextNoteFilePath] = await Promise.all([
           window.movieLog.getState(),
+          window.movieLog.getDataFilePath(),
           window.movieLog.getNoteFilePath()
         ]);
 
@@ -495,6 +505,7 @@ export default function App() {
           updateState(nextState, setState);
         }
 
+        setDataFilePath(nextDataFilePath);
         setNoteFilePath(nextNoteFilePath);
         document.documentElement.dataset.movieLogCaptureReady = 'true';
       } catch (error) {
@@ -566,20 +577,66 @@ export default function App() {
       return;
     }
 
+    setPendingLogPaths(paths);
+    setLogPanelOpen(true);
+  };
+
+  const handleChooseLogPaths = async () => {
+    setFeedback(null);
+
     try {
-      const loggedPaths = await window.movieLog.logPaths(paths);
+      const paths = await window.movieLog.chooseLogPaths();
+
+      if (paths.length > 0) {
+        setPendingLogPaths(paths);
+      }
+    } catch (error) {
+      setFeedback({ message: (error as Error).message, tone: 'error' });
+    }
+  };
+
+  const handleCreateLog = async (details: LogEntryDetails) => {
+    setFeedback(null);
+
+    if (pendingLogPaths.length === 0) {
+      setFeedback({ message: 'Choose at least one media file or folder.', tone: 'error' });
+      return;
+    }
+
+    try {
+      const loggedPaths = await window.movieLog.logPaths(pendingLogPaths, details);
 
       if (loggedPaths.skippedPaths.length > 0) {
         setFeedback({ message: createDropFeedbackMessage(loggedPaths), tone: 'error' });
-        return;
-      }
-
-      if (loggedPaths.addedCount === 0) {
+      } else if (loggedPaths.addedCount === 0) {
         setFeedback({ message: 'Only folders and likely media files are logged. Hidden files and junk are ignored.', tone: 'error' });
         return;
+      } else {
+        setFeedback({ message: `Logged ${formatCount(loggedPaths.addedCount, 'item')}.`, tone: 'notice' });
       }
 
-      setFeedback({ message: `Logged ${formatCount(loggedPaths.addedCount, 'item')}.`, tone: 'notice' });
+      updateState(await window.movieLog.getState(), setState);
+      setPendingLogPaths([]);
+      setLogPanelOpen(false);
+      setActiveView('diary');
+    } catch (error) {
+      setFeedback({ message: (error as Error).message, tone: 'error' });
+    }
+  };
+
+  const handleUpdateEntry = async (entryId: string, details: EntryDetails) => {
+    setFeedback(null);
+
+    try {
+      const updatedEntry = await window.movieLog.updateEntry(entryId, details);
+
+      if (!updatedEntry) {
+        setFeedback({ message: 'That diary entry is no longer available.', tone: 'error' });
+        return;
+      }
+
+      updateState(await window.movieLog.getState(), setState);
+      setFeedback({ message: 'Diary entry saved.', tone: 'notice' });
     } catch (error) {
       setFeedback({ message: (error as Error).message, tone: 'error' });
     }
@@ -634,23 +691,43 @@ export default function App() {
   };
 
   return (
-    <MovieLogWorkspace
+    <ArchiveApplication
+      activeView={activeView}
+      dataFilePath={dataFilePath}
+      diaryMode={diaryMode}
       dropActive={dropActive}
       feedback={feedback}
+      filters={filters}
       loading={loading}
+      logPanelOpen={logPanelOpen}
       noteFilePath={noteFilePath}
       onAddWatchedFolders={handleAddWatchedFolders}
+      onChooseLogPaths={handleChooseLogPaths}
+      onClearLogPaths={() => setPendingLogPaths([])}
+      onCloseLogPanel={() => setLogPanelOpen(false)}
       onCopyPath={handleCopyPath}
+      onCreateLog={handleCreateLog}
+      onDiaryModeChange={setDiaryMode}
       onDrop={handleDrop}
       onDropActiveChange={setDropActive}
       onFeedbackDismiss={() => setFeedback(null)}
+      onFilterChange={setFilters}
       onOpenInFinder={handleOpenInFinder}
       onOpenItem={handleOpenItem}
+      onOpenLogPanel={() => setLogPanelOpen(true)}
       onRemoveWatchedFolder={handleRemoveWatchedFolder}
       onScanNow={handleScanNow}
       onSearchQueryChange={setSearchQuery}
+      onSelectPath={(path) => {
+        setSelectedPath(path);
+        setActiveView('detail');
+      }}
+      onUpdateEntry={handleUpdateEntry}
+      onViewChange={setActiveView}
+      pendingLogPaths={pendingLogPaths}
       scanInProgress={scanInProgress}
       searchQuery={searchQuery}
+      selectedPath={selectedPath}
       state={state}
     />
   );

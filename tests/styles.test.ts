@@ -26,19 +26,19 @@ describe('styles.css', () => {
   it('keeps the focal diary on the pale field instead of restoring the tailored dark slab', async () => {
     const styles = await readFile(stylesPath, 'utf8');
 
-    expect(styles).toMatch(/\.dossier-stage\s*\{[^}]*background:\s*var\(--canvas\)/s);
-    expect(styles).toMatch(/\.diary-body\s*\{[^}]*background:\s*var\(--surface\)/s);
+    expect(styles).toMatch(/\.archive-canvas\s*\{[^}]*background:[^}]*var\(--canvas\)/s);
+    expect(styles).toMatch(/\.entry-body\s*\{[^}]*background:[^}]*var\(--surface\)/s);
     expect(styles).not.toMatch(/\.tailored-room\s*\{/s);
     expect(styles).not.toMatch(/\.command-bar\s*\{/s);
     expect(styles).not.toMatch(/\.ledger-surface\s*\{/s);
     expect(styles).not.toMatch(/\.records-frame\s*\{[^}]*border:/s);
   });
 
-  it('gives row titles a compact menu instead of a persistent action column', async () => {
+  it('gives diary titles a direct dossier action instead of a persistent action column', async () => {
     const styles = await readFile(stylesPath, 'utf8');
 
-    expect(styles).toMatch(/\.record-menu\s*\{/);
-    expect(styles).toMatch(/\.record-menu-panel\s*\{/);
+    expect(styles).toMatch(/\.entry-body h3 button\s*\{/);
+    expect(styles).toMatch(/\.dossier-actions\s*\{/);
     expect(styles).not.toMatch(/\.record-actions\s*\{/);
   });
 
@@ -46,8 +46,8 @@ describe('styles.css', () => {
     const styles = await readFile(stylesPath, 'utf8');
     const phoneStyles = styles.split('@media (max-width: 700px)')[1] ?? '';
 
-    expect(phoneStyles).toMatch(/\.dossier-search input\s*\{[^}]*font-size:\s*1rem/s);
+    expect(phoneStyles).toMatch(/\.archive-search input\s*\{[^}]*font-size:\s*1rem/s);
     expect(phoneStyles).toMatch(/\.mobile-nav\s*\{[^}]*safe-area-inset-bottom/s);
-    expect(phoneStyles).toMatch(/\.mobile-nav-action\s*\{[^}]*min-height:\s*48px/s);
+    expect(phoneStyles).toMatch(/\.mobile-nav-item\s*\{[^}]*min-height:\s*64px/s);
   });
 });

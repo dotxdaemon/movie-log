@@ -4,16 +4,18 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('movieLog', {
   addWatchedFolders: () => ipcRenderer.invoke('movie-log:add-watched-folders'),
+  chooseLogPaths: () => ipcRenderer.invoke('movie-log:choose-log-paths'),
   copyPath: (itemPath) => ipcRenderer.invoke('movie-log:copy-path', itemPath),
   getDataFilePath: () => ipcRenderer.invoke('movie-log:get-data-file-path'),
   getNoteFilePath: () => ipcRenderer.invoke('movie-log:get-note-file-path'),
   getState: () => ipcRenderer.invoke('movie-log:get-state'),
-  logPaths: (paths) => ipcRenderer.invoke('movie-log:log-paths', paths),
+  logPaths: (paths, details) => ipcRenderer.invoke('movie-log:log-paths', paths, details),
   openInFinder: (itemPath) => ipcRenderer.invoke('movie-log:open-in-finder', itemPath),
   openItem: (itemPath) => ipcRenderer.invoke('movie-log:open-item', itemPath),
   pathForFile: (file) => webUtils.getPathForFile(file),
   removeWatchedFolder: (id) => ipcRenderer.invoke('movie-log:remove-watched-folder', id),
   scanNow: () => ipcRenderer.invoke('movie-log:scan-now'),
+  updateEntry: (entryId, details) => ipcRenderer.invoke('movie-log:update-entry', entryId, details),
   subscribe: (listener) => {
     const wrappedListener = (_event, state) => {
       listener(state);

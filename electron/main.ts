@@ -17,7 +17,7 @@ import { revealWindow } from './window-visibility.js';
 import { closeMovieLog, handleWindowCloseRequest } from './window-close.js';
 import { createEntryFromPath } from '../shared/history.js';
 import { isTrackableMediaItem } from '../shared/media-items.js';
-import type { EntryKind, MovieLogState, WatchEntry } from '../shared/types.js';
+import type { EntryDetails, EntryKind, LogEntryDetails, MovieLogState, WatchEntry } from '../shared/types.js';
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 prepareAppRuntime(app, {
@@ -48,7 +48,11 @@ if (captureRequested && (!Number.isInteger(captureWidth) || !Number.isInteger(ca
   throw new Error(`Capture dimensions must be whole numbers at least 320x640. Received ${captureWidth}x${captureHeight}.`);
 }
 
-async function createEntryForPath(itemPath: string, source: 'drop' | 'watch'): Promise<WatchEntry | null> {
+async function createEntryForPath(
+  itemPath: string,
+  source: 'drop' | 'watch',
+  details: LogEntryDetails = {}
+): Promise<WatchEntry | null> {
   const itemStats = await stat(itemPath);
   const sourceKind: EntryKind = itemStats.isDirectory() ? 'directory' : 'file';
 
@@ -56,7 +60,12 @@ async function createEntryForPath(itemPath: string, source: 'drop' | 'watch'): P
     return null;
   }
 
-  return createEntryFromPath(itemPath, source, new Date().toISOString(), sourceKind);
+  const { watchedAt = new Date().toISOString(), ...annotations } = details;
+  return {
+    ...createEntryFromPath(itemPath, source, watchedAt, sourceKind),
+    ...annotations,
+    tags: annotations.tags ? [...annotations.tags] : undefined
+  };
 }
 
 async function readState(): Promise<MovieLogState> {
@@ -277,18 +286,36 @@ function registerIpcHandlers(): void {
     clipboard.writeText(itemPath);
   });
 
+  ipcMain.handle('movie-log:choose-log-paths', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile', 'openDirectory', 'multiSelections']
+    });
+
+    return result.canceled ? [] : result.filePaths;
+  });
+
   ipcMain.handle('movie-log:get-data-file-path', async () => historyStore.getDataFilePath());
 
   ipcMain.handle('movie-log:get-note-file-path', async () => historyStore.getNoteFilePath());
 
   ipcMain.handle('movie-log:get-state', async () => readState());
 
-  ipcMain.handle('movie-log:log-paths', async (_event, paths: string[]) => {
+  ipcMain.handle('movie-log:log-paths', async (_event, paths: string[], details?: LogEntryDetails) => {
     return logPathsFromDrop(paths, {
       addHistoryEntries: async (entries) => historyStore.addHistoryEntries(entries),
       broadcastState,
-      createEntryForPath: async (itemPath) => createEntryForPath(itemPath, 'drop')
+      createEntryForPath: async (itemPath) => createEntryForPath(itemPath, 'drop', details)
     });
+  });
+
+  ipcMain.handle('movie-log:update-entry', async (_event, entryId: string, details: EntryDetails) => {
+    const entry = await historyStore.updateHistoryEntry(entryId, details);
+
+    if (entry) {
+      await broadcastState();
+    }
+
+    return entry;
   });
 
   ipcMain.handle('movie-log:open-in-finder', async (_event, itemPath: string) => {

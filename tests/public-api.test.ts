@@ -23,8 +23,8 @@ describe('Movie Log public API', () => {
     const appSource = await readFile(join(rootDirectory, 'src', 'App.tsx'), 'utf8');
 
     expect(sharedTypesSource).toContain('export interface LogPathsResult');
-    expect(sharedTypesSource).toContain('logPaths(paths: string[]): Promise<LogPathsResult>;');
-    expect(preloadSource).toContain("logPaths: (paths) => ipcRenderer.invoke('movie-log:log-paths', paths)");
+    expect(sharedTypesSource).toContain('logPaths(paths: string[], details?: LogEntryDetails): Promise<LogPathsResult>;');
+    expect(preloadSource).toContain("logPaths: (paths, details) => ipcRenderer.invoke('movie-log:log-paths', paths, details)");
     expect(appSource).toContain('loggedPaths.addedCount');
     expect(appSource).toContain('loggedPaths.skippedPaths');
   });

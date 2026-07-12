@@ -4,12 +4,31 @@ export type EntrySource = 'drop' | 'watch';
 export type EntryKind = 'file' | 'directory';
 
 export interface WatchEntry {
+  favorite?: boolean;
   id: string;
+  rating?: number | null;
+  review?: string;
+  rewatch?: boolean;
   title: string;
+  tags?: string[];
   watchedAt: string;
+  viewingFormat?: string;
   source: EntrySource;
   sourceKind: EntryKind;
   sourcePath: string;
+}
+
+export interface EntryDetails {
+  favorite?: boolean;
+  rating?: number | null;
+  review?: string;
+  rewatch?: boolean;
+  tags?: string[];
+  viewingFormat?: string;
+}
+
+export interface LogEntryDetails extends EntryDetails {
+  watchedAt?: string;
 }
 
 export interface WatchedFolder {
@@ -46,10 +65,12 @@ export interface LogPathsResult {
 }
 
 export interface MovieLogApi {
+  chooseLogPaths(): Promise<string[]>;
   getState(): Promise<MovieLogState>;
   getDataFilePath(): Promise<string>;
   getNoteFilePath(): Promise<string>;
-  logPaths(paths: string[]): Promise<LogPathsResult>;
+  logPaths(paths: string[], details?: LogEntryDetails): Promise<LogPathsResult>;
+  updateEntry(entryId: string, details: EntryDetails): Promise<WatchEntry | null>;
   addWatchedFolders(): Promise<WatchedFolder[]>;
   removeWatchedFolder(id: string): Promise<void>;
   copyPath(path: string): Promise<void>;

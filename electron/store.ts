@@ -4,7 +4,7 @@ import { access, copyFile, mkdir, open, readFile, rename, stat } from 'node:fs/p
 import { basename, join } from 'node:path';
 import { scanFolderContents, type ScannedFolderItem } from './folder-scan.js';
 import { createEntryFromPath, readTitleFromPath, readVisibleHistory, sortEntriesByWatchedAt } from '../shared/history.js';
-import type { LibraryItem, MovieLogState, WatchEntry, WatchedFolder } from '../shared/types.js';
+import type { EntryDetails, LibraryItem, MovieLogState, WatchEntry, WatchedFolder } from '../shared/types.js';
 
 const HISTORY_POLICY = 'append-only';
 
@@ -707,6 +707,26 @@ export function createHistoryStore(dataDirectory: string) {
         state.history = mergeHistoryEntries(state.history, entries);
         await writePersistedState(state);
         return entries;
+      });
+    },
+
+    async updateHistoryEntry(entryId: string, details: EntryDetails): Promise<WatchEntry | null> {
+      return runSerialized(async () => {
+        const state = await readPersistedState();
+        const entry = state.history.find((candidate) => candidate.id === entryId);
+
+        if (!entry) {
+          return null;
+        }
+
+        const updatedEntry: WatchEntry = {
+          ...entry,
+          ...details,
+          tags: details.tags ? [...details.tags] : entry.tags
+        };
+        state.history = state.history.map((candidate) => candidate.id === entryId ? updatedEntry : candidate);
+        await writePersistedState(state);
+        return updatedEntry;
       });
     },
 
