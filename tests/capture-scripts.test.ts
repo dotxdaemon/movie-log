@@ -83,7 +83,8 @@ describe('capture pipeline', () => {
     expect(mainProcess).toContain('verifyLogDialogKeyboard');
     expect(mainProcess).toContain("keyCode: 'Tab'");
     expect(mainProcess).toContain("keyCode: 'Escape'");
-    expect(mainProcess).toContain("document.querySelector('.log-action') === document.activeElement");
+    expect(mainProcess).toContain("captureWidth <= 700 ? '.mobile-log-action' : '.archive-spine .log-action'");
+    expect(mainProcess).toContain('document.querySelector(logActionSelector) === document.activeElement');
     expect(mainProcess).toContain("const input = document.querySelectorAll('.log-sheet .rating-segment input')[7]");
     expect(mainProcess).toContain('input?.click()');
     expect(mainProcess).toContain('ratingSelectionVisible');

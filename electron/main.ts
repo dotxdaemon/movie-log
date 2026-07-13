@@ -170,14 +170,16 @@ async function selectCaptureView(): Promise<void> {
     return;
   }
 
+  const logActionSelector = captureWidth <= 700 ? '.mobile-log-action' : '.archive-spine .log-action';
   const selected = (await mainWindow.webContents.executeJavaScript(`
     (() => {
       const requestedView = ${JSON.stringify(captureRequestedView)};
+      const logActionSelector = ${JSON.stringify(logActionSelector)};
       const readLabel = (element) => element.textContent?.trim().toLowerCase() ?? '';
       const navigationItems = [...document.querySelectorAll('.nav-item')];
 
       if (requestedView === 'log' || requestedView === 'log-selected') {
-        const action = document.querySelector('.log-action');
+        const action = document.querySelector(logActionSelector);
         action?.focus();
         action?.click();
         return true;
@@ -208,7 +210,7 @@ async function selectCaptureView(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 180));
 
   if (captureRequestedView === 'log' || captureRequestedView === 'log-selected') {
-    await verifyLogDialogKeyboard();
+    await verifyLogDialogKeyboard(logActionSelector);
   }
 
   if (captureWidth <= 700 && (captureRequestedView === 'log' || captureRequestedView === 'log-selected')) {
@@ -237,7 +239,7 @@ async function selectCaptureView(): Promise<void> {
     }
 
     await waitForCaptureSelector('.log-sheet', false);
-    await mainWindow.webContents.executeJavaScript(`document.querySelector('.log-action')?.click()`);
+    await mainWindow.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(logActionSelector)})?.click()`);
     await waitForCaptureSelector('.log-sheet');
   }
 
@@ -361,7 +363,7 @@ async function selectCaptureView(): Promise<void> {
   }
 }
 
-async function verifyLogDialogKeyboard(): Promise<void> {
+async function verifyLogDialogKeyboard(logActionSelector: string): Promise<void> {
   if (!mainWindow) {
     return;
   }
@@ -396,15 +398,18 @@ async function verifyLogDialogKeyboard(): Promise<void> {
   mainWindow.webContents.sendInputEvent({ keyCode: 'Escape', type: 'keyUp' });
   await waitForCaptureSelector('.log-sheet', false);
   await new Promise((resolve) => setTimeout(resolve, 50));
-  const focusRestored = (await mainWindow.webContents.executeJavaScript(
-    `document.querySelector('.log-action') === document.activeElement`
-  )) as boolean;
+  const focusRestored = (await mainWindow.webContents.executeJavaScript(`
+    (() => {
+      const logActionSelector = ${JSON.stringify(logActionSelector)};
+      return document.querySelector(logActionSelector) === document.activeElement;
+    })()
+  `)) as boolean;
 
   if (!focusRestored) {
     throw new Error('Log dialog did not restore focus to its opening action.');
   }
 
-  await mainWindow.webContents.executeJavaScript(`document.querySelector('.log-action')?.click()`);
+  await mainWindow.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(logActionSelector)})?.click()`);
   await waitForCaptureSelector('.log-sheet');
 }
 
