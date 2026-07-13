@@ -6,6 +6,7 @@ export type EntryKind = 'file' | 'directory';
 export interface WatchEntry {
   favorite?: boolean;
   id: string;
+  location?: string;
   rating?: number | null;
   review?: string;
   rewatch?: boolean;
@@ -20,6 +21,7 @@ export interface WatchEntry {
 
 export interface EntryDetails {
   favorite?: boolean;
+  location?: string;
   rating?: number | null;
   review?: string;
   rewatch?: boolean;
@@ -53,7 +55,48 @@ export interface LibraryItem extends FolderContentsItem {
   lastSeenAt: string;
 }
 
+export type FilmStatus = 'matched' | 'unmatched';
+
+export interface FilmDetails {
+  cast: string[];
+  country: string[];
+  director: string[];
+  genres: string[];
+  language: string[];
+  pageId: number;
+  posterUrl: string | null;
+  runtimeMinutes: number | null;
+  wikipediaUrl: string | null;
+  year: number | null;
+}
+
+export interface FilmRecord {
+  cast: string[];
+  country: string[];
+  director: string[];
+  fetchedAt: string;
+  genres: string[];
+  key: string;
+  language: string[];
+  pageId: number | null;
+  posterUrl: string | null;
+  runtimeMinutes: number | null;
+  status: FilmStatus;
+  title: string;
+  wikipediaUrl: string | null;
+  year: number | null;
+}
+
+export interface CatalogSearchResult {
+  description: string;
+  pageId: number;
+  posterUrl: string | null;
+  title: string;
+  year: number | null;
+}
+
 export interface MovieLogState {
+  films?: Record<string, FilmRecord>;
   history: WatchEntry[];
   libraryItems: LibraryItem[];
   watchedFolders: WatchedFolder[];
@@ -64,12 +107,21 @@ export interface LogPathsResult {
   skippedPaths: string[];
 }
 
+export interface LogFilmRequest {
+  pageId: number;
+  title: string;
+  year: number | null;
+}
+
 export interface MovieLogApi {
   chooseLogPaths(): Promise<string[]>;
   getState(): Promise<MovieLogState>;
   getDataFilePath(): Promise<string>;
   getNoteFilePath(): Promise<string>;
+  logFilm(film: LogFilmRequest, details?: LogEntryDetails): Promise<void>;
   logPaths(paths: string[], details?: LogEntryDetails): Promise<LogPathsResult>;
+  matchFilm(filmKey: string, film: { title: string; year: number | null }, pageId: number | null): Promise<void>;
+  searchCatalog(query: string): Promise<CatalogSearchResult[]>;
   updateEntry(entryId: string, details: EntryDetails): Promise<WatchEntry | null>;
   addWatchedFolders(): Promise<WatchedFolder[]>;
   removeWatchedFolder(id: string): Promise<void>;

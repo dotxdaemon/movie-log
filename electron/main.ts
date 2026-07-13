@@ -5,6 +5,8 @@ import { stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { createFilmCatalog } from './film-catalog.js';
+import { createFilmIndex, type FilmEnrichmentRequest } from './film-index.js';
 import { createFolderMonitor } from './folder-monitor.js';
 import { addWatchedFolderPath, logPathsFromDrop } from './main-actions.js';
 import { handleMovieLogWindowsClosed, showMovieLog } from './app-lifecycle.js';
@@ -15,9 +17,10 @@ import { createHistoryStore } from './store.js';
 import { createWatchedFolderSync } from './watched-folder-sync.js';
 import { revealWindow } from './window-visibility.js';
 import { closeMovieLog, handleWindowCloseRequest } from './window-close.js';
+import { buildFilmSourcePath, parseFilmTitle, readFilmKey } from '../shared/film-title.js';
 import { createEntryFromPath } from '../shared/history.js';
 import { isTrackableMediaItem } from '../shared/media-items.js';
-import type { EntryDetails, EntryKind, LogEntryDetails, MovieLogState, WatchEntry } from '../shared/types.js';
+import type { EntryDetails, EntryKind, LogEntryDetails, LogFilmRequest, MovieLogState, WatchEntry } from '../shared/types.js';
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 prepareAppRuntime(app, {
@@ -27,6 +30,9 @@ prepareAppRuntime(app, {
 });
 const dataDirectory = process.env.MOVIE_LOG_DATA_DIR ?? join(app.getPath('userData'), 'movie-log');
 const historyStore = createHistoryStore(dataDirectory);
+const filmCatalog = createFilmCatalog();
+const filmIndex = createFilmIndex({ catalog: filmCatalog, dataDirectory });
+let filmEnrichmentRunning = false;
 let watchedFolderSync: ReturnType<typeof createWatchedFolderSync>;
 const folderMonitor = createFolderMonitor({
   loadKnownPaths: historyStore.readKnownPaths,
@@ -75,7 +81,53 @@ async function createEntryForPath(
 }
 
 async function readState(): Promise<MovieLogState> {
-  return historyStore.readState();
+  const [state, films] = await Promise.all([historyStore.readState(), filmIndex.readFilms()]);
+  return { ...state, films };
+}
+
+function collectFilmRequests(state: MovieLogState): FilmEnrichmentRequest[] {
+  const requests = new Map<string, FilmEnrichmentRequest>();
+  const titles = [
+    ...state.history.map((entry) => entry.title),
+    ...state.libraryItems.map((item) => item.title)
+  ];
+
+  for (const stem of titles) {
+    const parsed = parseFilmTitle(stem);
+
+    if (!parsed.title) {
+      continue;
+    }
+
+    const key = readFilmKey(parsed);
+
+    if (!requests.has(key)) {
+      requests.set(key, { key, title: parsed.title, year: parsed.year });
+    }
+  }
+
+  return [...requests.values()];
+}
+
+async function enrichFilms(): Promise<void> {
+  if (filmEnrichmentRunning) {
+    return;
+  }
+
+  filmEnrichmentRunning = true;
+
+  try {
+    const state = await historyStore.readState();
+    const changed = await filmIndex.enrichFilms(collectFilmRequests({ ...state, films: {} }));
+
+    if (changed) {
+      await broadcastState();
+    }
+  } catch {
+    return;
+  } finally {
+    filmEnrichmentRunning = false;
+  }
 }
 
 async function broadcastState(): Promise<void> {
@@ -276,6 +328,7 @@ async function createWindow(): Promise<void> {
 
   mainWindow.webContents.once('did-finish-load', () => {
     void broadcastState();
+    void enrichFilms();
     void captureIfRequested().catch((error) => {
       console.error(error);
       app.exit(1);
@@ -353,6 +406,7 @@ function registerIpcHandlers(): void {
     }
 
     await broadcastState();
+    void enrichFilms();
     return folders;
   });
 
@@ -375,12 +429,45 @@ function registerIpcHandlers(): void {
   ipcMain.handle('movie-log:get-state', async () => readState());
 
   ipcMain.handle('movie-log:log-paths', async (_event, paths: string[], details?: LogEntryDetails) => {
-    return logPathsFromDrop(paths, {
+    const result = await logPathsFromDrop(paths, {
       addHistoryEntries: async (entries) => historyStore.addHistoryEntries(entries),
       broadcastState,
       createEntryForPath: async (itemPath) => createEntryForPath(itemPath, 'drop', details)
     });
+    void enrichFilms();
+    return result;
   });
+
+  ipcMain.handle('movie-log:log-film', async (_event, film: LogFilmRequest, details?: LogEntryDetails) => {
+    const { watchedAt = new Date().toISOString(), ...annotations } = details ?? {};
+    const sourcePath = buildFilmSourcePath({ title: film.title, year: film.year }, film.pageId);
+    const entry: WatchEntry = {
+      ...createEntryFromPath(sourcePath, 'drop', watchedAt, 'directory'),
+      ...annotations,
+      tags: annotations.tags ? [...annotations.tags] : undefined
+    };
+    await historyStore.addHistoryEntry(entry);
+
+    try {
+      await filmIndex.matchFilm(readFilmKey({ title: film.title, year: film.year }), film, film.pageId);
+    } catch {
+      // The diary entry is saved even when the catalog is unreachable; metadata fills in on the next enrichment.
+    }
+
+    await broadcastState();
+  });
+
+  ipcMain.handle('movie-log:search-catalog', async (_event, query: string) => {
+    return filmCatalog.searchFilms(query);
+  });
+
+  ipcMain.handle(
+    'movie-log:match-film',
+    async (_event, filmKey: string, film: { title: string; year: number | null }, pageId: number | null) => {
+      await filmIndex.matchFilm(filmKey, film, pageId);
+      await broadcastState();
+    }
+  );
 
   ipcMain.handle('movie-log:update-entry', async (_event, entryId: string, details: EntryDetails) => {
     const entry = await historyStore.updateHistoryEntry(entryId, details);
@@ -402,6 +489,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('movie-log:scan-now', async () => {
     await watchedFolderSync.refreshWatchedFolders();
+    void enrichFilms();
   });
 
   ipcMain.handle('movie-log:remove-watched-folder', async (_event, folderId: string) => {
@@ -439,7 +527,10 @@ async function pauseBackgroundWork(): Promise<void> {
 
 app.whenReady().then(async () => {
   watchedFolderSync = createWatchedFolderSync({
-    broadcastState,
+    broadcastState: async () => {
+      await broadcastState();
+      void enrichFilms();
+    },
     listWatchedFolders: async () => (await readState()).watchedFolders,
     now: () => new Date().toISOString(),
     saveFolderContents: async (folderPath, items, scannedAt) => {
