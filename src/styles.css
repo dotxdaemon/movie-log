@@ -1722,6 +1722,10 @@ h3 {
     font-size: 15px;
   }
 
+  :is(input, select, textarea) {
+    font-size: 16px;
+  }
+
   .dossier-shell {
     display: block;
     min-height: 100dvh;

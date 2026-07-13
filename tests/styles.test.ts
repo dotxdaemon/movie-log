@@ -55,6 +55,7 @@ describe('styles.css', () => {
     const phoneStyles = styles.split('@media (max-width: 700px)')[1] ?? '';
 
     expect(phoneStyles).toMatch(/\.archive-search input\s*\{[^}]*font-size:\s*1rem/s);
+    expect(phoneStyles).toMatch(/:is\(input, select, textarea\)\s*\{[^}]*font-size:\s*16px/s);
     expect(phoneStyles).toMatch(/\.mobile-nav\s*\{[^}]*safe-area-inset-bottom/s);
     expect(phoneStyles).toMatch(/\.mobile-nav-item\s*\{[^}]*min-height:\s*64px/s);
   });
