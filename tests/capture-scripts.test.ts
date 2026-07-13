@@ -78,4 +78,12 @@ describe('capture pipeline', () => {
     expect(mainProcess).toContain("waitForCaptureSelector('.filter-sheet', false)");
     expect(mainProcess).toContain("waitForCaptureSelector('.log-sheet', false)");
   });
+
+  it('replays log dialog focus trapping, Escape restoration, and rating selection before proof', () => {
+    expect(mainProcess).toContain('verifyLogDialogKeyboard');
+    expect(mainProcess).toContain("keyCode: 'Tab'");
+    expect(mainProcess).toContain("keyCode: 'Escape'");
+    expect(mainProcess).toContain("document.querySelector('.log-action') === document.activeElement");
+    expect(mainProcess).toContain("document.querySelector('.rating-segment input[value=\"4\"]')?.click()");
+  });
 });

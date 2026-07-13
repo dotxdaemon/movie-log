@@ -177,7 +177,9 @@ async function selectCaptureView(): Promise<void> {
       const navigationItems = [...document.querySelectorAll('.nav-item')];
 
       if (requestedView === 'log' || requestedView === 'log-selected') {
-        document.querySelector('.log-action')?.click();
+        const action = document.querySelector('.log-action');
+        action?.focus();
+        action?.click();
         return true;
       }
 
@@ -204,6 +206,10 @@ async function selectCaptureView(): Promise<void> {
   }
 
   await new Promise((resolve) => setTimeout(resolve, 180));
+
+  if (captureRequestedView === 'log' || captureRequestedView === 'log-selected') {
+    await verifyLogDialogKeyboard();
+  }
 
   if (captureWidth <= 700 && (captureRequestedView === 'log' || captureRequestedView === 'log-selected')) {
     const touchSupported = (await mainWindow.webContents.executeJavaScript(`
@@ -321,6 +327,12 @@ async function selectCaptureView(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 180));
   }
 
+  if (captureRequestedView === 'log' || captureRequestedView === 'log-selected') {
+    await mainWindow.webContents.executeJavaScript(
+      `document.querySelector('.rating-segment input[value="4"]')?.click()`
+    );
+  }
+
   const viewSelector = {
     catalog: '.search-view',
     detail: '.movie-dossier',
@@ -338,6 +350,52 @@ async function selectCaptureView(): Promise<void> {
   if (!viewRendered) {
     throw new Error(`Capture view did not render: ${captureRequestedView}.`);
   }
+}
+
+async function verifyLogDialogKeyboard(): Promise<void> {
+  if (!mainWindow) {
+    return;
+  }
+
+  const initialFocusInside = (await mainWindow.webContents.executeJavaScript(`
+    document.querySelector('.log-sheet')?.contains(document.activeElement) === true
+  `)) as boolean;
+
+  if (!initialFocusInside) {
+    throw new Error('Log dialog did not move focus inside when opened.');
+  }
+
+  await mainWindow.webContents.executeJavaScript(`
+    document.querySelector('.log-sheet button')?.focus()
+  `);
+  mainWindow.webContents.sendInputEvent({ keyCode: 'Tab', modifiers: ['shift'], type: 'keyDown' });
+  mainWindow.webContents.sendInputEvent({ keyCode: 'Tab', modifiers: ['shift'], type: 'keyUp' });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const wrappedToLast = (await mainWindow.webContents.executeJavaScript(`
+    (() => {
+      const focusable = [...document.querySelectorAll('.log-sheet button, .log-sheet input, .log-sheet select, .log-sheet textarea, .log-sheet summary')]
+        .filter((element) => !element.hasAttribute('disabled'));
+      return document.activeElement === focusable.at(-1);
+    })()
+  `)) as boolean;
+
+  if (!wrappedToLast) {
+    throw new Error('Log dialog did not trap backward focus at its final control.');
+  }
+
+  mainWindow.webContents.sendInputEvent({ keyCode: 'Escape', type: 'keyDown' });
+  mainWindow.webContents.sendInputEvent({ keyCode: 'Escape', type: 'keyUp' });
+  await waitForCaptureSelector('.log-sheet', false);
+  const focusRestored = (await mainWindow.webContents.executeJavaScript(
+    `document.querySelector('.log-action') === document.activeElement`
+  )) as boolean;
+
+  if (!focusRestored) {
+    throw new Error('Log dialog did not restore focus to its opening action.');
+  }
+
+  await mainWindow.webContents.executeJavaScript(`document.querySelector('.log-action')?.click()`);
+  await waitForCaptureSelector('.log-sheet');
 }
 
 async function waitForCaptureSelector(selector: string, expected = true): Promise<void> {
