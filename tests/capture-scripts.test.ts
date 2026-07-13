@@ -55,4 +55,10 @@ describe('capture pipeline', () => {
     expect(mainProcess).toContain("'.log-sheet'");
     expect(mainProcess).toContain('Capture view did not render');
   });
+
+  it('can open the mobile library filter sheet before capture', () => {
+    expect(mainProcess).toContain("'filters'");
+    expect(mainProcess).toContain("document.querySelector('.filter-sheet-trigger')?.click()");
+    expect(mainProcess).toContain("filters: '.filter-sheet'");
+  });
 });

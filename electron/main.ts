@@ -50,7 +50,7 @@ const captureRequested = Boolean(process.env.MOVIE_LOG_CAPTURE_PATH);
 const captureWidth = Number(process.env.MOVIE_LOG_CAPTURE_WIDTH ?? 1180);
 const captureHeight = Number(process.env.MOVIE_LOG_CAPTURE_HEIGHT ?? 788);
 const captureRequestedView = process.env.MOVIE_LOG_CAPTURE_VIEW ?? 'diary';
-const captureViews = new Set(['diary', 'library', 'search', 'statistics', 'settings', 'detail', 'log']);
+const captureViews = new Set(['diary', 'library', 'filters', 'search', 'statistics', 'settings', 'detail', 'log']);
 
 if (captureRequested && (!Number.isInteger(captureWidth) || !Number.isInteger(captureHeight) || captureWidth < 320 || captureHeight < 640)) {
   throw new Error(`Capture dimensions must be whole numbers at least 320x640. Received ${captureWidth}x${captureHeight}.`);
@@ -170,7 +170,7 @@ async function selectCaptureView(): Promise<void> {
         return true;
       }
 
-      if (requestedView === 'detail') {
+      if (requestedView === 'detail' || requestedView === 'filters') {
         navigationItems.find((item) => readLabel(item).includes('library'))?.click();
         return true;
       }
@@ -188,6 +188,13 @@ async function selectCaptureView(): Promise<void> {
   }
 
   await new Promise((resolve) => setTimeout(resolve, 180));
+
+  if (captureRequestedView === 'filters') {
+    await mainWindow.webContents.executeJavaScript(`
+      document.querySelector('.filter-sheet-trigger')?.click()
+    `);
+    await new Promise((resolve) => setTimeout(resolve, 180));
+  }
 
   if (captureRequestedView === 'detail') {
     const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
@@ -212,6 +219,7 @@ async function selectCaptureView(): Promise<void> {
   const viewSelector = {
     detail: '.movie-dossier',
     diary: '.diary-view',
+    filters: '.filter-sheet',
     library: '.library-view',
     log: '.log-sheet',
     search: '.search-view',
