@@ -143,7 +143,51 @@ export function createFilmCatalog(options: { fetchJson?: (url: string) => Promis
       prop: 'pageimages|pageprops|description'
     });
 
-    return readSearchResults(await fetchJson(`${WIKIPEDIA_API}?${parameters}`));
+    const payload = await fetchJson(`${WIKIPEDIA_API}?${parameters}`);
+    const pages = readPages(payload);
+    const entityIds = pages.map((page) => page.pageprops?.wikibase_item).filter(Boolean) as string[];
+    const directorsByEntity = new Map<string, string[]>();
+
+    if (entityIds.length > 0) {
+      const claimsPayload = (await fetchJson(
+        `${WIKIDATA_API}?${new URLSearchParams({
+          action: 'wbgetentities',
+          format: 'json',
+          ids: entityIds.join('|'),
+          props: 'claims'
+        })}`
+      )) as ClaimsPayload;
+      const directorIdsByEntity = new Map(
+        entityIds.map((entityId) => [entityId, readClaimIds(claimsPayload.entities?.[entityId]?.claims ?? {}, 'P57')])
+      );
+      const directorIds = [...new Set([...directorIdsByEntity.values()].flat())];
+      let directorLabels: Record<string, string> = {};
+
+      if (directorIds.length > 0) {
+        const labelsPayload = (await fetchJson(
+          `${WIKIDATA_API}?${new URLSearchParams({
+            action: 'wbgetentities',
+            format: 'json',
+            ids: directorIds.join('|'),
+            languages: 'en',
+            props: 'labels'
+          })}`
+        )) as LabelsPayload;
+        directorLabels = Object.fromEntries(
+          Object.entries(labelsPayload.entities ?? {}).map(([id, entity]) => [id, entity.labels?.en?.value ?? ''])
+        );
+      }
+
+      for (const [entityId, directorIdsForEntity] of directorIdsByEntity) {
+        directorsByEntity.set(entityId, directorIdsForEntity.map((id) => directorLabels[id] ?? '').filter(Boolean));
+      }
+    }
+
+    const entityByPageId = new Map(pages.map((page) => [page.pageid, page.pageprops?.wikibase_item]));
+    return readSearchResults(payload).map((result) => ({
+      ...result,
+      director: directorsByEntity.get(entityByPageId.get(result.pageId) ?? '') ?? []
+    }));
   }
 
   async function fetchFilmDetails(pageId: number): Promise<FilmDetails | null> {

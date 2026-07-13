@@ -66,6 +66,21 @@ const claimsPayload = {
   }
 };
 
+const searchClaimsPayload = {
+  entities: {
+    Q134052834: { claims: { P57: [{ mainsnak: { datavalue: { value: { id: 'Q107277343' } } } }] } },
+    Q1138751: { claims: { P57: [{ mainsnak: { datavalue: { value: { id: 'Q717477' } } } }] } },
+    Q345631: { claims: {} }
+  }
+};
+
+const searchLabelsPayload = {
+  entities: {
+    Q107277343: { labels: { en: { value: 'Charlie Polinger' } } },
+    Q717477: { labels: { en: { value: 'Martin Rosen' } } }
+  }
+};
+
 const labelsPayload = {
   entities: {
     Q25191: { labels: { en: { value: 'Christopher Nolan' } } },
@@ -92,6 +107,14 @@ function createStubCatalog() {
         return pagePayload;
       }
 
+      if (url.includes('props=claims') && url.includes('Q134052834')) {
+        return searchClaimsPayload;
+      }
+
+      if (url.includes('props=labels') && url.includes('Q107277343')) {
+        return searchLabelsPayload;
+      }
+
       if (url.includes('props=claims')) {
         return claimsPayload;
       }
@@ -111,6 +134,7 @@ describe('searchFilms', () => {
     expect(results).toHaveLength(3);
     expect(results[0]).toEqual({
       description: 'Psychological drama thriller film',
+      director: ['Charlie Polinger'],
       pageId: 79985226,
       posterUrl: 'https://upload.wikimedia.org/wikipedia/en/c/c3/The_Plague_film_poster.jpg',
       title: 'The Plague',

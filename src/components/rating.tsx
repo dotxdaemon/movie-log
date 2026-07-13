@@ -43,6 +43,14 @@ export function RatingInput({ legend = 'Rating', name, value }: RatingInputProps
           <input defaultChecked={value === null} name={name} type="radio" value="" />
           <span>None</span>
         </label>
+        <output aria-live="polite" className="rating-current-value">
+          <span className="rating-current-none">Current —</span>
+          {ratingSteps.map((step) => (
+            <span className="rating-current-option" data-rating={step.toFixed(1)} key={step}>
+              {`Current ${step.toFixed(1)}`}
+            </span>
+          ))}
+        </output>
       </div>
     </fieldset>
   );

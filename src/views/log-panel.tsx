@@ -73,6 +73,7 @@ export function LogPanel({
                 <strong>{selectedFilm.title}</strong>
                 <span className="selected-film-meta">
                   {selectedFilm.year ?? 'Year unknown'}
+                  {selectedFilm.director?.length ? ` · ${selectedFilm.director.join(', ')}` : ''}
                   {selectedFilm.description ? ` · ${selectedFilm.description}` : ''}
                 </span>
               </div>
@@ -103,6 +104,7 @@ export function LogPanel({
                           <strong>{result.title}</strong>
                           <small>
                             {result.year ?? '—'}
+                            {result.director?.length ? ` · ${result.director.join(', ')}` : ''}
                             {result.description ? ` · ${result.description}` : ''}
                           </small>
                         </span>

@@ -174,7 +174,10 @@ export function SearchView({
                     {result.title}
                     <span className="search-result-year">{result.year ?? ''}</span>
                   </span>
-                  <span className="search-result-meta">{result.status}</span>
+                <span className="search-result-meta">
+                  {result.director ? `${result.director} · ` : ''}
+                  {result.status}
+                </span>
                 </span>
                 <span className="search-result-kind">Log</span>
               </button>

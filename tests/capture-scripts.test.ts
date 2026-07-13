@@ -61,4 +61,13 @@ describe('capture pipeline', () => {
     expect(mainProcess).toContain("document.querySelector('.filter-sheet-trigger')?.click()");
     expect(mainProcess).toContain("filters: '.filter-sheet'");
   });
+
+  it('can populate live catalog search and the selected-film logging unit before capture', () => {
+    expect(mainProcess).toContain("'catalog'");
+    expect(mainProcess).toContain("'log-selected'");
+    expect(mainProcess).toContain("setCaptureInput('.archive-search input', 'Inception')");
+    expect(mainProcess).toContain("setCaptureInput('.film-search-block input', 'Inception')");
+    expect(mainProcess).toContain("'.film-search-results button'");
+    expect(mainProcess).toContain("'.selected-film .poster-art'");
+  });
 });

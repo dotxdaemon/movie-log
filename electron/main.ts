@@ -50,7 +50,18 @@ const captureRequested = Boolean(process.env.MOVIE_LOG_CAPTURE_PATH);
 const captureWidth = Number(process.env.MOVIE_LOG_CAPTURE_WIDTH ?? 1180);
 const captureHeight = Number(process.env.MOVIE_LOG_CAPTURE_HEIGHT ?? 788);
 const captureRequestedView = process.env.MOVIE_LOG_CAPTURE_VIEW ?? 'diary';
-const captureViews = new Set(['diary', 'library', 'filters', 'search', 'statistics', 'settings', 'detail', 'log']);
+const captureViews = new Set([
+  'diary',
+  'library',
+  'filters',
+  'search',
+  'catalog',
+  'statistics',
+  'settings',
+  'detail',
+  'log',
+  'log-selected'
+]);
 
 if (captureRequested && (!Number.isInteger(captureWidth) || !Number.isInteger(captureHeight) || captureWidth < 320 || captureHeight < 640)) {
   throw new Error(`Capture dimensions must be whole numbers at least 320x640. Received ${captureWidth}x${captureHeight}.`);
@@ -165,8 +176,13 @@ async function selectCaptureView(): Promise<void> {
       const readLabel = (element) => element.textContent?.trim().toLowerCase() ?? '';
       const navigationItems = [...document.querySelectorAll('.nav-item')];
 
-      if (requestedView === 'log') {
+      if (requestedView === 'log' || requestedView === 'log-selected') {
         document.querySelector('.log-action')?.click();
+        return true;
+      }
+
+      if (requestedView === 'catalog') {
+        navigationItems.find((item) => readLabel(item).includes('search'))?.click();
         return true;
       }
 
@@ -188,6 +204,38 @@ async function selectCaptureView(): Promise<void> {
   }
 
   await new Promise((resolve) => setTimeout(resolve, 180));
+
+  if (captureRequestedView === 'catalog') {
+    await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        const setCaptureInput = (selector, value) => {
+          const input = document.querySelector(selector);
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+          setter?.call(input, value);
+          input?.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        setCaptureInput('.archive-search input', 'Inception');
+      })()
+    `);
+    await waitForCaptureSelector('.search-group-catalog .poster-art');
+  }
+
+  if (captureRequestedView === 'log-selected') {
+    await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        const setCaptureInput = (selector, value) => {
+          const input = document.querySelector(selector);
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+          setter?.call(input, value);
+          input?.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        setCaptureInput('.film-search-block input', 'Inception');
+      })()
+    `);
+    await waitForCaptureSelector('.film-search-results button');
+    await mainWindow.webContents.executeJavaScript(`document.querySelector('.film-search-results button')?.click()`);
+    await waitForCaptureSelector('.selected-film .poster-art');
+  }
 
   if (captureRequestedView === 'filters') {
     await mainWindow.webContents.executeJavaScript(`
@@ -217,11 +265,13 @@ async function selectCaptureView(): Promise<void> {
   }
 
   const viewSelector = {
+    catalog: '.search-view',
     detail: '.movie-dossier',
     diary: '.diary-view',
     filters: '.filter-sheet',
     library: '.library-view',
     log: '.log-sheet',
+    'log-selected': '.selected-film',
     search: '.search-view',
     settings: '.settings-view',
     statistics: '.statistics-view'
@@ -231,6 +281,26 @@ async function selectCaptureView(): Promise<void> {
   if (!viewRendered) {
     throw new Error(`Capture view did not render: ${captureRequestedView}.`);
   }
+}
+
+async function waitForCaptureSelector(selector: string): Promise<void> {
+  if (!mainWindow) {
+    return;
+  }
+
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const found = (await mainWindow.webContents.executeJavaScript(
+      `Boolean(document.querySelector(${JSON.stringify(selector)}))`
+    )) as boolean;
+
+    if (found) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error(`Capture view did not render selector: ${selector}.`);
 }
 
 async function captureIfRequested(): Promise<void> {

@@ -76,6 +76,15 @@ describe('styles.css', () => {
     expect(styles).toMatch(/\.filter-field select\s*\{[^}]*min-height:\s*44px/s);
   });
 
+  it('puts dossier identity and rating before artwork on phones', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+    const phoneStyles = styles.slice(styles.lastIndexOf('@media (max-width: 700px)'));
+
+    expect(phoneStyles).toMatch(/\.dossier-copy\s*\{[^}]*order:\s*0/s);
+    expect(phoneStyles).toMatch(/\.dossier-poster-col\s*\{[^}]*order:\s*1/s);
+    expect(phoneStyles).toMatch(/\.dossier-backdrop\s*\{[^}]*display:\s*none/s);
+  });
+
   it('defines spacing, shadow, and motion tokens for the shared visual system', async () => {
     const styles = await readFile(stylesPath, 'utf8');
 

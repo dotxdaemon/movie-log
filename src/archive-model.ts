@@ -276,7 +276,7 @@ export function buildSearchResults(
   const catalog = catalogResults
     .filter((result) => !localKeys.has(readFilmKey({ title: result.title, year: result.year })))
     .map((result): SearchResultItem => ({
-      director: null,
+      director: result.director?.[0] ?? null,
       key: `catalog:${result.pageId}`,
       kind: 'catalog',
       pageId: result.pageId,

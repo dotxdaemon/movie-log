@@ -89,6 +89,7 @@ export interface FilmRecord {
 
 export interface CatalogSearchResult {
   description: string;
+  director?: string[];
   pageId: number;
   posterUrl: string | null;
   title: string;

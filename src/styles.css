@@ -2428,7 +2428,7 @@ h3 {
 
 .rating-input {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto 92px;
   gap: var(--space-2);
 }
 
@@ -2482,6 +2482,39 @@ h3 {
 .rating-none:has(input:checked) {
   border-color: var(--burgundy);
   color: var(--burgundy);
+}
+
+.rating-current-value {
+  display: grid;
+  min-height: 44px;
+  place-items: center;
+  border-left: 3px solid var(--active-red);
+  color: var(--paper);
+  background: var(--structural);
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  text-transform: uppercase;
+}
+
+.rating-current-option {
+  display: none;
+}
+
+.rating-input:has(.rating-segment input:checked) .rating-current-none {
+  display: none;
+}
+
+.rating-input:has(input[value="0.5"]:checked) .rating-current-option[data-rating="0.5"],
+.rating-input:has(input[value="1"]:checked) .rating-current-option[data-rating="1.0"],
+.rating-input:has(input[value="1.5"]:checked) .rating-current-option[data-rating="1.5"],
+.rating-input:has(input[value="2"]:checked) .rating-current-option[data-rating="2.0"],
+.rating-input:has(input[value="2.5"]:checked) .rating-current-option[data-rating="2.5"],
+.rating-input:has(input[value="3"]:checked) .rating-current-option[data-rating="3.0"],
+.rating-input:has(input[value="3.5"]:checked) .rating-current-option[data-rating="3.5"],
+.rating-input:has(input[value="4"]:checked) .rating-current-option[data-rating="4.0"],
+.rating-input:has(input[value="4.5"]:checked) .rating-current-option[data-rating="4.5"],
+.rating-input:has(input[value="5"]:checked) .rating-current-option[data-rating="5.0"] {
+  display: block;
 }
 
 .field-label-row {
@@ -3477,13 +3510,17 @@ h3 {
   }
 
   .dossier-poster-col {
-    order: 0;
+    order: 1;
     width: min(74vw, 300px);
     align-self: center;
   }
 
   .dossier-copy {
-    order: 1;
+    order: 0;
+  }
+
+  .dossier-backdrop {
+    display: none;
   }
 
   .dossier-rating {

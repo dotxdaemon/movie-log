@@ -256,7 +256,14 @@ describe('ArchiveApplication', () => {
 
   it('groups search results into diary, library, and catalog lanes with posters and directors', () => {
     const groups = buildSearchResults(state, 'flow', [
-      { description: '2019 short film', pageId: 999, posterUrl: null, title: 'Flowing', year: 2019 }
+      {
+        description: '2019 short film',
+        director: ['Jane Director'],
+        pageId: 999,
+        posterUrl: null,
+        title: 'Flowing',
+        year: 2019
+      }
     ]);
     const tree = renderSurface('search', { searchGroups: groups, searchQuery: 'flow' });
     const text = readText(tree);
@@ -267,6 +274,7 @@ describe('ArchiveApplication', () => {
     expect(text).toContain('Diary');
     expect(text).toContain('Catalog');
     expect(text).toContain('Gints Zilbalodis');
+    expect(text).toContain('Jane Director');
     expect(findByClass(tree, 'search-result-year')).not.toHaveLength(0);
   });
 
@@ -341,6 +349,8 @@ describe('ArchiveApplication', () => {
     expect(text).toContain('0 / 2000');
     expect(findByClass(logSheet, 'rating-segment')).toHaveLength(10);
     expect(findByClass(logSheet, 'rating-segment-readout')).toHaveLength(10);
+    expect(findByClass(logSheet, 'rating-current-value')).toHaveLength(1);
+    expect(text).toContain('Current —');
   });
 
   it('shows the selected film as a poster and metadata unit in the logging panel', () => {
@@ -348,6 +358,7 @@ describe('ArchiveApplication', () => {
       logPanelOpen: true,
       logSelectedFilm: {
         description: '2024 animated film',
+        director: ['Gints Zilbalodis'],
         pageId: 71441742,
         posterUrl: 'https://upload.wikimedia.org/wikipedia/en/f/f8/Flow_poster.jpg',
         title: 'Flow',
@@ -359,6 +370,7 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'poster-art')).not.toHaveLength(0);
     expect(readText(tree)).toContain('Flow');
     expect(readText(tree)).toContain('2024');
+    expect(readText(tree)).toContain('Gints Zilbalodis');
   });
 
   it('uses per-view dimension-preserving loading surfaces instead of the empty state', () => {
