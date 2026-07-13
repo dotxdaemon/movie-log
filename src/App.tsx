@@ -1,6 +1,6 @@
 // ABOUTME: Owns Movie Log's renderer state, IPC calls, dialogs, and catalog searches for the archive.
 // ABOUTME: Feeds the pure ArchiveApplication surface and keeps every user action tied to real behavior.
-import { startTransition, useEffect, useMemo, useState, type DragEvent } from 'react';
+import { startTransition, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { ArchiveApplication } from './archive-application.js';
 import {
   buildSearchResults,
@@ -98,6 +98,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLibraryPath, setSelectedLibraryPath] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const dialogReturnFocus = useRef<HTMLElement | null>(null);
 
   const searchCatalog = useCatalogSearch(searchQuery, activeView === 'search');
   const logFilmSearch = useCatalogSearch(logFilmQuery, logPanelOpen && logSelectedFilm === null);
@@ -164,12 +165,17 @@ export default function App() {
     }
 
     const selector = logPanelOpen ? '.log-sheet' : '.filter-sheet';
-    const previouslyFocused = document.activeElement as HTMLElement | null;
     const readDialog = () => document.querySelector<HTMLElement>(selector);
     const readFocusable = () =>
       [...(readDialog()?.querySelectorAll<HTMLElement>('button, input, select, textarea, summary') ?? [])].filter(
         (element) => !element.hasAttribute('disabled')
       );
+
+    const activeElement = document.activeElement as HTMLElement | null;
+
+    if (activeElement && !readDialog()?.contains(activeElement) && !dialogReturnFocus.current) {
+      dialogReturnFocus.current = activeElement;
+    }
 
     const initialTarget = readDialog()?.querySelector<HTMLElement>('input, textarea, select') ?? readFocusable()[0];
     initialTarget?.focus();
@@ -212,7 +218,12 @@ export default function App() {
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
-      previouslyFocused?.focus();
+      window.setTimeout(() => {
+        if (!document.querySelector('.log-sheet, .filter-sheet')) {
+          dialogReturnFocus.current?.focus();
+          dialogReturnFocus.current = null;
+        }
+      }, 0);
     };
   }, [filterSheetOpen, logPanelOpen]);
 
