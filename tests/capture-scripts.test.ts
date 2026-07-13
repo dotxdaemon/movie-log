@@ -84,6 +84,8 @@ describe('capture pipeline', () => {
     expect(mainProcess).toContain("keyCode: 'Tab'");
     expect(mainProcess).toContain("keyCode: 'Escape'");
     expect(mainProcess).toContain("document.querySelector('.log-action') === document.activeElement");
-    expect(mainProcess).toContain("document.querySelector('.rating-segment input[value=\"4\"]')?.click()");
+    expect(mainProcess).toContain("const input = document.querySelectorAll('.rating-segment input')[7]");
+    expect(mainProcess).toContain('input?.click()');
+    expect(mainProcess).toContain('ratingSelectionVisible');
   });
 });

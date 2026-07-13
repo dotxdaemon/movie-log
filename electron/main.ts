@@ -328,9 +328,18 @@ async function selectCaptureView(): Promise<void> {
   }
 
   if (captureRequestedView === 'log' || captureRequestedView === 'log-selected') {
-    await mainWindow.webContents.executeJavaScript(
-      `document.querySelector('.rating-segment input[value="4"]')?.click()`
-    );
+    const ratingSelectionVisible = (await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        const input = document.querySelectorAll('.rating-segment input')[7];
+        input?.click();
+        const output = document.querySelector('.rating-current-option[data-rating="4.0"]');
+        return input?.checked === true && output?.textContent?.trim() === 'Current 4.0' && getComputedStyle(output).display !== 'none';
+      })()
+    `)) as boolean;
+
+    if (!ratingSelectionVisible) {
+      throw new Error('Log dialog did not expose the selected 4.0 rating value.');
+    }
   }
 
   const viewSelector = {
