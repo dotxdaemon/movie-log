@@ -86,6 +86,23 @@ describe('createFilmIndex', () => {
     expect(persisted.films['the plague::2025'].status).toBe('matched');
   });
 
+  it('returns matched cached films when the live catalog is unavailable', async () => {
+    const { catalog } = createStubCatalog();
+    const index = createFilmIndex({ catalog, dataDirectory, now: () => '2026-07-12T10:00:00.000Z' });
+    await index.enrichFilms([{ key: 'the plague::2025', title: 'The Plague', year: 2025 }]);
+
+    expect(await index.searchFilms('The Plague film')).toEqual([
+      {
+        description: 'Cached catalog match',
+        director: ['Charlie Polinger'],
+        pageId: 79985226,
+        posterUrl: plagueDetails.posterUrl,
+        title: 'The Plague',
+        year: 2025
+      }
+    ]);
+  });
+
   it('records an unmatched film so missing metadata stays a designed state instead of a refetch loop', async () => {
     const { calls, catalog } = createStubCatalog();
     const index = createFilmIndex({ catalog, dataDirectory, now: () => '2026-07-12T10:00:00.000Z' });

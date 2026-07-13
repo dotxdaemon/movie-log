@@ -2,7 +2,9 @@
 // ABOUTME: The selected film sits as a poster unit above the form and the save action stays visible.
 import { EntryForm } from '../components/entry-form.js';
 import { FilmPoster } from '../components/film-poster.js';
+import { shouldDismissSheet } from '../sheet-gesture.js';
 import type { CatalogSearchResult, LogEntryDetails } from '../../shared/types.js';
+import type { TouchEvent } from 'react';
 
 const pathName = (path: string): string => path.split('/').filter(Boolean).at(-1) ?? path;
 
@@ -39,6 +41,25 @@ export function LogPanel({
 }: LogPanelProps) {
   const canSubmit = selectedFilm !== null || pendingLogPaths.length > 0;
 
+  function recordSheetTouch(event: TouchEvent<HTMLElement>): void {
+    const startY = event.changedTouches[0]?.clientY;
+
+    if (startY !== undefined) {
+      event.currentTarget.dataset.sheetTouchStartY = String(startY);
+    }
+  }
+
+  function closeFromSheetTouch(event: TouchEvent<HTMLElement>): void {
+    const endY = event.changedTouches[0]?.clientY;
+    const startY = Number(event.currentTarget.dataset.sheetTouchStartY);
+
+    if (Number.isFinite(startY) && endY !== undefined && shouldDismissSheet(startY, endY)) {
+      onClose();
+    }
+
+    delete event.currentTarget.dataset.sheetTouchStartY;
+  }
+
   return (
     <div className="log-backdrop" onClick={onClose} role="presentation">
       <section
@@ -48,7 +69,12 @@ export function LogPanel({
         onClick={(event) => event.stopPropagation()}
         role="dialog"
       >
-        <header className="log-sheet-head">
+        <header
+          className="log-sheet-head"
+          onTouchCancel={(event) => { delete event.currentTarget.dataset.sheetTouchStartY; }}
+          onTouchEnd={closeFromSheetTouch}
+          onTouchStart={recordSheetTouch}
+        >
           <div>
             <p className="eyebrow">New diary entry</p>
             <h2>Log a Film</h2>

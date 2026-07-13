@@ -205,6 +205,36 @@ async function selectCaptureView(): Promise<void> {
 
   await new Promise((resolve) => setTimeout(resolve, 180));
 
+  if (captureWidth <= 700 && (captureRequestedView === 'log' || captureRequestedView === 'log-selected')) {
+    const touchSupported = (await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        if (typeof TouchEvent !== 'function') {
+          return false;
+        }
+        const dispatchSheetTouch = (selector, startY, endY) => {
+          const target = document.querySelector(selector);
+          const dispatch = (type, clientY) => {
+            const event = new TouchEvent(type, { bubbles: true, cancelable: true });
+            Object.defineProperty(event, 'changedTouches', { value: [{ clientY }] });
+            target?.dispatchEvent(event);
+          };
+          dispatch('touchstart', startY);
+          dispatch('touchend', endY);
+        };
+        dispatchSheetTouch('.log-sheet-head', 24, 112);
+        return true;
+      })()
+    `)) as boolean;
+
+    if (!touchSupported) {
+      throw new Error('Mobile capture environment does not expose TouchEvent.');
+    }
+
+    await waitForCaptureSelector('.log-sheet', false);
+    await mainWindow.webContents.executeJavaScript(`document.querySelector('.log-action')?.click()`);
+    await waitForCaptureSelector('.log-sheet');
+  }
+
   if (captureRequestedView === 'catalog') {
     await mainWindow.webContents.executeJavaScript(`
       (() => {
@@ -214,7 +244,7 @@ async function selectCaptureView(): Promise<void> {
           setter?.call(input, value);
           input?.dispatchEvent(new Event('input', { bubbles: true }));
         };
-        setCaptureInput('.archive-search input', 'Inception');
+        setCaptureInput('.archive-search input', 'The Ring');
       })()
     `);
     await waitForCaptureSelector('.search-group-catalog .poster-art');
@@ -229,7 +259,7 @@ async function selectCaptureView(): Promise<void> {
           setter?.call(input, value);
           input?.dispatchEvent(new Event('input', { bubbles: true }));
         };
-        setCaptureInput('.film-search-block input', 'Inception');
+        setCaptureInput('.film-search-block input', 'The Ring');
       })()
     `);
     await waitForCaptureSelector('.film-search-results button');
@@ -241,7 +271,34 @@ async function selectCaptureView(): Promise<void> {
     await mainWindow.webContents.executeJavaScript(`
       document.querySelector('.filter-sheet-trigger')?.click()
     `);
-    await new Promise((resolve) => setTimeout(resolve, 180));
+    await waitForCaptureSelector('.filter-sheet');
+    const touchSupported = (await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        if (typeof TouchEvent !== 'function') {
+          return false;
+        }
+        const dispatchSheetTouch = (selector, startY, endY) => {
+          const target = document.querySelector(selector);
+          const dispatch = (type, clientY) => {
+            const event = new TouchEvent(type, { bubbles: true, cancelable: true });
+            Object.defineProperty(event, 'changedTouches', { value: [{ clientY }] });
+            target?.dispatchEvent(event);
+          };
+          dispatch('touchstart', startY);
+          dispatch('touchend', endY);
+        };
+        dispatchSheetTouch('.filter-sheet-head', 24, 112);
+        return true;
+      })()
+    `)) as boolean;
+
+    if (!touchSupported) {
+      throw new Error('Mobile capture environment does not expose TouchEvent.');
+    }
+
+    await waitForCaptureSelector('.filter-sheet', false);
+    await mainWindow.webContents.executeJavaScript(`document.querySelector('.filter-sheet-trigger')?.click()`);
+    await waitForCaptureSelector('.filter-sheet');
   }
 
   if (captureRequestedView === 'detail') {
@@ -283,7 +340,7 @@ async function selectCaptureView(): Promise<void> {
   }
 }
 
-async function waitForCaptureSelector(selector: string): Promise<void> {
+async function waitForCaptureSelector(selector: string, expected = true): Promise<void> {
   if (!mainWindow) {
     return;
   }
@@ -293,7 +350,7 @@ async function waitForCaptureSelector(selector: string): Promise<void> {
       `Boolean(document.querySelector(${JSON.stringify(selector)}))`
     )) as boolean;
 
-    if (found) {
+    if (found === expected) {
       return;
     }
 
@@ -540,7 +597,11 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('movie-log:search-catalog', async (_event, query: string) => {
-    return filmCatalog.searchFilms(query);
+    try {
+      return await filmCatalog.searchFilms(query);
+    } catch {
+      return filmIndex.searchFilms(query);
+    }
   });
 
   ipcMain.handle(

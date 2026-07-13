@@ -65,9 +65,17 @@ describe('capture pipeline', () => {
   it('can populate live catalog search and the selected-film logging unit before capture', () => {
     expect(mainProcess).toContain("'catalog'");
     expect(mainProcess).toContain("'log-selected'");
-    expect(mainProcess).toContain("setCaptureInput('.archive-search input', 'Inception')");
-    expect(mainProcess).toContain("setCaptureInput('.film-search-block input', 'Inception')");
+    expect(mainProcess).toContain("setCaptureInput('.archive-search input', 'The Ring')");
+    expect(mainProcess).toContain("setCaptureInput('.film-search-block input', 'The Ring')");
     expect(mainProcess).toContain("'.film-search-results button'");
     expect(mainProcess).toContain("'.selected-film .poster-art'");
+  });
+
+  it('replays touch dismissal in mobile sheets before taking proof', () => {
+    expect(mainProcess).toContain("typeof TouchEvent !== 'function'");
+    expect(mainProcess).toContain("dispatchSheetTouch('.filter-sheet-head', 24, 112)");
+    expect(mainProcess).toContain("dispatchSheetTouch('.log-sheet-head', 24, 112)");
+    expect(mainProcess).toContain("waitForCaptureSelector('.filter-sheet', false)");
+    expect(mainProcess).toContain("waitForCaptureSelector('.log-sheet', false)");
   });
 });

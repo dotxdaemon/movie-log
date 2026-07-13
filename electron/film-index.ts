@@ -4,7 +4,7 @@ import { mkdir, readFile, rename } from 'node:fs/promises';
 import { open } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chooseFilmMatch, type FilmCatalog } from './film-catalog.js';
-import type { FilmDetails, FilmRecord } from '../shared/types.js';
+import type { CatalogSearchResult, FilmDetails, FilmRecord } from '../shared/types.js';
 
 export interface FilmEnrichmentRequest {
   key: string;
@@ -97,6 +97,26 @@ export function createFilmIndex({ catalog, dataDirectory, now = () => new Date()
   return {
     async readFilms(): Promise<Record<string, FilmRecord>> {
       return runSerialized(readPersistedFilms);
+    },
+
+    async searchFilms(query: string): Promise<CatalogSearchResult[]> {
+      const normalizedQuery = query.replace(/\s+film\s*$/i, '').trim().toLowerCase();
+      const films = Object.values(await runSerialized(readPersistedFilms));
+
+      return films
+        .filter(
+          (film) => film.status === 'matched' && film.pageId !== null && film.title.toLowerCase().includes(normalizedQuery)
+        )
+        .sort((left, right) => left.title.localeCompare(right.title))
+        .slice(0, 8)
+        .map((film) => ({
+          description: 'Cached catalog match',
+          director: [...film.director],
+          pageId: film.pageId as number,
+          posterUrl: film.posterUrl,
+          title: film.title,
+          year: film.year
+        }));
     },
 
     async enrichFilms(requests: FilmEnrichmentRequest[]): Promise<boolean> {

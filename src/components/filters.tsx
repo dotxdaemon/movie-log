@@ -1,6 +1,8 @@
 // ABOUTME: Renders the library filter controls as a compact desktop toolbar and a full-height mobile sheet.
 // ABOUTME: Keeps every active filter visible as a removable squared chip above the poster grid.
 import { defaultArchiveFilters, ratingFilterOptions, type ArchiveFilters } from '../archive-model.js';
+import { shouldDismissSheet } from '../sheet-gesture.js';
+import type { TouchEvent } from 'react';
 
 export interface FilterOptions {
   decades: string[];
@@ -119,6 +121,25 @@ function countActiveFilters(filters: ArchiveFilters): number {
 export function FilterPanel({ filters, onFilterChange, onSheetOpenChange, options, resultCount, sheetOpen }: FilterPanelProps) {
   const activeCount = countActiveFilters(filters);
 
+  function recordSheetTouch(event: TouchEvent<HTMLElement>): void {
+    const startY = event.changedTouches[0]?.clientY;
+
+    if (startY !== undefined) {
+      event.currentTarget.dataset.sheetTouchStartY = String(startY);
+    }
+  }
+
+  function closeFromSheetTouch(event: TouchEvent<HTMLElement>): void {
+    const endY = event.changedTouches[0]?.clientY;
+    const startY = Number(event.currentTarget.dataset.sheetTouchStartY);
+
+    if (Number.isFinite(startY) && endY !== undefined && shouldDismissSheet(startY, endY)) {
+      onSheetOpenChange(false);
+    }
+
+    delete event.currentTarget.dataset.sheetTouchStartY;
+  }
+
   return (
     <div className="filter-panel">
       <div aria-label="Library filters" className="filter-toolbar">
@@ -141,7 +162,12 @@ export function FilterPanel({ filters, onFilterChange, onSheetOpenChange, option
             onClick={(event) => event.stopPropagation()}
             role="dialog"
           >
-            <header className="filter-sheet-head">
+            <header
+              className="filter-sheet-head"
+              onTouchCancel={(event) => { delete event.currentTarget.dataset.sheetTouchStartY; }}
+              onTouchEnd={closeFromSheetTouch}
+              onTouchStart={recordSheetTouch}
+            >
               <div>
                 <p className="eyebrow">Library</p>
                 <h2>Filters</h2>

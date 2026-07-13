@@ -80,8 +80,8 @@ describe('styles.css', () => {
     const styles = await readFile(stylesPath, 'utf8');
     const phoneStyles = styles.slice(styles.lastIndexOf('@media (max-width: 700px)'));
 
-    expect(phoneStyles).toMatch(/\.dossier-copy\s*\{[^}]*order:\s*0/s);
-    expect(phoneStyles).toMatch(/\.dossier-poster-col\s*\{[^}]*order:\s*1/s);
+    expect(phoneStyles).toMatch(/\.dossier-identity\s*>\s*\.dossier-copy\s*\{[^}]*order:\s*0/s);
+    expect(phoneStyles).toMatch(/\.dossier-identity\s*>\s*\.dossier-poster-col\s*\{[^}]*order:\s*1/s);
     expect(phoneStyles).toMatch(/\.dossier-backdrop\s*\{[^}]*display:\s*none/s);
   });
 

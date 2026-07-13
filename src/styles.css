@@ -2672,6 +2672,7 @@ h3 {
   justify-content: space-between;
   padding: var(--space-6);
   border-bottom: 1px solid var(--border);
+  touch-action: pan-y;
 }
 
 .filter-sheet-head h2,
@@ -3509,13 +3510,13 @@ h3 {
     display: contents;
   }
 
-  .dossier-poster-col {
+  .dossier-identity > .dossier-poster-col {
     order: 1;
     width: min(74vw, 300px);
     align-self: center;
   }
 
-  .dossier-copy {
+  .dossier-identity > .dossier-copy {
     order: 0;
   }
 
