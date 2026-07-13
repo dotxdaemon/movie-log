@@ -310,7 +310,7 @@ async function selectCaptureView(): Promise<void> {
   if (captureRequestedView === 'detail') {
     const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
       (() => {
-        const face = document.querySelector('.movie-card .movie-card-face');
+        const face = document.querySelector('.movie-card:has(.poster-art) .movie-card-face');
         face?.click();
         return Boolean(face);
       })()

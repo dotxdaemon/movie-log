@@ -50,7 +50,7 @@ describe('capture pipeline', () => {
   it('can select every product surface before taking installed-app proof', () => {
     expect(mainProcess).toContain('MOVIE_LOG_CAPTURE_VIEW');
     expect(mainProcess).toContain("'.nav-item'");
-    expect(mainProcess).toContain("'.movie-card .movie-card-face'");
+    expect(mainProcess).toContain("'.movie-card:has(.poster-art) .movie-card-face'");
     expect(mainProcess).toContain("'.movie-card-selected .movie-card-face'");
     expect(mainProcess).toContain("'.log-sheet'");
     expect(mainProcess).toContain('Capture view did not render');
