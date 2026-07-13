@@ -1,50 +1,27 @@
-// ABOUTME: Renders the desktop movie log interface and responds to folder and drop events.
-// ABOUTME: Shapes arrivals and folder controls into one character-sheet dossier workspace.
-import { startTransition, useEffect, useState, type DragEvent } from 'react';
-import { AppShell } from './app-shell.js';
+// ABOUTME: Owns Movie Log's renderer state, IPC calls, dialogs, and catalog searches for the archive.
+// ABOUTME: Feeds the pure ArchiveApplication surface and keeps every user action tied to real behavior.
+import { startTransition, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { ArchiveApplication } from './archive-application.js';
-import { defaultArchiveFilters, type ArchiveView, type DiaryMode } from './archive-model.js';
+import {
+  buildSearchResults,
+  defaultArchiveFilters,
+  type ArchiveItem,
+  type ArchiveView,
+  type DiaryMode,
+  type SearchResultItem
+} from './archive-model.js';
 import { guardDragNavigation } from './drag-guard.js';
 import { createDropFeedbackMessage, createScanFeedbackMessage, formatCount, type WorkspaceFeedback } from './feedback.js';
-import { groupEntriesByDay } from './ledger-groups.js';
-import { closeRecordMenuFromAction, closeRecordMenusOutside } from './record-menu.js';
+import { parseFilmTitle, readFilmKey } from '../shared/film-title.js';
 import { readTitleFromPath, readVisibleHistory } from '../shared/history.js';
-import type { EntryDetails, LogEntryDetails, MovieLogState, WatchEntry } from '../shared/types.js';
+import type { CatalogSearchResult, LogEntryDetails, EntryDetails, MovieLogState } from '../shared/types.js';
 
 const emptyState: MovieLogState = {
+  films: {},
   history: [],
   libraryItems: [],
   watchedFolders: []
 };
-
-const timestampFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short'
-});
-
-const timeFormatter = new Intl.DateTimeFormat(undefined, {
-  timeStyle: 'short'
-});
-
-interface MovieLogWorkspaceProps {
-  dropActive: boolean;
-  feedback: WorkspaceFeedback | null;
-  loading: boolean;
-  noteFilePath: string;
-  onAddWatchedFolders(): Promise<void>;
-  onCopyPath(itemPath: string): Promise<void>;
-  onDrop(event: DragEvent<HTMLElement>): Promise<void> | void;
-  onDropActiveChange(isActive: boolean): void;
-  onFeedbackDismiss(): void;
-  onOpenInFinder(itemPath: string): Promise<void>;
-  onOpenItem(itemPath: string): Promise<void>;
-  onRemoveWatchedFolder(folderId: string): Promise<void>;
-  onScanNow(): Promise<void>;
-  onSearchQueryChange(value: string): void;
-  scanInProgress: boolean;
-  searchQuery: string;
-  state: MovieLogState;
-}
 
 function updateState(nextState: MovieLogState, setState: (value: MovieLogState) => void): void {
   startTransition(() => {
@@ -52,415 +29,48 @@ function updateState(nextState: MovieLogState, setState: (value: MovieLogState) 
   });
 }
 
-function formatSource(source: WatchEntry['source']): string {
-  return source === 'drop' ? 'Manual Drop' : 'Watched Folder';
-}
+function useCatalogSearch(query: string, enabled: boolean): { pending: boolean; results: CatalogSearchResult[] } {
+  const [results, setResults] = useState<CatalogSearchResult[]>([]);
+  const [pending, setPending] = useState(false);
 
-function formatEntryMeta(entry: WatchEntry): string {
-  const timeLabel = timeFormatter.format(new Date(entry.watchedAt));
-  const kindSuffix = entry.sourceKind === 'directory' ? ' · Folder' : '';
-
-  return `${timeLabel} · ${formatSource(entry.source)}${kindSuffix}`;
-}
-
-function readEntryTitle(entry: WatchEntry): string {
-  return readTitleFromPath(entry.sourcePath, entry.sourceKind);
-}
-
-function matchesSearch(entry: WatchEntry, normalizedQuery: string): boolean {
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const query = normalizedQuery.toLowerCase();
-  const title = readEntryTitle(entry);
-
-  return (
-    title.toLowerCase().includes(query) ||
-    entry.title.toLowerCase().includes(query) ||
-    entry.sourcePath.toLowerCase().includes(query)
-  );
-}
-
-function createLedgerSummary(
-  historyCount: number,
-  filteredHistory: WatchEntry[],
-  searchQuery: string,
-  scanInProgress: boolean,
-  watchedFolderCount: number
-): string {
-  if (searchQuery) {
-    return `${formatCount(filteredHistory.length, 'result')} from ${formatCount(historyCount, 'entry', 'entries')}`;
-  }
-
-  if (scanInProgress) {
-    return `Scanning ${formatCount(watchedFolderCount, 'folder')}…`;
-  }
-
-  if (historyCount === 0) {
-    return 'No arrivals yet';
-  }
-
-  if (watchedFolderCount === 0) {
-    return `${formatCount(historyCount, 'entry', 'entries')}`;
-  }
-
-  return `${formatCount(historyCount, 'entry', 'entries')} across ${formatCount(watchedFolderCount, 'folder')}`;
-}
-
-type ControlIconName = 'diary' | 'folder' | 'note' | 'scan';
-
-const controlIconPaths: Record<ControlIconName, string> = {
-  diary: 'M3 2.5h7.5v9H3zM5 5h3.5M5 7.25h3.5M5 9.5h2',
-  folder: 'M1.75 4h4l1-1.5h5.5v8.75H1.75z',
-  note: 'M3 1.75h6.5l2 2v8.5H3zM9.5 1.75v2h2M5 6.5h4.5M5 8.75h4.5',
-  scan: 'M3.5 2H2v3.5M10.5 2H12v3.5M3.5 12H2V8.5M10.5 12H12V8.5M4.5 7h5'
-};
-
-function ControlIcon({ name }: { name: ControlIconName }) {
-  return (
-    <svg aria-hidden="true" className="control-icon" fill="none" height="14" viewBox="0 0 14 14" width="14">
-      <path d={controlIconPaths[name]} stroke="currentColor" strokeLinecap="square" strokeLinejoin="miter" strokeWidth="1.2" />
-    </svg>
-  );
-}
-
-export function MovieLogWorkspace({
-  dropActive,
-  feedback,
-  loading,
-  noteFilePath,
-  onAddWatchedFolders,
-  onCopyPath,
-  onDrop,
-  onDropActiveChange,
-  onFeedbackDismiss,
-  onOpenInFinder,
-  onOpenItem,
-  onRemoveWatchedFolder,
-  onScanNow,
-  onSearchQueryChange,
-  scanInProgress,
-  searchQuery,
-  state
-}: MovieLogWorkspaceProps) {
-  const history = readVisibleHistory(state.history);
-  const normalizedQuery = searchQuery.trim();
-  const filteredHistory = history.filter((entry) => matchesSearch(entry, normalizedQuery));
-  const ledgerSummary = createLedgerSummary(history.length, filteredHistory, normalizedQuery, scanInProgress, state.watchedFolders.length);
-  const visibleFolderItems = state.libraryItems.slice(0, 5);
-  const hiddenFolderItemCount = state.libraryItems.length - visibleFolderItems.length;
-  const statusBanner = feedback ? (
-    <section
-      className={feedback.tone === 'notice' ? 'status-banner status-banner-notice' : 'status-banner'}
-      role={feedback.tone === 'notice' ? 'status' : 'alert'}
-    >
-      <span className="status-message">{feedback.message}</span>
-      <button aria-label="Dismiss message" className="status-dismiss" onClick={onFeedbackDismiss} type="button">
-        ×
-      </button>
-    </section>
-  ) : null;
-
-  const navigationRail = (
-    <>
-      <div aria-label="Movie Log" className="spine-mark">
-        <span>ML</span>
-        <small>01</small>
-      </div>
-      <div aria-current="page" className="spine-current">
-        <ControlIcon name="diary" />
-        <span>Diary</span>
-      </div>
-      <button
-        className="spine-action"
-        disabled={!noteFilePath}
-        onClick={() => void onOpenItem(noteFilePath)}
-        type="button"
-      >
-        <ControlIcon name="note" />
-        <span>Note</span>
-      </button>
-      <p className="spine-caption">Arrival archive</p>
-    </>
-  );
-
-  const mobileNavigation = (
-    <>
-      <span aria-current="page" className="mobile-nav-current">
-        <ControlIcon name="diary" />
-        <span>Diary</span>
-      </span>
-      <button className="mobile-nav-action" onClick={() => void onAddWatchedFolders()} type="button">
-        <ControlIcon name="folder" />
-        <span>Add</span>
-      </button>
-      <button
-        className="mobile-nav-action"
-        disabled={state.watchedFolders.length === 0 || scanInProgress}
-        onClick={() => void onScanNow()}
-        type="button"
-      >
-        <ControlIcon name="scan" />
-        <span>Scan</span>
-      </button>
-      <button
-        className="mobile-nav-action"
-        disabled={!noteFilePath}
-        onClick={() => void onOpenItem(noteFilePath)}
-        type="button"
-      >
-        <ControlIcon name="note" />
-        <span>Note</span>
-      </button>
-    </>
-  );
-
-  return (
-    <AppShell
-      mobileNavigation={mobileNavigation}
-      navigationRail={navigationRail}
-      workspaceStage={
-        <div
-          className={dropActive ? 'dossier-canvas dossier-canvas-active' : 'dossier-canvas'}
-          onDragEnter={() => onDropActiveChange(true)}
-          onDragLeave={(event) => {
-            if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
-              return;
-            }
-
-            onDropActiveChange(false);
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            onDropActiveChange(true);
-          }}
-          onDrop={onDrop}
-        >
-          <header className="dossier-head">
-            <div className="title-block">
-              <p className="section-index">01 / DIARY</p>
-              <h1 className="workspace-title">Movie Log</h1>
-              <p className="workspace-status">{ledgerSummary}</p>
-            </div>
-
-            <label className="dossier-search workspace-search" htmlFor="workspace-search-input">
-              <span className="search-label">Search archive</span>
-              <span className="search-field">
-                <svg aria-hidden="true" className="search-glyph" fill="none" height="14" viewBox="0 0 14 14" width="14">
-                  <circle cx="6" cy="6" r="4.4" stroke="currentColor" strokeWidth="1.4" />
-                  <path d="m9.4 9.4 3.1 3.1" stroke="currentColor" strokeLinecap="square" strokeWidth="1.4" />
-                </svg>
-                <input
-                  id="workspace-search-input"
-                  onChange={(event) => onSearchQueryChange(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Escape') {
-                      onSearchQueryChange('');
-                    }
-                  }}
-                  placeholder="Title or path"
-                  type="search"
-                  value={searchQuery}
-                />
-              </span>
-            </label>
-
-            <div className="head-actions">
-              <button className="command-button command-button-primary" onClick={() => void onAddWatchedFolders()} type="button">
-                <ControlIcon name="folder" />
-                <span>Add Folder</span>
-              </button>
-              <button
-                className="command-button"
-                disabled={state.watchedFolders.length === 0 || scanInProgress}
-                onClick={() => void onScanNow()}
-                type="button"
-              >
-                <ControlIcon name="scan" />
-                <span>{scanInProgress ? 'Scanning…' : 'Scan Now'}</span>
-              </button>
-            </div>
-          </header>
-
-          {statusBanner}
-
-          <div className="dossier-grid">
-            <section className="diary-body">
-              <div className="diary-shoulder">
-                <div>
-                  <span className="diary-label">Chronological diary</span>
-                  <span className="diary-rule" />
-                </div>
-                <button className="note-button" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
-                  Open Note
-                </button>
-              </div>
-
-              <div className="records-frame">
-                {loading ? (
-                  <div aria-label="Loading movie log" className="diary-loading" role="status">
-                    <span className="visually-hidden">Loading diary</span>
-                    {Array.from({ length: 5 }, (_, index) => (
-                      <div className="loading-row" key={index}>
-                        <span />
-                        <span />
-                      </div>
-                    ))}
-                  </div>
-                ) : filteredHistory.length === 0 ? (
-                  <div className="blank-slate blank-slate-entries">
-                    <p className="blank-title">{normalizedQuery ? 'No matches' : 'Nothing here yet'}</p>
-                    {normalizedQuery ? null : <p className="blank-hint">Drop files here or add a watched folder.</p>}
-                  </div>
-                ) : (
-                  <ol className="records-list">
-                    {groupEntriesByDay(filteredHistory, new Date()).map((group) => (
-                      <li className="record-day" key={group.key}>
-                        <h2 className="record-day-title">{group.label}</h2>
-                        <ol className="record-day-list">
-                          {group.entries.map((entry) => (
-                            <li className="record-row" key={entry.id}>
-                              <div className="record-copy">
-                                <strong className="record-title" title={entry.sourcePath}>
-                                  {readEntryTitle(entry)}
-                                </strong>
-                                <p className="record-meta" title={timestampFormatter.format(new Date(entry.watchedAt))}>
-                                  {formatEntryMeta(entry)}
-                                </p>
-                              </div>
-
-                              <details className="record-menu">
-                                <summary className="record-menu-trigger" aria-label={`Actions for ${readEntryTitle(entry)}`}>
-                                  ⋯
-                                </summary>
-                                <div className="record-menu-panel">
-                                  <button
-                                    className="action-button"
-                                    onClick={(event) => {
-                                      closeRecordMenuFromAction(event.currentTarget);
-                                      void onOpenInFinder(entry.sourcePath);
-                                    }}
-                                    type="button"
-                                  >
-                                    Reveal
-                                  </button>
-                                  {entry.sourceKind === 'file' ? (
-                                    <button
-                                      className="action-button"
-                                      onClick={(event) => {
-                                        closeRecordMenuFromAction(event.currentTarget);
-                                        void onOpenItem(entry.sourcePath);
-                                      }}
-                                      type="button"
-                                    >
-                                      Open
-                                    </button>
-                                  ) : null}
-                                  <button
-                                    className="action-button action-button-dim"
-                                    onClick={(event) => {
-                                      closeRecordMenuFromAction(event.currentTarget);
-                                      void onCopyPath(entry.sourcePath);
-                                    }}
-                                    type="button"
-                                  >
-                                    Copy Path
-                                  </button>
-                                </div>
-                              </details>
-                            </li>
-                          ))}
-                        </ol>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </div>
-            </section>
-
-            <aside aria-label="Folder context" className="context-studies">
-              <section className="route-study">
-                <div className="study-head">
-                  <span className="study-index">A</span>
-                  <h2>Watched folders</h2>
-                </div>
-                {state.watchedFolders.length > 0 ? (
-                  <ul className="folder-list">
-                    {state.watchedFolders.map((folder) => (
-                      <li className="folder-row" key={folder.id}>
-                        <div className="folder-info">
-                          <strong className="folder-name" title={folder.path}>
-                            {folder.name}
-                          </strong>
-                          <p className="folder-meta">{`Added ${timestampFormatter.format(new Date(folder.addedAt))}`}</p>
-                        </div>
-                        <button className="folder-remove" onClick={() => void onRemoveWatchedFolder(folder.id)} type="button">
-                          Remove
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="study-empty">No watched folder.</p>
-                )}
-              </section>
-
-              <details className="inventory-study folder-state">
-                <summary className="folder-state-trigger">
-                  <span className="study-index">B</span>
-                  <span>Current Contents</span>
-                  <span>{formatCount(state.libraryItems.length, 'current item')}</span>
-                </summary>
-                <div className="folder-state-panel">
-                  <ul className="folder-scan-list">
-                    {state.watchedFolders.map((folder) => (
-                      <li className="folder-scan-row" key={folder.id}>
-                        <span>{folder.name}</span>
-                        <span>{folder.lastScannedAt ? `Last scanned ${timestampFormatter.format(new Date(folder.lastScannedAt))}` : 'Not scanned yet'}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {visibleFolderItems.length > 0 ? (
-                    <ol className="folder-content-list">
-                      {visibleFolderItems.map((item) => (
-                        <li className="folder-content-row" key={item.id}>
-                          <strong title={item.sourcePath}>{readTitleFromPath(item.sourcePath, item.sourceKind)}</strong>
-                          <span>{item.sourceKind === 'file' ? 'File' : 'Folder'}</span>
-                        </li>
-                      ))}
-                      {hiddenFolderItemCount > 0 ? (
-                        <li className="folder-content-row folder-content-more">{`${formatCount(hiddenFolderItemCount, 'more', 'more')} not shown`}</li>
-                      ) : null}
-                    </ol>
-                  ) : (
-                    <p className="folder-state-empty">No current items from watched folders.</p>
-                  )}
-                </div>
-              </details>
-
-              <section className="note-study">
-                <div className="study-head">
-                  <span className="study-index">C</span>
-                  <h2>Readable note</h2>
-                </div>
-                <button className="note-study-action" disabled={!noteFilePath} onClick={() => void onOpenItem(noteFilePath)} type="button">
-                  Open Note
-                </button>
-              </section>
-            </aside>
-          </div>
-
-          {dropActive ? (
-            <div aria-hidden="true" className="drop-overlay">
-              <p className="drop-overlay-title">Drop to log it</p>
-              <p className="drop-overlay-hint">Files and folders are recorded with their full paths</p>
-            </div>
-          ) : null}
-        </div>
+  useEffect(() => {
+    const trimmed = query.trim();
+    const active = enabled && trimmed.length >= 2;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (!active) {
+        setResults([]);
+        setPending(false);
+        return;
       }
-    />
-  );
+
+      setPending(true);
+      window.movieLog
+        .searchCatalog(`${trimmed} film`)
+        .then((nextResults) => {
+          if (!cancelled) {
+            setResults(nextResults);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setResults([]);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setPending(false);
+          }
+        });
+    }, active ? 300 : 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [enabled, query]);
+
+  return { pending, results };
 }
 
 export default function App() {
@@ -470,14 +80,31 @@ export default function App() {
   const [state, setState] = useState<MovieLogState>(emptyState);
   const [dropActive, setDropActive] = useState(false);
   const [feedback, setFeedback] = useState<WorkspaceFeedback | null>(null);
+  const [filters, setFilters] = useState(defaultArchiveFilters);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [logFilmQuery, setLogFilmQuery] = useState('');
   const [logPanelOpen, setLogPanelOpen] = useState(false);
+  const [logReview, setLogReview] = useState('');
+  const [logSelectedFilm, setLogSelectedFilm] = useState<CatalogSearchResult | null>(null);
+  const [dossierMatchPending, setDossierMatchPending] = useState(false);
+  const [dossierMatchResults, setDossierMatchResults] = useState<CatalogSearchResult[]>([]);
   const [noteFilePath, setNoteFilePath] = useState('');
   const [pendingLogPaths, setPendingLogPaths] = useState<string[]>([]);
-  const [filters, setFilters] = useState(defaultArchiveFilters);
-  const [searchQuery, setSearchQuery] = useState('');
   const [scanInProgress, setScanInProgress] = useState(false);
+  const [searchActiveIndex, setSearchActiveIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLibraryPath, setSelectedLibraryPath] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+
+  const searchCatalog = useCatalogSearch(searchQuery, activeView === 'search');
+  const logFilmSearch = useCatalogSearch(logFilmQuery, logPanelOpen && logSelectedFilm === null);
+  const searchGroups = useMemo(
+    () => buildSearchResults(state, searchQuery, searchCatalog.results),
+    [searchCatalog.results, searchQuery, state]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -507,10 +134,11 @@ export default function App() {
 
         setDataFilePath(nextDataFilePath);
         setNoteFilePath(nextNoteFilePath);
+        setLoadError(null);
         document.documentElement.dataset.movieLogCaptureReady = 'true';
       } catch (error) {
         if (isMounted) {
-          setFeedback({ message: (error as Error).message, tone: 'error' });
+          setLoadError((error as Error).message);
         }
       } finally {
         if (isMounted) {
@@ -526,42 +154,86 @@ export default function App() {
       delete document.documentElement.dataset.movieLogCaptureReady;
       unsubscribe();
     };
-  }, []);
+  }, [loadAttempt]);
+
+  useEffect(() => guardDragNavigation(window), []);
 
   useEffect(() => {
-    const releaseDragGuard = guardDragNavigation(window);
-    const closeMenusOutside = (event: PointerEvent) => {
-      closeRecordMenusOutside(document, event.target);
+    if (!logPanelOpen && !filterSheetOpen) {
+      return;
+    }
+
+    const selector = logPanelOpen ? '.log-sheet' : '.filter-sheet';
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const readDialog = () => document.querySelector<HTMLElement>(selector);
+    const readFocusable = () =>
+      [...(readDialog()?.querySelectorAll<HTMLElement>('button, input, select, textarea, summary') ?? [])].filter(
+        (element) => !element.hasAttribute('disabled')
+      );
+
+    const initialTarget = readDialog()?.querySelector<HTMLElement>('input, textarea, select') ?? readFocusable()[0];
+    initialTarget?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+
+        if (logPanelOpen) {
+          setLogPanelOpen(false);
+        } else {
+          setFilterSheetOpen(false);
+        }
+
+        return;
+      }
+
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const focusable = readFocusable();
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (!first || !last) {
+        return;
+      }
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
-    document.addEventListener('pointerdown', closeMenusOutside);
+    document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      releaseDragGuard();
-      document.removeEventListener('pointerdown', closeMenusOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
     };
-  }, []);
+  }, [filterSheetOpen, logPanelOpen]);
 
-  const handleAddWatchedFolders = async () => {
+  const runAction = async (action: () => Promise<void>) => {
     setFeedback(null);
 
     try {
-      await window.movieLog.addWatchedFolders();
+      await action();
     } catch (error) {
       setFeedback({ message: (error as Error).message, tone: 'error' });
     }
   };
 
-  const handleCopyPath = async (itemPath: string) => {
-    setFeedback(null);
+  const handleAddWatchedFolders = () => runAction(async () => {
+    await window.movieLog.addWatchedFolders();
+  });
 
-    try {
-      await window.movieLog.copyPath(itemPath);
-      setFeedback({ message: 'Path copied.', tone: 'notice' });
-    } catch (error) {
-      setFeedback({ message: (error as Error).message, tone: 'error' });
-    }
-  };
+  const handleCopyPathFor = (itemPath: string) => runAction(async () => {
+    await window.movieLog.copyPath(itemPath);
+    setFeedback({ message: 'Path copied.', tone: 'notice' });
+  });
 
   const handleDrop = async (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
@@ -581,42 +253,60 @@ export default function App() {
     setLogPanelOpen(true);
   };
 
-  const handleChooseLogPaths = async () => {
-    setFeedback(null);
+  const handleChooseLogPaths = () => runAction(async () => {
+    const paths = await window.movieLog.chooseLogPaths();
 
-    try {
-      const paths = await window.movieLog.chooseLogPaths();
-
-      if (paths.length > 0) {
-        setPendingLogPaths(paths);
-      }
-    } catch (error) {
-      setFeedback({ message: (error as Error).message, tone: 'error' });
+    if (paths.length > 0) {
+      setPendingLogPaths(paths);
     }
+  });
+
+  const resetLogDraft = () => {
+    setPendingLogPaths([]);
+    setLogSelectedFilm(null);
+    setLogFilmQuery('');
+    setLogReview('');
   };
 
   const handleCreateLog = async (details: LogEntryDetails) => {
     setFeedback(null);
 
-    if (pendingLogPaths.length === 0) {
-      setFeedback({ message: 'Choose at least one media file or folder.', tone: 'error' });
+    if (pendingLogPaths.length === 0 && !logSelectedFilm) {
+      setFeedback({ message: 'Search for a film or choose at least one media file.', tone: 'error' });
       return;
     }
 
     try {
-      const loggedPaths = await window.movieLog.logPaths(pendingLogPaths, details);
+      if (pendingLogPaths.length > 0) {
+        const loggedPaths = await window.movieLog.logPaths(pendingLogPaths, details);
 
-      if (loggedPaths.skippedPaths.length > 0) {
-        setFeedback({ message: createDropFeedbackMessage(loggedPaths), tone: 'error' });
-      } else if (loggedPaths.addedCount === 0) {
-        setFeedback({ message: 'Only folders and likely media files are logged. Hidden files and junk are ignored.', tone: 'error' });
-        return;
-      } else {
-        setFeedback({ message: `Logged ${formatCount(loggedPaths.addedCount, 'item')}.`, tone: 'notice' });
+        if (logSelectedFilm) {
+          const film = { title: logSelectedFilm.title, year: logSelectedFilm.year };
+
+          for (const path of pendingLogPaths) {
+            const key = readFilmKey(parseFilmTitle(readTitleFromPath(path)));
+            await window.movieLog.matchFilm(key, film, logSelectedFilm.pageId);
+          }
+        }
+
+        if (loggedPaths.skippedPaths.length > 0) {
+          setFeedback({ message: createDropFeedbackMessage(loggedPaths), tone: 'error' });
+        } else if (loggedPaths.addedCount === 0) {
+          setFeedback({ message: 'Only folders and likely media files are logged. Hidden files and junk are ignored.', tone: 'error' });
+          return;
+        } else {
+          setFeedback({ message: `Logged ${formatCount(loggedPaths.addedCount, 'item')}.`, tone: 'notice' });
+        }
+      } else if (logSelectedFilm) {
+        await window.movieLog.logFilm(
+          { pageId: logSelectedFilm.pageId, title: logSelectedFilm.title, year: logSelectedFilm.year },
+          details
+        );
+        setFeedback({ message: `Logged ${logSelectedFilm.title}.`, tone: 'notice' });
       }
 
       updateState(await window.movieLog.getState(), setState);
-      setPendingLogPaths([]);
+      resetLogDraft();
       setLogPanelOpen(false);
       setActiveView('diary');
     } catch (error) {
@@ -642,35 +332,17 @@ export default function App() {
     }
   };
 
-  const handleOpenInFinder = async (itemPath: string) => {
-    setFeedback(null);
+  const handleOpenInFinder = (itemPath: string) => runAction(async () => {
+    await window.movieLog.openInFinder(itemPath);
+  });
 
-    try {
-      await window.movieLog.openInFinder(itemPath);
-    } catch (error) {
-      setFeedback({ message: (error as Error).message, tone: 'error' });
-    }
-  };
+  const handleOpenItem = (itemPath: string) => runAction(async () => {
+    await window.movieLog.openItem(itemPath);
+  });
 
-  const handleOpenItem = async (itemPath: string) => {
-    setFeedback(null);
-
-    try {
-      await window.movieLog.openItem(itemPath);
-    } catch (error) {
-      setFeedback({ message: (error as Error).message, tone: 'error' });
-    }
-  };
-
-  const handleRemoveWatchedFolder = async (folderId: string) => {
-    setFeedback(null);
-
-    try {
-      await window.movieLog.removeWatchedFolder(folderId);
-    } catch (error) {
-      setFeedback({ message: (error as Error).message, tone: 'error' });
-    }
-  };
+  const handleRemoveWatchedFolder = (folderId: string) => runAction(async () => {
+    await window.movieLog.removeWatchedFolder(folderId);
+  });
 
   const handleScanNow = async () => {
     setFeedback(null);
@@ -690,43 +362,125 @@ export default function App() {
     }
   };
 
+  const handleSelectPath = (path: string) => {
+    setSelectedPath(path);
+    setSelectedLibraryPath(null);
+    setDossierMatchResults([]);
+    setActiveView('detail');
+  };
+
+  const handleOpenSearchResult = (result: SearchResultItem) => {
+    if (result.kind === 'catalog') {
+      setLogSelectedFilm({
+        description: result.status,
+        pageId: result.pageId ?? 0,
+        posterUrl: result.posterUrl,
+        title: result.title,
+        year: result.year
+      });
+      setLogPanelOpen(true);
+      return;
+    }
+
+    if (result.sourcePath) {
+      handleSelectPath(result.sourcePath);
+    }
+  };
+
+  const handleSearchMatch = (query: string) => {
+    setDossierMatchPending(true);
+    setDossierMatchResults([]);
+    window.movieLog
+      .searchCatalog(`${query} film`)
+      .then((results) => setDossierMatchResults(results))
+      .catch((error: Error) => setFeedback({ message: error.message, tone: 'error' }))
+      .finally(() => setDossierMatchPending(false));
+  };
+
+  const handleMatchFilm = (item: ArchiveItem, pageId: number | null) => {
+    const parsed = parseFilmTitle(item.title);
+    setDossierMatchResults([]);
+    void runAction(async () => {
+      await window.movieLog.matchFilm(item.filmKey, { title: parsed.title, year: parsed.year }, pageId);
+      updateState(await window.movieLog.getState(), setState);
+      setFeedback({ message: pageId === null ? 'Catalog match cleared.' : 'Catalog match updated.', tone: 'notice' });
+    });
+  };
+
+  const handleSearchQueryChange = (value: string) => {
+    setSearchQuery(value);
+    setSearchActiveIndex(0);
+  };
+
+  const handleRetryLoad = () => {
+    setLoadError(null);
+    setLoading(true);
+    setLoadAttempt((attempt) => attempt + 1);
+  };
+
   return (
     <ArchiveApplication
       activeView={activeView}
       dataFilePath={dataFilePath}
       diaryMode={diaryMode}
+      dossierMatchPending={dossierMatchPending}
+      dossierMatchResults={dossierMatchResults}
       dropActive={dropActive}
       feedback={feedback}
+      filterSheetOpen={filterSheetOpen}
       filters={filters}
+      loadError={loadError}
       loading={loading}
+      logFilmPending={logFilmSearch.pending}
+      logFilmQuery={logFilmQuery}
+      logFilmResults={logFilmSearch.results}
       logPanelOpen={logPanelOpen}
+      logReview={logReview}
+      logSelectedFilm={logSelectedFilm}
       noteFilePath={noteFilePath}
       onAddWatchedFolders={handleAddWatchedFolders}
       onChooseLogPaths={handleChooseLogPaths}
       onClearLogPaths={() => setPendingLogPaths([])}
       onCloseLogPanel={() => setLogPanelOpen(false)}
-      onCopyPath={handleCopyPath}
+      onCopyPath={handleCopyPathFor}
       onCreateLog={handleCreateLog}
       onDiaryModeChange={setDiaryMode}
       onDrop={handleDrop}
       onDropActiveChange={setDropActive}
       onFeedbackDismiss={() => setFeedback(null)}
       onFilterChange={setFilters}
+      onFilterSheetOpenChange={setFilterSheetOpen}
+      onLogFilmQueryChange={setLogFilmQuery}
+      onLogReviewChange={setLogReview}
+      onMatchFilm={handleMatchFilm}
       onOpenInFinder={handleOpenInFinder}
       onOpenItem={handleOpenItem}
       onOpenLogPanel={() => setLogPanelOpen(true)}
+      onOpenSearchResult={handleOpenSearchResult}
       onRemoveWatchedFolder={handleRemoveWatchedFolder}
+      onRetryLoad={handleRetryLoad}
       onScanNow={handleScanNow}
-      onSearchQueryChange={setSearchQuery}
-      onSelectPath={(path) => {
-        setSelectedPath(path);
-        setActiveView('detail');
+      onSearchActiveIndexChange={setSearchActiveIndex}
+      onSearchMatch={handleSearchMatch}
+      onSearchQueryChange={handleSearchQueryChange}
+      onSelectLibraryPath={setSelectedLibraryPath}
+      onSelectLogFilm={(film) => {
+        setLogSelectedFilm(film);
+
+        if (film === null) {
+          setLogFilmQuery('');
+        }
       }}
+      onSelectPath={handleSelectPath}
       onUpdateEntry={handleUpdateEntry}
       onViewChange={setActiveView}
       pendingLogPaths={pendingLogPaths}
       scanInProgress={scanInProgress}
+      searchActiveIndex={Math.min(searchActiveIndex, Math.max(0, searchGroups.flat.length - 1))}
+      searchCatalogPending={searchCatalog.pending}
+      searchGroups={searchGroups}
       searchQuery={searchQuery}
+      selectedLibraryPath={selectedLibraryPath}
       selectedPath={selectedPath}
       state={state}
     />

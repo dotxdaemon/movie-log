@@ -23,6 +23,13 @@
   --rail-width: 184px;
   --mobile-nav-height: 76px;
   --radius: 4px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 64px;
+  --shadow-panel: -16px 0 40px rgba(23, 24, 33, 0.14);
   --motion: 160ms ease;
   color: var(--ink);
   font-family: var(--body);
@@ -416,7 +423,7 @@ h3 {
 
 .view-switcher button {
   min-width: 84px;
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 14px;
   border: 1px solid var(--border);
   border-right: 0;
@@ -732,6 +739,11 @@ h3 {
   font-size: 2.6rem;
 }
 
+.diary-grid .film-poster {
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+
 .diary-grid .entry-body h3 {
   margin: 5px 0 3px;
   font-size: 1.05rem;
@@ -809,6 +821,14 @@ h3 {
   color: var(--ink);
   background: var(--paper);
   font-size: 0.76rem;
+}
+
+.filter-field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 28px 0 var(--space-2);
+  border: 1px solid var(--border);
+  background: var(--paper);
 }
 
 .library-result-line {
@@ -1269,7 +1289,7 @@ h3 {
 }
 
 .dossier-actions button {
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid var(--border);
   font-family: var(--mono);
@@ -1352,6 +1372,7 @@ h3 {
 
 .rating-segment {
   position: relative;
+  min-height: 44px;
   min-width: 0;
   cursor: pointer;
 }
@@ -1365,7 +1386,7 @@ h3 {
 
 .rating-segment span {
   display: grid;
-  min-height: 36px;
+  min-height: 44px;
   place-items: center;
   border: 1px solid var(--border);
   color: var(--ink-muted);
@@ -1465,7 +1486,7 @@ h3 {
   border-left: 5px solid var(--structural);
   color: var(--ink);
   background: var(--canvas);
-  box-shadow: -16px 0 40px rgba(23, 24, 33, 0.14);
+  box-shadow: var(--shadow-panel);
 }
 
 .log-sheet > header {

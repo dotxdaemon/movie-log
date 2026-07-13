@@ -64,6 +64,25 @@ describe('styles.css', () => {
 
     expect(styles).toMatch(/\.diary-ledger \.diary-entry\s*\{/);
     expect(styles).toMatch(/\.diary-grid \.diary-list\s*\{[^}]*grid-template-columns:/s);
-    expect(styles).toMatch(/\.diary-grid \.entry-poster\s*\{/);
+    expect(styles).toMatch(/\.diary-grid \.film-poster\s*\{/);
+  });
+
+  it('keeps interactive controls at comfortable touch sizes', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).toMatch(/\.view-switcher button\s*\{[^}]*min-height:\s*44px/s);
+    expect(styles).toMatch(/\.dossier-actions button\s*\{[^}]*min-height:\s*44px/s);
+    expect(styles).toMatch(/\.rating-segment\s*\{[^}]*min-height:\s*44px/s);
+    expect(styles).toMatch(/\.filter-field select\s*\{[^}]*min-height:\s*44px/s);
+  });
+
+  it('defines spacing, shadow, and motion tokens for the shared visual system', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).toContain('--space-1: 4px');
+    expect(styles).toContain('--space-4: 16px');
+    expect(styles).toContain('--space-8: 64px');
+    expect(styles).toContain('--shadow-panel:');
+    expect(styles).toContain('--motion:');
   });
 });

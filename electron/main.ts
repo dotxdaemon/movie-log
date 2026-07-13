@@ -192,9 +192,9 @@ async function selectCaptureView(): Promise<void> {
   if (captureRequestedView === 'detail') {
     const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
       (() => {
-        const movie = document.querySelector('.movie-card');
-        movie?.click();
-        return Boolean(movie);
+        const face = document.querySelector('.movie-card .movie-card-face');
+        face?.click();
+        return Boolean(face);
       })()
     `)) as boolean;
 
@@ -202,6 +202,10 @@ async function selectCaptureView(): Promise<void> {
       throw new Error('Capture view did not render: detail has no movie card to select.');
     }
 
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    await mainWindow.webContents.executeJavaScript(`
+      document.querySelector('.movie-card-selected .movie-card-face')?.click()
+    `);
     await new Promise((resolve) => setTimeout(resolve, 180));
   }
 

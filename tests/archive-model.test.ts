@@ -3,13 +3,45 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildArchiveItems,
+  buildSearchResults,
   defaultArchiveFilters,
   filterArchiveItems,
-  readArchiveStats
+  readArchiveStats,
+  readEntryFilm,
+  sumRuntime
 } from '../src/archive-model.js';
-import type { MovieLogState } from '../shared/types.js';
+import type { FilmRecord, MovieLogState } from '../shared/types.js';
+
+const flowFilm: FilmRecord = {
+  cast: ['A bird'],
+  country: ['Latvia'],
+  director: ['Gints Zilbalodis'],
+  fetchedAt: '2026-07-12T10:00:00.000Z',
+  genres: ['Animated', 'Adventure'],
+  key: 'flow::2024',
+  language: ['None'],
+  pageId: 71441742,
+  posterUrl: 'https://upload.wikimedia.org/wikipedia/en/f/f8/Flow_poster.jpg',
+  runtimeMinutes: 85,
+  status: 'matched',
+  title: 'Flow',
+  wikipediaUrl: 'https://en.wikipedia.org/wiki/Flow_(2024_film)',
+  year: 2024
+};
+
+const heatFilm: FilmRecord = {
+  ...flowFilm,
+  director: ['Michael Mann'],
+  genres: ['Crime', 'Thriller'],
+  key: 'heat::1995',
+  posterUrl: null,
+  runtimeMinutes: 170,
+  title: 'Heat',
+  year: 1995
+};
 
 const state: MovieLogState = {
+  films: { 'flow::2024': flowFilm, 'heat::1995': heatFilm },
   history: [
     {
       favorite: true,
@@ -73,6 +105,55 @@ describe('archive model', () => {
     expect(items[0]?.tags).toEqual(['Animation', 'Drama']);
   });
 
+  it('attaches film metadata, clean display titles, and review status to archive items', () => {
+    const items = buildArchiveItems(state);
+
+    expect(items[0]?.displayTitle).toBe('Flow');
+    expect(items[0]?.film?.director).toEqual(['Gints Zilbalodis']);
+    expect(items[0]?.film?.posterUrl).toContain('Flow_poster');
+    expect(items[0]?.reviewed).toBe(true);
+    expect(items[0]?.rewatched).toBe(true);
+    expect(items[1]?.displayTitle).toBe('Heat');
+    expect(items[1]?.reviewed).toBe(false);
+    expect(items[1]?.rewatched).toBe(false);
+  });
+
+  it('filters by catalog genre and graded rating bands', () => {
+    const items = buildArchiveItems(state);
+
+    expect(filterArchiveItems(items, { ...defaultArchiveFilters, genre: 'Crime' }).map((item) => item.displayTitle)).toEqual(['Heat']);
+    expect(filterArchiveItems(items, { ...defaultArchiveFilters, rating: '4.5-plus' }).map((item) => item.displayTitle)).toEqual(['Flow']);
+    expect(filterArchiveItems(items, { ...defaultArchiveFilters, rating: 'unrated' }).map((item) => item.displayTitle)).toEqual(['Heat']);
+  });
+
+  it('reads films for entries and sums known runtimes', () => {
+    expect(readEntryFilm(state.history[2]!, state.films)?.director).toEqual(['Michael Mann']);
+    expect(sumRuntime(state.history, state.films)).toEqual({ knownCount: 3, minutes: 85 + 85 + 170 });
+    expect(sumRuntime([], state.films)).toEqual({ knownCount: 0, minutes: 0 });
+  });
+
+  it('groups search results into diary, library, and catalog lanes with a flat keyboard order', () => {
+    const groups = buildSearchResults(state, 'flow', [
+      {
+        description: '2024 animated film',
+        pageId: 71441742,
+        posterUrl: 'https://upload.wikimedia.org/wikipedia/en/f/f8/Flow_poster.jpg',
+        title: 'Flow',
+        year: 2024
+      },
+      { description: '2014 documentary', pageId: 999, posterUrl: null, title: 'Flowing Home', year: 2014 }
+    ]);
+
+    expect(groups.diary.map((result) => result.title)).toEqual(['Flow']);
+    expect(groups.diary[0]?.director).toBe('Gints Zilbalodis');
+    expect(groups.diary[0]?.year).toBe(2024);
+    expect(groups.diary[0]?.posterUrl).toContain('Flow_poster');
+    expect(groups.library.map((result) => result.title)).toEqual(['Flow']);
+    expect(groups.catalog.map((result) => result.pageId)).toEqual([999]);
+    expect(groups.flat).toHaveLength(3);
+    expect(groups.flat[0]?.key).toBeTruthy();
+  });
+
   it('filters by real metadata and sorts without mutating the source state', () => {
     const items = buildArchiveItems(state);
     const filters = {
@@ -97,6 +178,19 @@ describe('archive model', () => {
     expect(stats.months.map((month) => [month.key, month.count])).toContainEqual(['2026-07', 2]);
     expect(stats.ratings.find((rating) => rating.value === 4.5)?.count).toBe(1);
     expect(stats.tags[0]).toEqual({ count: 2, name: 'Animation' });
-    expect(stats.activity).toHaveLength(84);
+    expect(stats.activity).toHaveLength(365);
+  });
+
+  it('derives runtime totals, genre breakdown, director frequency, decades, and yearly counts', () => {
+    const stats = readArchiveStats(state, new Date('2026-07-12T12:00:00.000Z'));
+
+    expect(stats.totalRuntimeMinutes).toBe(85 + 85 + 170);
+    expect(stats.runtimeKnownCount).toBe(3);
+    expect(stats.genres.find((genre) => genre.name === 'Animated')?.count).toBe(2);
+    expect(stats.genres.find((genre) => genre.name === 'Crime')?.count).toBe(1);
+    expect(stats.directors[0]).toEqual({ count: 2, name: 'Gints Zilbalodis' });
+    expect(stats.decades.find((decade) => decade.label === '2020s')).toMatchObject({ count: 2 });
+    expect(stats.decades.find((decade) => decade.label === '1990s')).toMatchObject({ count: 1 });
+    expect(stats.years).toEqual([{ count: 3, year: 2026 }]);
   });
 });
