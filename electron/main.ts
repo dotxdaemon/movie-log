@@ -330,9 +330,9 @@ async function selectCaptureView(): Promise<void> {
   if (captureRequestedView === 'log' || captureRequestedView === 'log-selected') {
     const ratingSelectionVisible = (await mainWindow.webContents.executeJavaScript(`
       (() => {
-        const input = document.querySelectorAll('.rating-segment input')[7];
+        const input = document.querySelectorAll('.log-sheet .rating-segment input')[7];
         input?.click();
-        const output = document.querySelector('.rating-current-option[data-rating="4.0"]');
+        const output = document.querySelector('.log-sheet .rating-current-option[data-rating="4.0"]');
         return input?.checked === true && output?.textContent?.trim() === 'Current 4.0' && getComputedStyle(output).display !== 'none';
       })()
     `)) as boolean;
