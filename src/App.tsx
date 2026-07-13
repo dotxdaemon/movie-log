@@ -171,12 +171,6 @@ export default function App() {
         (element) => !element.hasAttribute('disabled')
       );
 
-    const activeElement = document.activeElement as HTMLElement | null;
-
-    if (activeElement && !readDialog()?.contains(activeElement) && !dialogReturnFocus.current) {
-      dialogReturnFocus.current = activeElement;
-    }
-
     const initialTarget = readDialog()?.querySelector<HTMLElement>('input, textarea, select') ?? readFocusable()[0];
     initialTarget?.focus();
 
@@ -237,6 +231,30 @@ export default function App() {
     }
   };
 
+  const rememberDialogOpener = () => {
+    const activeElement = document.activeElement as HTMLElement | null;
+
+    if (activeElement && !activeElement.closest('.log-sheet, .filter-sheet')) {
+      dialogReturnFocus.current = activeElement;
+    }
+  };
+
+  const handleLogPanelOpenChange = (open: boolean) => {
+    if (open) {
+      rememberDialogOpener();
+    }
+
+    setLogPanelOpen(open);
+  };
+
+  const handleFilterSheetOpenChange = (open: boolean) => {
+    if (open) {
+      rememberDialogOpener();
+    }
+
+    setFilterSheetOpen(open);
+  };
+
   const handleAddWatchedFolders = () => runAction(async () => {
     await window.movieLog.addWatchedFolders();
   });
@@ -261,7 +279,7 @@ export default function App() {
     }
 
     setPendingLogPaths(paths);
-    setLogPanelOpen(true);
+    handleLogPanelOpenChange(true);
   };
 
   const handleChooseLogPaths = () => runAction(async () => {
@@ -389,7 +407,7 @@ export default function App() {
         title: result.title,
         year: result.year
       });
-      setLogPanelOpen(true);
+      handleLogPanelOpenChange(true);
       return;
     }
 
@@ -460,13 +478,13 @@ export default function App() {
       onDropActiveChange={setDropActive}
       onFeedbackDismiss={() => setFeedback(null)}
       onFilterChange={setFilters}
-      onFilterSheetOpenChange={setFilterSheetOpen}
+      onFilterSheetOpenChange={handleFilterSheetOpenChange}
       onLogFilmQueryChange={setLogFilmQuery}
       onLogReviewChange={setLogReview}
       onMatchFilm={handleMatchFilm}
       onOpenInFinder={handleOpenInFinder}
       onOpenItem={handleOpenItem}
-      onOpenLogPanel={() => setLogPanelOpen(true)}
+      onOpenLogPanel={() => handleLogPanelOpenChange(true)}
       onOpenSearchResult={handleOpenSearchResult}
       onRemoveWatchedFolder={handleRemoveWatchedFolder}
       onRetryLoad={handleRetryLoad}
