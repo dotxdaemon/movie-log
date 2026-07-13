@@ -43,9 +43,15 @@ let statusItem: Tray | null = null;
 const captureRequested = Boolean(process.env.MOVIE_LOG_CAPTURE_PATH);
 const captureWidth = Number(process.env.MOVIE_LOG_CAPTURE_WIDTH ?? 1180);
 const captureHeight = Number(process.env.MOVIE_LOG_CAPTURE_HEIGHT ?? 788);
+const captureRequestedView = process.env.MOVIE_LOG_CAPTURE_VIEW ?? 'diary';
+const captureViews = new Set(['diary', 'library', 'search', 'statistics', 'settings', 'detail', 'log']);
 
 if (captureRequested && (!Number.isInteger(captureWidth) || !Number.isInteger(captureHeight) || captureWidth < 320 || captureHeight < 640)) {
   throw new Error(`Capture dimensions must be whole numbers at least 320x640. Received ${captureWidth}x${captureHeight}.`);
+}
+
+if (captureRequested && !captureViews.has(captureRequestedView)) {
+  throw new Error(`Unknown capture view: ${captureRequestedView}.`);
 }
 
 async function createEntryForPath(
@@ -96,6 +102,73 @@ async function openPath(itemPath: string): Promise<void> {
   }
 }
 
+async function selectCaptureView(): Promise<void> {
+  if (!mainWindow) {
+    return;
+  }
+
+  const selected = (await mainWindow.webContents.executeJavaScript(`
+    (() => {
+      const requestedView = ${JSON.stringify(captureRequestedView)};
+      const readLabel = (element) => element.textContent?.trim().toLowerCase() ?? '';
+      const navigationItems = [...document.querySelectorAll('.nav-item')];
+
+      if (requestedView === 'log') {
+        document.querySelector('.log-action')?.click();
+        return true;
+      }
+
+      if (requestedView === 'detail') {
+        navigationItems.find((item) => readLabel(item).includes('library'))?.click();
+        return true;
+      }
+
+      if (requestedView !== 'diary') {
+        navigationItems.find((item) => readLabel(item).includes(requestedView))?.click();
+      }
+
+      return true;
+    })()
+  `)) as boolean;
+
+  if (!selected) {
+    throw new Error(`Capture view did not render: ${captureRequestedView}.`);
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 180));
+
+  if (captureRequestedView === 'detail') {
+    const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        const movie = document.querySelector('.movie-card');
+        movie?.click();
+        return Boolean(movie);
+      })()
+    `)) as boolean;
+
+    if (!selectedMovie) {
+      throw new Error('Capture view did not render: detail has no movie card to select.');
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 180));
+  }
+
+  const viewSelector = {
+    detail: '.movie-dossier',
+    diary: '.diary-view',
+    library: '.library-view',
+    log: '.log-sheet',
+    search: '.search-view',
+    settings: '.settings-view',
+    statistics: '.statistics-view'
+  }[captureRequestedView];
+  const viewRendered = (await mainWindow.webContents.executeJavaScript(`Boolean(document.querySelector(${JSON.stringify(viewSelector)}))`)) as boolean;
+
+  if (!viewRendered) {
+    throw new Error(`Capture view did not render: ${captureRequestedView}.`);
+  }
+}
+
 async function captureIfRequested(): Promise<void> {
   if (!mainWindow || !process.env.MOVIE_LOG_CAPTURE_PATH) {
     return;
@@ -129,6 +202,7 @@ async function captureIfRequested(): Promise<void> {
     );
   }
 
+  await selectCaptureView();
   await new Promise((resolve) => setTimeout(resolve, 300));
   const layout = (await mainWindow.webContents.executeJavaScript(`
     (() => {

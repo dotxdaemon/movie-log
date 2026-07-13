@@ -545,6 +545,8 @@ h3 {
 }
 
 .entry-body h3 button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
   text-align: left;
 }
 
@@ -618,6 +620,125 @@ h3 {
   font-family: var(--mono);
   font-size: 0.58rem;
   text-transform: uppercase;
+}
+
+.diary-ledger .diary-list::before,
+.diary-grid .diary-list::before {
+  display: none;
+}
+
+.diary-ledger .diary-entry {
+  grid-template-columns: 110px minmax(0, 1fr);
+  min-height: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.diary-ledger .diary-entry::before {
+  top: 30px;
+  left: 106px;
+}
+
+.diary-ledger .entry-date {
+  padding-top: 17px;
+}
+
+.diary-ledger .entry-date > span {
+  font-size: 1.35rem;
+}
+
+.diary-ledger .entry-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px 20px;
+  max-width: none;
+  min-height: 82px;
+  padding: 13px 16px;
+  margin: 0 0 0 20px;
+  border-top: 0;
+  border-left-width: 3px;
+  background: transparent;
+}
+
+.diary-ledger .entry-body::after,
+.diary-ledger .entry-poster,
+.diary-ledger .tag-list,
+.diary-ledger .diary-review {
+  display: none;
+}
+
+.diary-ledger .entry-body h3 {
+  margin: 2px 0;
+  font-size: 1.05rem;
+}
+
+.diary-ledger .entry-source {
+  grid-column: 1;
+}
+
+.diary-ledger .rating-display {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  margin: 0;
+}
+
+.diary-grid .diary-list {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 30px 18px;
+  max-width: 1040px;
+}
+
+.diary-grid .diary-entry {
+  display: block;
+  min-height: 0;
+}
+
+.diary-grid .diary-entry::before {
+  display: none;
+}
+
+.diary-grid .entry-date {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 0 8px;
+}
+
+.diary-grid .entry-date > span {
+  font-size: 1.15rem;
+}
+
+.diary-grid .entry-body {
+  display: block;
+  max-width: none;
+  min-height: 0;
+  padding: 0 0 14px;
+  margin: 0;
+  border-top: 0;
+  border-left: 0;
+  background: transparent;
+}
+
+.diary-grid .entry-body::after {
+  display: none;
+}
+
+.diary-grid .entry-poster {
+  position: relative;
+  top: auto;
+  left: auto;
+  width: 100%;
+  margin-bottom: 12px;
+  font-size: 2.6rem;
+}
+
+.diary-grid .entry-body h3 {
+  margin: 5px 0 3px;
+  font-size: 1.05rem;
+}
+
+.diary-grid .diary-review {
+  display: none;
 }
 
 .filter-drawer > summary {
@@ -946,6 +1067,18 @@ h3 {
   padding-top: 28px;
 }
 
+.chart-empty {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  margin: 0;
+  border-bottom: 1px solid var(--structural);
+  color: var(--ink-muted);
+  background: linear-gradient(135deg, transparent 0 56%, rgba(185, 179, 200, 0.22) 56% 57%, transparent 57%);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+}
+
 .rating-bars > div {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) 24px;
@@ -1085,6 +1218,13 @@ h3 {
   display: grid;
 }
 
+.current-contents-list button > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .movie-dossier {
   display: grid;
   grid-template-columns: minmax(220px, 0.72fr) minmax(360px, 1.5fr);
@@ -1110,6 +1250,7 @@ h3 {
 
 .dossier-identity h2 {
   margin: 8px 0 5px;
+  overflow-wrap: anywhere;
   font-size: clamp(2.2rem, 5vw, 4.4rem);
   line-height: 0.92;
 }
@@ -1685,6 +1826,52 @@ h3 {
 
   .entry-body h3 {
     font-size: 1.35rem;
+  }
+
+  .diary-ledger .diary-entry {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .diary-ledger .entry-date {
+    padding-top: 17px;
+  }
+
+  .diary-ledger .entry-body {
+    display: block;
+    min-height: 72px;
+    margin-left: 15px;
+  }
+
+  .diary-ledger .rating-display {
+    margin-top: 8px;
+  }
+
+  .diary-grid .diary-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 12px;
+  }
+
+  .diary-grid .diary-entry {
+    display: block;
+  }
+
+  .diary-grid .entry-date {
+    display: flex;
+    padding-bottom: 7px;
+  }
+
+  .diary-grid .entry-poster {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  .diary-grid .entry-body {
+    padding: 0 0 12px;
+    margin: 0;
+  }
+
+  .diary-grid .entry-body h3 {
+    font-size: 0.92rem;
   }
 
   .filter-toolbar {

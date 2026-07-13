@@ -208,4 +208,14 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'loading-row')).toHaveLength(6);
     expect(findByClass(tree, 'blank-slate')).toHaveLength(0);
   });
+
+  it('renders designed empty search and unrated-statistics states', () => {
+    const emptyState: MovieLogState = { history: [], libraryItems: [], watchedFolders: [] };
+    const searchTree = renderSurface('search', { searchQuery: 'unmatched', state: emptyState });
+    const statisticsTree = renderSurface('statistics', { state: emptyState });
+
+    expect(findByClass(searchTree, 'blank-slate')).toHaveLength(1);
+    expect(readText(searchTree)).toContain('No archive matches');
+    expect(findByClass(statisticsTree, 'chart-empty')).toHaveLength(2);
+  });
 });

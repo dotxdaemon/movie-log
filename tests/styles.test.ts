@@ -42,6 +42,14 @@ describe('styles.css', () => {
     expect(styles).not.toMatch(/\.record-actions\s*\{/);
   });
 
+  it('contains unbroken filename-stem titles inside the diary column', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).toMatch(/\.entry-body h3 button\s*\{[^}]*max-width:\s*100%[^}]*overflow-wrap:\s*anywhere/s);
+    expect(styles).toMatch(/\.current-contents-list button > span\s*\{[^}]*overflow:\s*hidden[^}]*text-overflow:\s*ellipsis/s);
+    expect(styles).toMatch(/\.dossier-identity h2\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+  });
+
   it('keeps the phone search input at a non-zooming size above the safe mobile action bar', async () => {
     const styles = await readFile(stylesPath, 'utf8');
     const phoneStyles = styles.split('@media (max-width: 700px)')[1] ?? '';
@@ -49,5 +57,13 @@ describe('styles.css', () => {
     expect(phoneStyles).toMatch(/\.archive-search input\s*\{[^}]*font-size:\s*1rem/s);
     expect(phoneStyles).toMatch(/\.mobile-nav\s*\{[^}]*safe-area-inset-bottom/s);
     expect(phoneStyles).toMatch(/\.mobile-nav-item\s*\{[^}]*min-height:\s*64px/s);
+  });
+
+  it('gives ledger and grid diary modes distinct working geometries', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).toMatch(/\.diary-ledger \.diary-entry\s*\{/);
+    expect(styles).toMatch(/\.diary-grid \.diary-list\s*\{[^}]*grid-template-columns:/s);
+    expect(styles).toMatch(/\.diary-grid \.entry-poster\s*\{/);
   });
 });

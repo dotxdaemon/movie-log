@@ -46,4 +46,12 @@ describe('capture pipeline', () => {
     expect(mainProcess).toContain('Capture dimensions');
     expect(mainProcess).toContain('horizontal overflow');
   });
+
+  it('can select every product surface before taking installed-app proof', () => {
+    expect(mainProcess).toContain('MOVIE_LOG_CAPTURE_VIEW');
+    expect(mainProcess).toContain("'.nav-item'");
+    expect(mainProcess).toContain("'.movie-card'");
+    expect(mainProcess).toContain("'.log-sheet'");
+    expect(mainProcess).toContain('Capture view did not render');
+  });
 });

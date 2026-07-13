@@ -253,10 +253,10 @@ function SearchView({ onSearchQueryChange, onSelectPath, searchQuery, state }: P
   return (
     <section className="search-view">
       <label className="archive-search"><span>Search the complete archive</span><input autoFocus onChange={(event) => onSearchQueryChange(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') onSearchQueryChange(''); if (event.key === 'Enter') { const path = history[0]?.sourcePath ?? currentItems[0]?.sourcePath; if (path) onSelectPath(path); } }} placeholder="Title, path, or tag" value={searchQuery} /></label>
-      <div className="search-groups">
+      {query && history.length === 0 && currentItems.length === 0 ? <div className="blank-slate"><p className="eyebrow">Search / 00</p><h2>No archive matches.</h2><p>Try a title, local path, or diary tag.</p></div> : <div className="search-groups">
         <section className="search-group"><header><h2>Diary history</h2><span>{history.length}</span></header>{history.map((entry) => <button className="search-result" key={entry.id} onClick={() => onSelectPath(entry.sourcePath)} type="button"><span>{entry.title}</span><small>{dateFormatter.format(new Date(entry.watchedAt))}</small></button>)}</section>
         <section className="search-group"><header><h2>Current library</h2><span>{currentItems.length}</span></header>{currentItems.map((item) => <button className="search-result" key={item.id} onClick={() => onSelectPath(item.sourcePath)} type="button"><span>{item.title}</span><small>{item.sourceKind}</small></button>)}</section>
-      </div>
+      </div>}
     </section>
   );
 }
@@ -270,8 +270,8 @@ function StatisticsView({ state }: Pick<ArchiveApplicationProps, 'state'>) {
     <section className="statistics-view">
       <dl className="metric-strip"><div><dt>Viewings</dt><dd>{stats.totalViewings}</dd></div><div><dt>Average rating</dt><dd>{stats.averageRating?.toFixed(2) ?? '—'}</dd></div><div><dt>Favorites</dt><dd>{stats.favorites}</dd></div><div><dt>Rewatches</dt><dd>{stats.rewatches}</dd></div></dl>
       <div className="statistics-panels">
-        <section className="chart-panel monthly-chart"><header><p className="eyebrow">Frequency</p><h2>Monthly viewings</h2></header><div className="bar-chart">{stats.months.map((month) => <div className="bar-column" key={month.key}><span style={{ height: `${Math.max(8, month.count / maxMonth * 100)}%` }} /><small>{month.label}</small></div>)}</div></section>
-        <section className="chart-panel rating-chart"><header><p className="eyebrow">Distribution</p><h2>Ratings</h2></header><div className="rating-bars">{stats.ratings.map((rating) => <div key={rating.value}><span>{rating.value}</span><i style={{ width: `${rating.count / maxRating * 100}%` }} /><small>{rating.count}</small></div>)}</div></section>
+        <section className="chart-panel monthly-chart"><header><p className="eyebrow">Frequency</p><h2>Monthly viewings</h2></header>{stats.months.length === 0 ? <p className="chart-empty">No monthly activity yet.</p> : <div className="bar-chart">{stats.months.map((month) => <div className="bar-column" key={month.key}><span style={{ height: `${Math.max(8, month.count / maxMonth * 100)}%` }} /><small>{month.label}</small></div>)}</div>}</section>
+        <section className="chart-panel rating-chart"><header><p className="eyebrow">Distribution</p><h2>Ratings</h2></header>{stats.ratings.length === 0 ? <p className="chart-empty">No rated entries yet.</p> : <div className="rating-bars">{stats.ratings.map((rating) => <div key={rating.value}><span>{rating.value}</span><i style={{ width: `${rating.count / maxRating * 100}%` }} /><small>{rating.count}</small></div>)}</div>}</section>
       </div>
       <section className="activity-panel"><header><p className="eyebrow">Last 12 weeks</p><h2>Viewing activity</h2></header><div className="activity-grid">{stats.activity.map((day) => <span aria-label={`${day.date}: ${day.count} viewings`} className={`activity-cell activity-level-${Math.min(3, day.count)}`} key={day.date} />)}</div></section>
       <section className="tag-frequency"><p className="eyebrow">Tag register</p>{stats.tags.map((tag) => <span key={tag.name}>{tag.name} <strong>{tag.count}</strong></span>)}</section>
