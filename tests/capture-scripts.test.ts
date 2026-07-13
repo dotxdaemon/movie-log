@@ -72,6 +72,11 @@ describe('capture pipeline', () => {
   });
 
   it('replays touch dismissal in mobile sheets before taking proof', () => {
+    expect(mainProcess).toContain('verifyMobileSheetLifecycle');
+    expect(mainProcess).toContain('body.scrollHeight > body.clientHeight');
+    expect(mainProcess).toContain('mobileNavigationBlocked');
+    expect(mainProcess).toContain('focusLayoutStable');
+    expect(mainProcess).toContain('document.querySelector(backdropSelector)?.click()');
     expect(mainProcess).toContain("typeof TouchEvent !== 'function'");
     expect(mainProcess).toContain("dispatchSheetTouch('.filter-sheet-head', 24, 112)");
     expect(mainProcess).toContain("dispatchSheetTouch('.log-sheet-head', 24, 112)");

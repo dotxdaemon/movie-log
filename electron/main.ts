@@ -214,6 +214,13 @@ async function selectCaptureView(): Promise<void> {
   }
 
   if (captureWidth <= 700 && (captureRequestedView === 'log' || captureRequestedView === 'log-selected')) {
+    await verifyMobileSheetLifecycle({
+      backdropSelector: '.log-backdrop',
+      bodySelector: '.log-sheet-body',
+      inputSelector: '.film-search-block input, .log-sheet input',
+      sheetSelector: '.log-sheet',
+      triggerSelector: logActionSelector
+    });
     const touchSupported = (await mainWindow.webContents.executeJavaScript(`
       (() => {
         if (typeof TouchEvent !== 'function') {
@@ -280,6 +287,13 @@ async function selectCaptureView(): Promise<void> {
       document.querySelector('.filter-sheet-trigger')?.click()
     `);
     await waitForCaptureSelector('.filter-sheet');
+    await verifyMobileSheetLifecycle({
+      backdropSelector: '.filter-sheet-backdrop',
+      bodySelector: '.filter-sheet-body',
+      inputSelector: '.filter-sheet select',
+      sheetSelector: '.filter-sheet',
+      triggerSelector: '.filter-sheet-trigger'
+    });
     const touchSupported = (await mainWindow.webContents.executeJavaScript(`
       (() => {
         if (typeof TouchEvent !== 'function') {
@@ -411,6 +425,92 @@ async function verifyLogDialogKeyboard(logActionSelector: string): Promise<void>
 
   await mainWindow.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(logActionSelector)})?.click()`);
   await waitForCaptureSelector('.log-sheet');
+}
+
+async function verifyMobileSheetLifecycle({
+  backdropSelector,
+  bodySelector,
+  inputSelector,
+  sheetSelector,
+  triggerSelector
+}: {
+  backdropSelector: string;
+  bodySelector: string;
+  inputSelector: string;
+  sheetSelector: string;
+  triggerSelector: string;
+}): Promise<void> {
+  if (!mainWindow) {
+    return;
+  }
+
+  const focusStart = (await mainWindow.webContents.executeJavaScript(`
+    ({ height: window.visualViewport?.height ?? window.innerHeight, width: window.visualViewport?.width ?? window.innerWidth })
+  `)) as { height: number; width: number };
+  await mainWindow.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(inputSelector)})?.focus()`);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const sheetMetrics = (await mainWindow.webContents.executeJavaScript(`
+    (() => {
+      const backdrop = document.querySelector(${JSON.stringify(backdropSelector)});
+      const body = document.querySelector(${JSON.stringify(bodySelector)});
+      const input = document.querySelector(${JSON.stringify(inputSelector)});
+      const mobileNavigation = document.querySelector('.mobile-nav');
+      const navigationBounds = mobileNavigation?.getBoundingClientRect();
+      const navigationTarget = navigationBounds
+        ? document.elementFromPoint(navigationBounds.left + navigationBounds.width / 2, navigationBounds.top + navigationBounds.height / 2)
+        : null;
+      const internalScroll = Boolean(body && body.scrollHeight > body.clientHeight);
+
+      if (body) {
+        body.scrollTop = Math.min(48, body.scrollHeight - body.clientHeight);
+      }
+
+      const scrolled = Boolean(body && body.scrollTop > 0);
+
+      if (body) {
+        body.scrollTop = 0;
+      }
+
+      return {
+        focusHeight: window.visualViewport?.height ?? window.innerHeight,
+        focusWidth: window.visualViewport?.width ?? window.innerWidth,
+        inputFontSize: input ? Number.parseFloat(getComputedStyle(input).fontSize) : 0,
+        internalScroll: internalScroll && scrolled,
+        mobileNavigationBlocked:
+          Boolean(backdrop && mobileNavigation && !navigationTarget?.closest('.mobile-nav')) &&
+          Number(getComputedStyle(backdrop).zIndex) > Number(getComputedStyle(mobileNavigation).zIndex)
+      };
+    })()
+  `)) as {
+    focusHeight: number;
+    focusWidth: number;
+    inputFontSize: number;
+    internalScroll: boolean;
+    mobileNavigationBlocked: boolean;
+  };
+  const focusLayoutStable = sheetMetrics.focusHeight === focusStart.height && sheetMetrics.focusWidth === focusStart.width;
+
+  if (!sheetMetrics.internalScroll) {
+    throw new Error(`${sheetSelector} did not preserve internal scrolling.`);
+  }
+
+  if (!sheetMetrics.mobileNavigationBlocked) {
+    throw new Error(`${sheetSelector} did not prevent mobile navigation interference.`);
+  }
+
+  if (!focusLayoutStable || sheetMetrics.inputFontSize < 16) {
+    throw new Error(`${sheetSelector} input focus changed the mobile viewport or exposed zoom-prone text.`);
+  }
+
+  await mainWindow.webContents.executeJavaScript(`
+    (() => {
+      const backdropSelector = ${JSON.stringify(backdropSelector)};
+      document.querySelector(backdropSelector)?.click();
+    })()
+  `);
+  await waitForCaptureSelector(sheetSelector, false);
+  await mainWindow.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(triggerSelector)})?.click()`);
+  await waitForCaptureSelector(sheetSelector);
 }
 
 async function waitForCaptureSelector(selector: string, expected = true): Promise<void> {
