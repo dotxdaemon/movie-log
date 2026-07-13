@@ -386,6 +386,7 @@ async function verifyLogDialogKeyboard(): Promise<void> {
   mainWindow.webContents.sendInputEvent({ keyCode: 'Escape', type: 'keyDown' });
   mainWindow.webContents.sendInputEvent({ keyCode: 'Escape', type: 'keyUp' });
   await waitForCaptureSelector('.log-sheet', false);
+  await new Promise((resolve) => setTimeout(resolve, 50));
   const focusRestored = (await mainWindow.webContents.executeJavaScript(
     `document.querySelector('.log-action') === document.activeElement`
   )) as boolean;
