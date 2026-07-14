@@ -131,4 +131,32 @@ describe('styles.css', () => {
     expect(styles).toContain('--shadow-panel:');
     expect(styles).toContain('--motion:');
   });
+
+  it('contains none of the twelve obsolete style families', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+    const obsoleteFamilies = [
+      'entry-poster',
+      'rating-display',
+      'diary-review',
+      'filter-drawer',
+      'mobile-filter-actions',
+      'poster-index',
+      'poster-monogram',
+      'poster-rule',
+      'primary-button',
+      'secondary-button',
+      'text-button',
+      'loading-row'
+    ];
+
+    for (const family of obsoleteFamilies) {
+      expect(styles).not.toContain(`.${family}`);
+    }
+  });
+
+  it('gives catalog failures a designed alert state', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).toMatch(/\.catalog-error\s*\{[^}]*min-height:\s*96px[^}]*border-left:\s*4px solid var\(--active-red\)[^}]*background:\s*var\(--surface\)/s);
+  });
 });

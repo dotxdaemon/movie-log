@@ -513,22 +513,6 @@ h3 {
   background: linear-gradient(100deg, var(--surface) 0 84%, rgba(215, 211, 223, 0.32) 84%);
 }
 
-.entry-poster {
-  position: absolute;
-  top: 24px;
-  left: 20px;
-  display: grid;
-  width: 62px;
-  aspect-ratio: 2 / 3;
-  place-items: center;
-  border: 1px solid var(--border);
-  border-bottom: 4px solid var(--burgundy);
-  background: linear-gradient(150deg, var(--paper) 0 40%, var(--surface-deep) 40% 76%, var(--structural) 76%);
-  font-family: var(--heading);
-  font-size: 1.2rem;
-  font-weight: 650;
-}
-
 .entry-body::after {
   position: absolute;
   top: -1px;
@@ -564,17 +548,6 @@ h3 {
   color: var(--burgundy);
 }
 
-.rating-display {
-  display: inline-block;
-  margin-top: 15px;
-  padding: 4px 8px;
-  border-left: 3px solid var(--active);
-  color: var(--paper);
-  background: var(--structural);
-  font-family: var(--mono);
-  font-size: 0.64rem;
-}
-
 .tag-list {
   display: flex;
   flex-wrap: wrap;
@@ -601,35 +574,6 @@ h3 {
   border-top: 1px solid var(--border);
   font-size: 0.9rem;
   line-height: 1.7;
-}
-
-.diary-review {
-  margin-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.diary-review summary {
-  min-height: 38px;
-  padding-top: 11px;
-  color: var(--burgundy);
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  text-transform: uppercase;
-}
-
-.diary-review .diary-entry-review {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: 0;
-}
-
-.diary-review button {
-  min-height: 36px;
-  color: var(--ink-muted);
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  text-transform: uppercase;
 }
 
 .diary-ledger .diary-list::before,
@@ -671,9 +615,7 @@ h3 {
 }
 
 .diary-ledger .entry-body::after,
-.diary-ledger .entry-poster,
-.diary-ledger .tag-list,
-.diary-ledger .diary-review {
+.diary-ledger .tag-list {
   display: none;
 }
 
@@ -684,12 +626,6 @@ h3 {
 
 .diary-ledger .entry-source {
   grid-column: 1;
-}
-
-.diary-ledger .rating-display {
-  grid-column: 2;
-  grid-row: 1 / span 3;
-  margin: 0;
 }
 
 .diary-grid .diary-list {
@@ -733,15 +669,6 @@ h3 {
   display: none;
 }
 
-.diary-grid .entry-poster {
-  position: relative;
-  top: auto;
-  left: auto;
-  width: 100%;
-  margin-bottom: 12px;
-  font-size: 2.6rem;
-}
-
 .diary-grid .film-poster {
   width: 100%;
   margin-bottom: var(--space-3);
@@ -750,14 +677,6 @@ h3 {
 .diary-grid .entry-body h3 {
   margin: 5px 0 3px;
   font-size: 1.05rem;
-}
-
-.diary-grid .diary-review {
-  display: none;
-}
-
-.filter-drawer > summary {
-  display: none;
 }
 
 .filter-toolbar {
@@ -782,10 +701,6 @@ h3 {
 
 .filter-toolbar label:nth-child(-n + 4) {
   border-bottom: 1px solid var(--border);
-}
-
-.mobile-filter-actions {
-  display: none;
 }
 
 .active-filters {
@@ -895,31 +810,6 @@ h3 {
   border-right: 1px solid rgba(36, 35, 45, 0.28);
   border-bottom: 6px solid var(--structural);
   content: "";
-}
-
-.poster-index {
-  position: absolute;
-  top: 9px;
-  left: 9px;
-  font-family: var(--mono);
-  font-size: 0.56rem;
-}
-
-.poster-monogram {
-  z-index: 1;
-  font-family: var(--heading);
-  font-size: clamp(2rem, 4vw, 3.4rem);
-  font-weight: 600;
-  letter-spacing: -0.08em;
-}
-
-.poster-rule {
-  position: absolute;
-  bottom: 16%;
-  left: 0;
-  width: 42%;
-  height: 3px;
-  background: var(--burgundy);
 }
 
 .movie-card-title {
@@ -1191,16 +1081,6 @@ h3 {
   border-top: 4px solid var(--structural);
 }
 
-.secondary-button,
-.text-button {
-  min-height: 38px;
-  padding: 0 12px;
-  border: 1px solid var(--border);
-  font-family: var(--mono);
-  font-size: 0.62rem;
-  text-transform: uppercase;
-}
-
 .watched-folder-list article,
 .current-contents-list button,
 .file-register > button {
@@ -1248,10 +1128,6 @@ h3 {
   font-family: var(--mono);
   font-size: 0.58rem;
   text-transform: uppercase;
-}
-
-.text-button {
-  margin-top: 16px;
 }
 
 .current-contents-list button,
@@ -1351,11 +1227,6 @@ h3 {
 .viewing-history p {
   margin: 6px 0 0;
   font-size: 0.82rem;
-}
-
-.viewing-history .rating-display {
-  align-self: start;
-  margin: 0;
 }
 
 .annotation-panel {
@@ -1475,19 +1346,6 @@ h3 {
   width: 18px;
   height: 18px;
   accent-color: var(--burgundy);
-}
-
-.primary-button {
-  justify-self: start;
-  min-height: 46px;
-  padding: 0 20px;
-  border-left: 3px solid var(--active);
-  color: var(--paper);
-  background: var(--structural);
-  font-family: var(--heading);
-  font-weight: 650;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
 }
 
 .log-backdrop {
@@ -1627,30 +1485,6 @@ h3 {
   padding-top: 4px;
   background: var(--border);
   border-top: 4px solid var(--structural);
-}
-
-.screen-loading .loading-row {
-  display: grid;
-  grid-template-columns: 110px minmax(0, 1fr);
-  gap: 24px;
-  min-height: 84px;
-  padding: 18px;
-  background: var(--canvas);
-}
-
-.loading-row span,
-.loading-row i {
-  display: block;
-  background: var(--surface-deep);
-}
-
-.loading-row span {
-  height: 32px;
-}
-
-.loading-row i {
-  height: 48px;
-  opacity: 0.58;
 }
 
 .drop-overlay {
@@ -1845,31 +1679,6 @@ h3 {
     background: var(--surface);
   }
 
-  .entry-poster {
-    position: relative;
-    top: auto;
-    left: auto;
-    width: 52px;
-    margin-bottom: 14px;
-  }
-
-  .filter-drawer {
-    border-top: 4px solid var(--structural);
-  }
-
-  .filter-drawer > summary {
-    display: flex;
-    align-items: center;
-    min-height: 48px;
-    padding: 0 12px;
-    color: var(--paper);
-    background: var(--structural);
-    cursor: pointer;
-    font-family: var(--heading);
-    font-weight: 650;
-    text-transform: uppercase;
-  }
-
   .entry-body h3 {
     font-size: 1.35rem;
   }
@@ -1888,10 +1697,6 @@ h3 {
     margin-left: 15px;
   }
 
-  .diary-ledger .rating-display {
-    margin-top: 8px;
-  }
-
   .diary-grid .diary-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px 12px;
@@ -1904,11 +1709,6 @@ h3 {
   .diary-grid .entry-date {
     display: flex;
     padding-bottom: 7px;
-  }
-
-  .diary-grid .entry-poster {
-    width: 100%;
-    margin-bottom: 10px;
   }
 
   .diary-grid .entry-body {
@@ -1934,26 +1734,6 @@ h3 {
 
   .filter-toolbar label:nth-child(2n) {
     border-right: 0;
-  }
-
-  .mobile-filter-actions {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    border: 1px solid var(--border);
-    border-top: 0;
-  }
-
-  .mobile-filter-actions button {
-    min-height: 44px;
-    font-family: var(--mono);
-    font-size: 0.62rem;
-    text-transform: uppercase;
-  }
-
-  .mobile-filter-actions button + button {
-    color: var(--paper);
-    background: var(--structural);
-    border-left: 3px solid var(--active);
   }
 
   .movie-grid {
@@ -2021,11 +1801,6 @@ h3 {
 
   .viewing-history article {
     grid-template-columns: 92px minmax(0, 1fr);
-  }
-
-  .viewing-history .rating-display {
-    grid-column: 2;
-    justify-self: start;
   }
 
   .field-pair {
@@ -2916,6 +2691,30 @@ h3 {
 .search-result-active {
   box-shadow: inset 4px 0 var(--active-red);
   background: var(--surface);
+}
+
+.catalog-error {
+  display: grid;
+  align-content: center;
+  gap: var(--space-1);
+  min-height: 96px;
+  padding: var(--space-4);
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-left: 4px solid var(--active-red);
+  background: var(--surface);
+}
+
+.catalog-error strong {
+  font-family: var(--heading);
+  font-size: 1rem;
+}
+
+.catalog-error span {
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: 0.56rem;
 }
 
 .meta-list {

@@ -1,8 +1,7 @@
 // ABOUTME: Renders the library filter controls as a compact desktop toolbar and a full-height mobile sheet.
 // ABOUTME: Keeps every active filter visible as a removable squared chip above the poster grid.
 import { defaultArchiveFilters, ratingFilterOptions, type ArchiveFilters } from '../archive-model.js';
-import { shouldDismissSheet } from '../sheet-gesture.js';
-import type { TouchEvent } from 'react';
+import { SheetDialog } from './sheet-dialog.js';
 
 export interface FilterOptions {
   decades: string[];
@@ -121,25 +120,6 @@ function countActiveFilters(filters: ArchiveFilters): number {
 export function FilterPanel({ filters, onFilterChange, onSheetOpenChange, options, resultCount, sheetOpen }: FilterPanelProps) {
   const activeCount = countActiveFilters(filters);
 
-  function recordSheetTouch(event: TouchEvent<HTMLElement>): void {
-    const startY = event.changedTouches[0]?.clientY;
-
-    if (startY !== undefined) {
-      event.currentTarget.dataset.sheetTouchStartY = String(startY);
-    }
-  }
-
-  function closeFromSheetTouch(event: TouchEvent<HTMLElement>): void {
-    const endY = event.changedTouches[0]?.clientY;
-    const startY = Number(event.currentTarget.dataset.sheetTouchStartY);
-
-    if (Number.isFinite(startY) && endY !== undefined && shouldDismissSheet(startY, endY)) {
-      onSheetOpenChange(false);
-    }
-
-    delete event.currentTarget.dataset.sheetTouchStartY;
-  }
-
   return (
     <div className="filter-panel">
       <div aria-label="Library filters" className="filter-toolbar">
@@ -154,45 +134,31 @@ export function FilterPanel({ filters, onFilterChange, onSheetOpenChange, option
         Filters{activeCount > 0 ? ` · ${activeCount}` : ''}
       </button>
       {sheetOpen ? (
-        <div className="filter-sheet-backdrop" onClick={() => onSheetOpenChange(false)} role="presentation">
-          <section
-            aria-label="Library filters"
-            aria-modal="true"
-            className="filter-sheet"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-          >
-            <header
-              className="filter-sheet-head"
-              onTouchCancel={(event) => { delete event.currentTarget.dataset.sheetTouchStartY; }}
-              onTouchEnd={closeFromSheetTouch}
-              onTouchStart={recordSheetTouch}
+        <SheetDialog
+          backdropClassName="filter-sheet-backdrop"
+          eyebrow="Library"
+          headClassName="filter-sheet-head"
+          label="Library filters"
+          onClose={() => onSheetOpenChange(false)}
+          sheetClassName="filter-sheet"
+          title="Filters"
+        >
+          <div className="filter-sheet-body">
+            <FilterControls filters={filters} onFilterChange={onFilterChange} options={options} />
+          </div>
+          <footer className="filter-sheet-actions">
+            <button
+              className="command-block"
+              onClick={() => onFilterChange({ ...defaultArchiveFilters, sort: filters.sort })}
+              type="button"
             >
-              <div>
-                <p className="eyebrow">Library</p>
-                <h2>Filters</h2>
-              </div>
-              <button aria-label="Close filters" className="sheet-close" onClick={() => onSheetOpenChange(false)} type="button">
-                ×
-              </button>
-            </header>
-            <div className="filter-sheet-body">
-              <FilterControls filters={filters} onFilterChange={onFilterChange} options={options} />
-            </div>
-            <footer className="filter-sheet-actions">
-              <button
-                className="command-block"
-                onClick={() => onFilterChange({ ...defaultArchiveFilters, sort: filters.sort })}
-                type="button"
-              >
-                Reset
-              </button>
-              <button className="command-block command-block-primary" onClick={() => onSheetOpenChange(false)} type="button">
-                {`Show ${resultCount} ${resultCount === 1 ? 'title' : 'titles'}`}
-              </button>
-            </footer>
-          </section>
-        </div>
+              Reset
+            </button>
+            <button className="command-block command-block-primary" onClick={() => onSheetOpenChange(false)} type="button">
+              {`Show ${resultCount} ${resultCount === 1 ? 'title' : 'titles'}`}
+            </button>
+          </footer>
+        </SheetDialog>
       ) : null}
     </div>
   );
