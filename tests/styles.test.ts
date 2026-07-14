@@ -68,6 +68,31 @@ describe('styles.css', () => {
     expect(styles).toMatch(/\.diary-grid \.film-poster\s*\{/);
   });
 
+  it('styles the selected diary view tab through its rendered ARIA state', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).toMatch(/\.view-switcher button\[aria-selected="true"\]\s*\{[^}]*background:\s*var\(--structural\)/s);
+    expect(styles).not.toMatch(/\.view-switcher button\[aria-pressed="true"\]/);
+  });
+
+  it('uses a two-column logging workspace on desktop', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).toMatch(/\.log-sheet-body\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*0\.85fr\)\s+minmax\(360px,\s*1\.15fr\)/s);
+  });
+
+  it('keeps one deliberate logging action on tablets and phones', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+    const tabletStyles = styles.slice(styles.indexOf('@media (max-width: 1040px)'), styles.indexOf('@media (max-width: 700px)'));
+    const phoneStyles = styles.slice(styles.lastIndexOf('@media (max-width: 700px)'));
+
+    expect(tabletStyles).toMatch(/\.archive-spine \.log-action\s*\{/);
+    expect(tabletStyles).not.toMatch(/\n\s*\.log-action\s*\{/);
+    expect(phoneStyles).toMatch(/\.header-log-action\s*\{[^}]*display:\s*none/s);
+    expect(phoneStyles).toMatch(/\.mobile-nav\s*\{[^}]*grid-template-columns:\s*repeat\(6,\s*1fr\)/s);
+    expect(phoneStyles).toMatch(/\.mobile-nav \.mobile-log-action\s*\{[^}]*position:\s*relative/s);
+  });
+
   it('keeps interactive controls at comfortable touch sizes', async () => {
     const styles = await readFile(stylesPath, 'utf8');
 
@@ -75,15 +100,24 @@ describe('styles.css', () => {
     expect(styles).toMatch(/\.dossier-actions button\s*\{[^}]*min-height:\s*44px/s);
     expect(styles).toMatch(/\.rating-segment\s*\{[^}]*min-height:\s*44px/s);
     expect(styles).toMatch(/\.filter-field select\s*\{[^}]*min-height:\s*44px/s);
+    expect(styles).toMatch(/\.status-banner button\s*\{[^}]*min-height:\s*44px/s);
+    expect(styles).toMatch(/\.watched-folder-list article > button\s*\{[^}]*min-height:\s*44px/s);
+    expect(styles).toMatch(/\.filter-chip\s*\{[^}]*min-height:\s*44px/s);
   });
 
-  it('puts dossier identity and rating before artwork on phones', async () => {
+  it('puts dossier artwork before title, rating, and metadata on phones', async () => {
     const styles = await readFile(stylesPath, 'utf8');
     const phoneStyles = styles.slice(styles.lastIndexOf('@media (max-width: 700px)'));
 
-    expect(phoneStyles).toMatch(/\.dossier-identity\s*>\s*\.dossier-copy\s*\{[^}]*order:\s*0/s);
-    expect(phoneStyles).toMatch(/\.dossier-identity\s*>\s*\.dossier-poster-col\s*\{[^}]*order:\s*1/s);
+    expect(phoneStyles).toMatch(/\.dossier-identity\s*>\s*\.dossier-poster-col\s*\{[^}]*order:\s*0/s);
+    expect(phoneStyles).toMatch(/\.dossier-identity\s*>\s*\.dossier-copy\s*\{[^}]*order:\s*1/s);
     expect(phoneStyles).toMatch(/\.dossier-backdrop\s*\{[^}]*display:\s*none/s);
+  });
+
+  it('shows three library poster columns on wider phones', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).toMatch(/@media \(min-width:\s*520px\) and \(max-width:\s*700px\)\s*\{[^}]*\.movie-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s);
   });
 
   it('defines spacing, shadow, and motion tokens for the shared visual system', async () => {
@@ -91,6 +125,8 @@ describe('styles.css', () => {
 
     expect(styles).toContain('--space-1: 4px');
     expect(styles).toContain('--space-4: 16px');
+    expect(styles).toContain('--space-6: 32px');
+    expect(styles).toContain('--space-7: 48px');
     expect(styles).toContain('--space-8: 64px');
     expect(styles).toContain('--shadow-panel:');
     expect(styles).toContain('--motion:');

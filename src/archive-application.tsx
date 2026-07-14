@@ -171,7 +171,8 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
         </button>
       ))}
       <button aria-label="Log a Film" className="log-action mobile-log-action" onClick={props.onOpenLogPanel} type="button">
-        +
+        <span aria-hidden="true">+</span>
+        <span className="mobile-log-label">Log</span>
       </button>
       {navigationItems.slice(2).map((item) => (
         <button

@@ -87,8 +87,10 @@ export function StatisticsView({ state }: StatisticsViewProps) {
             <div className="bar-chart">
               {stats.months.slice(-14).map((month) => (
                 <div className="bar-column" key={month.key}>
-                  <span className="bar-column-value">{month.count}</span>
-                  <span className="bar-column-bar" style={{ height: `${Math.max(6, (month.count / maxMonth) * 100)}%` }} />
+                  <div className="bar-column-plot">
+                    <span className="bar-column-value">{month.count}</span>
+                    <span className="bar-column-bar" style={{ height: `${Math.max(6, (month.count / maxMonth) * 100)}%` }} />
+                  </div>
                   <small>{month.label}</small>
                 </div>
               ))}
@@ -167,8 +169,10 @@ export function StatisticsView({ state }: StatisticsViewProps) {
           <div className="year-columns">
             {stats.years.map((year) => (
               <div className="bar-column" key={year.year}>
-                <span className="bar-column-value">{year.count}</span>
-                <span className="bar-column-bar" style={{ height: `${Math.max(6, (year.count / maxYear) * 100)}%` }} />
+                <div className="bar-column-plot">
+                  <span className="bar-column-value">{year.count}</span>
+                  <span className="bar-column-bar" style={{ height: `${Math.max(6, (year.count / maxYear) * 100)}%` }} />
+                </div>
                 <small>{year.year}</small>
               </div>
             ))}

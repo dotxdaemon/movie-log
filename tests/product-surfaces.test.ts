@@ -156,6 +156,7 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'nav-icon').length).toBeGreaterThanOrEqual(10);
     expect(findByClass(tree, 'nav-item-label')).toHaveLength(5);
     expect(findByClass(tree, 'mobile-nav-item')).toHaveLength(5);
+    expect(findByClass(tree, 'mobile-log-label')).toHaveLength(1);
     expect(findByClass(tree, 'log-action')).not.toHaveLength(0);
     expect(readText(tree)).toContain('Diary');
     expect(readText(tree)).toContain('Library');
@@ -331,7 +332,15 @@ describe('ArchiveApplication', () => {
   });
 
   it('renders statistics with runtime, genres, directors, decades, yearly comparison, and a 365-day grid', () => {
-    const tree = renderSurface('statistics');
+    const statisticsState: MovieLogState = {
+      ...state,
+      history: [
+        ...state.history,
+        { ...state.history[0]!, id: '2026-07-11:flow', watchedAt: '2026-07-11T20:00:00.000Z' },
+        { ...state.history[1]!, id: '2025-06-18:heat', watchedAt: '2025-06-18T08:00:00.000Z' }
+      ]
+    };
+    const tree = renderSurface('statistics', { state: statisticsState });
     const text = readText(tree);
 
     expect(findByClass(tree, 'metric-strip')).toHaveLength(1);
@@ -340,6 +349,8 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'director-chart')).toHaveLength(1);
     expect(findByClass(tree, 'decade-chart')).toHaveLength(1);
     expect(findByClass(tree, 'year-chart')).toHaveLength(1);
+    expect(findByClass(tree, 'bar-column-plot').length).toBeGreaterThanOrEqual(2);
+    expect(findByClass(tree, 'bar-column-bar').map((bar) => bar.props.style)).toContainEqual({ height: '50%' });
     expect(findByClass(tree, 'activity-cell')).toHaveLength(365);
   });
 
@@ -383,6 +394,7 @@ describe('ArchiveApplication', () => {
     const logSheet = findByClass(tree, 'log-sheet');
 
     expect(logSheet).toHaveLength(1);
+    expect(findByClass(logSheet, 'log-source-column')).toHaveLength(1);
     expect(findByClass(tree, 'film-search-block')).toHaveLength(1);
     expect(findByClass(tree, 'media-attach')).toHaveLength(1);
     expect(findByClass(tree, 'entry-form-footer')).toHaveLength(1);
