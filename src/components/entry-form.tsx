@@ -1,7 +1,7 @@
 // ABOUTME: Renders the shared diary annotation form used by logging, dossier, and inline diary editing.
-// ABOUTME: Reads ratings, reviews, tags, formats, locations, and flags into persisted entry details.
+// ABOUTME: Reads ratings, reviews, cast notes, tags, formats, locations, and flags into persisted entry details.
 import type { FormEvent } from 'react';
-import { readEntryDetails, reviewCharacterLimit } from './entry-details.js';
+import { readEntryDetails, readLocalDateValue, reviewCharacterLimit } from './entry-details.js';
 import { RatingInput } from './rating.js';
 import type { EntryDetails, LogEntryDetails } from '../../shared/types.js';
 
@@ -43,7 +43,7 @@ export function EntryForm({
       {showDate ? (
         <label className="field-block field-block-date">
           <span>Viewing date</span>
-          <input defaultValue={new Date().toISOString().slice(0, 10)} name="watchedAt" type="date" />
+          <input defaultValue={readLocalDateValue()} name="watchedAt" type="date" />
         </label>
       ) : null}
       <RatingInput name="rating" value={defaults.rating ?? null} />
@@ -65,6 +65,15 @@ export function EntryForm({
         ) : (
           <textarea defaultValue={defaults.review ?? ''} maxLength={reviewCharacterLimit} name="review" rows={5} />
         )}
+      </label>
+      <label className="field-block">
+        <span>Cast notes</span>
+        <textarea
+          defaultValue={defaults.castNotes ?? ''}
+          name="castNotes"
+          placeholder="Performances, chemistry, or casting observations"
+          rows={3}
+        />
       </label>
       <div className="field-pair">
         <label className="field-block">

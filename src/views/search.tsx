@@ -1,5 +1,5 @@
 // ABOUTME: Renders archive search with diary, library, and catalog lanes behind one pale framed field.
-// ABOUTME: Arrow keys move an active result, Enter opens it, and Escape clears the query.
+// ABOUTME: Arrow keys move an active result, Enter opens it, and Escape dismisses the search surface.
 import type { KeyboardEvent } from 'react';
 import { FilmPoster } from '../components/film-poster.js';
 import { EmptyState } from '../components/states.js';
@@ -7,9 +7,11 @@ import type { SearchGroups, SearchResultItem } from '../archive-model.js';
 
 interface SearchViewProps {
   activeIndex: number;
+  catalogError: string | null;
   catalogPending: boolean;
   groups: SearchGroups;
   onActiveIndexChange(index: number): void;
+  onDismiss(): void;
   onOpenResult(result: SearchResultItem): void;
   onSearchQueryChange(value: string): void;
   searchQuery: string;
@@ -70,9 +72,11 @@ function SearchLane({
 
 export function SearchView({
   activeIndex,
+  catalogError,
   catalogPending,
   groups,
   onActiveIndexChange,
+  onDismiss,
   onOpenResult,
   onSearchQueryChange,
   searchQuery
@@ -105,11 +109,13 @@ export function SearchView({
     }
 
     if (event.key === 'Escape') {
+      event.preventDefault();
       onSearchQueryChange('');
+      onDismiss();
     }
   }
 
-  const noMatches = query && flat.length === 0 && !catalogPending;
+  const noMatches = query && flat.length === 0 && !catalogPending && !catalogError;
 
   return (
     <section className="search-view">
@@ -158,6 +164,12 @@ export function SearchView({
             </header>
             {!query ? <p className="search-group-empty">Type to search the film catalog.</p> : null}
             {catalogPending ? <p className="search-group-empty">Searching the catalog…</p> : null}
+            {catalogError ? (
+              <div className="catalog-error" role="alert">
+                <strong>Catalog search failed</strong>
+                <span>{catalogError}</span>
+              </div>
+            ) : null}
             {groups.catalog.map((result, offset) => (
               <button
                 aria-selected={activeKey === result.key}

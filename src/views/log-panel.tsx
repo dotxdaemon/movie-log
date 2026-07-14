@@ -9,6 +9,7 @@ import type { TouchEvent } from 'react';
 const pathName = (path: string): string => path.split('/').filter(Boolean).at(-1) ?? path;
 
 interface LogPanelProps {
+  filmError: string | null;
   filmPending: boolean;
   filmQuery: string;
   filmResults: CatalogSearchResult[];
@@ -25,6 +26,7 @@ interface LogPanelProps {
 }
 
 export function LogPanel({
+  filmError,
   filmPending,
   filmQuery,
   filmResults,
@@ -120,6 +122,12 @@ export function LogPanel({
                 />
               </label>
               {filmPending ? <p className="film-search-pending">Searching…</p> : null}
+              {filmError ? (
+                <div className="catalog-error" role="alert">
+                  <strong>Catalog search failed</strong>
+                  <span>{filmError}</span>
+                </div>
+              ) : null}
               {filmResults.length > 0 ? (
                 <ol className="film-search-results">
                   {filmResults.map((result) => (
@@ -139,7 +147,7 @@ export function LogPanel({
                   ))}
                 </ol>
               ) : null}
-              {filmQuery.trim() && !filmPending && filmResults.length === 0 ? (
+              {filmQuery.trim() && !filmPending && !filmError && filmResults.length === 0 ? (
                 <p className="film-search-empty">No catalog match. Attach local media below instead.</p>
               ) : null}
             </div>

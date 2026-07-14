@@ -345,7 +345,7 @@ export function readArchiveStats(state: MovieLogState, now = new Date()): Archiv
 
     const filmYear = film?.year ?? parseFilmTitle(entry.title).year;
 
-    if (filmYear !== null) {
+    if (entry.favorite && filmYear !== null) {
       const label = `${Math.floor(filmYear / 10) * 10}s`;
       const decade = decadeCounts.get(label) ?? { count: 0, ratingTotal: 0, ratedCount: 0 };
       decade.count += 1;
@@ -374,12 +374,16 @@ export function readArchiveStats(state: MovieLogState, now = new Date()): Archiv
       ? null
       : ratedEntries.reduce((total, entry) => total + (entry.rating ?? 0), 0) / ratedEntries.length,
     decades: [...decadeCounts.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
       .map(([label, decade]) => ({
         averageRating: decade.ratedCount === 0 ? null : decade.ratingTotal / decade.ratedCount,
         count: decade.count,
         label
-      })),
+      }))
+      .sort((left, right) =>
+        right.count - left.count ||
+        (right.averageRating ?? -1) - (left.averageRating ?? -1) ||
+        left.label.localeCompare(right.label)
+      ),
     directors: sortByCount([...directors.entries()].map(([name, count]) => ({ count, name }))),
     favorites: state.history.filter((entry) => entry.favorite).length,
     genres: sortByCount([...genres.entries()].map(([name, count]) => ({ count, name }))),

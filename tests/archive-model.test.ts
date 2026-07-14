@@ -181,7 +181,7 @@ describe('archive model', () => {
     expect(stats.activity).toHaveLength(365);
   });
 
-  it('derives runtime totals, genre breakdown, director frequency, decades, and yearly counts', () => {
+  it('derives runtime totals, genre breakdown, director frequency, favorite-decade ranking, and yearly counts', () => {
     const stats = readArchiveStats(state, new Date('2026-07-12T12:00:00.000Z'));
 
     expect(stats.totalRuntimeMinutes).toBe(85 + 85 + 170);
@@ -189,8 +189,7 @@ describe('archive model', () => {
     expect(stats.genres.find((genre) => genre.name === 'Animated')?.count).toBe(2);
     expect(stats.genres.find((genre) => genre.name === 'Crime')?.count).toBe(1);
     expect(stats.directors[0]).toEqual({ count: 2, name: 'Gints Zilbalodis' });
-    expect(stats.decades.find((decade) => decade.label === '2020s')).toMatchObject({ count: 2 });
-    expect(stats.decades.find((decade) => decade.label === '1990s')).toMatchObject({ count: 1 });
+    expect(stats.decades).toEqual([{ averageRating: 4.5, count: 1, label: '2020s' }]);
     expect(stats.years).toEqual([{ count: 3, year: 2026 }]);
   });
 });

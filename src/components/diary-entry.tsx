@@ -70,6 +70,12 @@ export function DiaryEntryRow({ displayTitle, entry, film, onOpen, onUpdateEntry
                   <p className="entry-cast-names">{film.cast.join(', ')}</p>
                 </div>
               ) : null}
+              {entry.castNotes?.trim() ? (
+                <div className="entry-cast-notes">
+                  <p className="eyebrow">Cast notes</p>
+                  <p>{entry.castNotes}</p>
+                </div>
+              ) : null}
               <div className="entry-annotation">
                 <p className="eyebrow">Edit entry</p>
                 <EntryForm

@@ -29,7 +29,8 @@ function updateState(nextState: MovieLogState, setState: (value: MovieLogState) 
   });
 }
 
-function useCatalogSearch(query: string, enabled: boolean): { pending: boolean; results: CatalogSearchResult[] } {
+function useCatalogSearch(query: string, enabled: boolean): { error: string | null; pending: boolean; results: CatalogSearchResult[] } {
+  const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<CatalogSearchResult[]>([]);
   const [pending, setPending] = useState(false);
 
@@ -39,12 +40,14 @@ function useCatalogSearch(query: string, enabled: boolean): { pending: boolean; 
     let cancelled = false;
     const timer = window.setTimeout(() => {
       if (!active) {
+        setError(null);
         setResults([]);
         setPending(false);
         return;
       }
 
       setPending(true);
+      setError(null);
       window.movieLog
         .searchCatalog(`${trimmed} film`)
         .then((nextResults) => {
@@ -52,9 +55,12 @@ function useCatalogSearch(query: string, enabled: boolean): { pending: boolean; 
             setResults(nextResults);
           }
         })
-        .catch(() => {
+        .catch((catalogError: unknown) => {
           if (!cancelled) {
             setResults([]);
+            setError(catalogError instanceof Error && catalogError.message
+              ? catalogError.message
+              : 'The film catalog could not be reached.');
           }
         })
         .finally(() => {
@@ -70,7 +76,7 @@ function useCatalogSearch(query: string, enabled: boolean): { pending: boolean; 
     };
   }, [enabled, query]);
 
-  return { pending, results };
+  return { error, pending, results };
 }
 
 export default function App() {
@@ -99,6 +105,7 @@ export default function App() {
   const [selectedLibraryPath, setSelectedLibraryPath] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
+  const searchReturnView = useRef<Exclude<ArchiveView, 'detail' | 'search'>>('diary');
 
   const searchCatalog = useCatalogSearch(searchQuery, activeView === 'search');
   const logFilmSearch = useCatalogSearch(logFilmQuery, logPanelOpen && logSelectedFilm === null);
@@ -441,6 +448,20 @@ export default function App() {
     setSearchActiveIndex(0);
   };
 
+  const handleSearchDismiss = () => {
+    setSearchQuery('');
+    setSearchActiveIndex(0);
+    setActiveView(searchReturnView.current);
+  };
+
+  const handleViewChange = (view: ArchiveView) => {
+    if (view === 'search' && activeView !== 'search') {
+      searchReturnView.current = activeView === 'detail' ? 'library' : activeView;
+    }
+
+    setActiveView(view);
+  };
+
   const handleRetryLoad = () => {
     setLoadError(null);
     setLoading(true);
@@ -461,6 +482,7 @@ export default function App() {
       loadError={loadError}
       loading={loading}
       logFilmPending={logFilmSearch.pending}
+      logFilmError={logFilmSearch.error}
       logFilmQuery={logFilmQuery}
       logFilmResults={logFilmSearch.results}
       logPanelOpen={logPanelOpen}
@@ -489,6 +511,7 @@ export default function App() {
       onRemoveWatchedFolder={handleRemoveWatchedFolder}
       onRetryLoad={handleRetryLoad}
       onScanNow={handleScanNow}
+      onSearchDismiss={handleSearchDismiss}
       onSearchActiveIndexChange={setSearchActiveIndex}
       onSearchMatch={handleSearchMatch}
       onSearchQueryChange={handleSearchQueryChange}
@@ -502,11 +525,12 @@ export default function App() {
       }}
       onSelectPath={handleSelectPath}
       onUpdateEntry={handleUpdateEntry}
-      onViewChange={setActiveView}
+      onViewChange={handleViewChange}
       pendingLogPaths={pendingLogPaths}
       scanInProgress={scanInProgress}
       searchActiveIndex={Math.min(searchActiveIndex, Math.max(0, searchGroups.flat.length - 1))}
       searchCatalogPending={searchCatalog.pending}
+      searchCatalogError={searchCatalog.error}
       searchGroups={searchGroups}
       searchQuery={searchQuery}
       selectedLibraryPath={selectedLibraryPath}

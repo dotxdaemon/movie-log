@@ -34,6 +34,7 @@ export interface ArchiveApplicationProps {
   filters: ArchiveFilters;
   loadError: string | null;
   loading: boolean;
+  logFilmError: string | null;
   logFilmPending: boolean;
   logFilmQuery: string;
   logFilmResults: CatalogSearchResult[];
@@ -63,6 +64,7 @@ export interface ArchiveApplicationProps {
   onRemoveWatchedFolder(id: string): Promise<void>;
   onRetryLoad(): void;
   onScanNow(): Promise<void>;
+  onSearchDismiss(): void;
   onSearchActiveIndexChange(index: number): void;
   onSearchMatch(query: string): void;
   onSearchQueryChange(value: string): void;
@@ -74,6 +76,7 @@ export interface ArchiveApplicationProps {
   pendingLogPaths: string[];
   scanInProgress: boolean;
   searchActiveIndex: number;
+  searchCatalogError: string | null;
   searchCatalogPending: boolean;
   searchGroups: SearchGroups;
   searchQuery: string;
@@ -217,9 +220,11 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
     view = (
       <SearchView
         activeIndex={props.searchActiveIndex}
+        catalogError={props.searchCatalogError}
         catalogPending={props.searchCatalogPending}
         groups={props.searchGroups}
         onActiveIndexChange={props.onSearchActiveIndexChange}
+        onDismiss={props.onSearchDismiss}
         onOpenResult={props.onOpenSearchResult}
         onSearchQueryChange={props.onSearchQueryChange}
         searchQuery={props.searchQuery}
@@ -336,6 +341,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
       {props.logPanelOpen ? (
         <LogPanel
           filmPending={props.logFilmPending}
+          filmError={props.logFilmError}
           filmQuery={props.logFilmQuery}
           filmResults={props.logFilmResults}
           onChooseLogPaths={props.onChooseLogPaths}

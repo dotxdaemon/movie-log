@@ -28,6 +28,7 @@ const state: MovieLogState = {
   films: { 'flow::2024': flowFilm },
   history: [
     {
+      castNotes: 'The silent ensemble carries the final movement.',
       favorite: true,
       id: '2026-07-10T20:00:00.000Z:/Movies/Flow.2024.mkv',
       location: 'Home',
@@ -91,6 +92,7 @@ const baseProps: ArchiveApplicationProps = {
   filters: defaultArchiveFilters,
   loadError: null,
   loading: false,
+  logFilmError: null,
   logFilmPending: false,
   logFilmQuery: '',
   logFilmResults: [],
@@ -120,6 +122,7 @@ const baseProps: ArchiveApplicationProps = {
   onRemoveWatchedFolder: asyncNoop,
   onRetryLoad: noop,
   onScanNow: asyncNoop,
+  onSearchDismiss: noop,
   onSearchActiveIndexChange: noop,
   onSearchMatch: noop,
   onSearchQueryChange: noop,
@@ -131,6 +134,7 @@ const baseProps: ArchiveApplicationProps = {
   pendingLogPaths: [],
   scanInProgress: false,
   searchActiveIndex: 0,
+  searchCatalogError: null,
   searchCatalogPending: false,
   searchGroups: emptySearchGroups,
   searchQuery: '',
@@ -185,7 +189,7 @@ describe('ArchiveApplication', () => {
     expect(text).not.toContain('Total runtime —');
   });
 
-  it('renders diary entries with clean titles, years, markers, excerpts, and cast in the expansion', () => {
+  it('renders diary entries with clean titles, markers, catalog cast, and editable user cast notes', () => {
     const tree = renderSurface('diary');
     const text = readText(tree);
 
@@ -199,6 +203,9 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'entry-expand')).toHaveLength(2);
     expect(findByClass(tree, 'entry-cast')).toHaveLength(1);
     expect(text).toContain('Cat, Capybara');
+    expect(findByClass(tree, 'entry-cast-notes')).toHaveLength(1);
+    expect(text).toContain('The silent ensemble carries the final movement.');
+    expect(text).toContain('Cast notes');
     expect(findByClass(tree, 'entry-annotation')).toHaveLength(2);
     expect(findByClass(tree, 'rating-meter')).not.toHaveLength(0);
   });
@@ -278,11 +285,49 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'search-result-year')).not.toHaveLength(0);
   });
 
+  it('renders catalog failures as designed errors instead of empty results', () => {
+    const searchTree = renderSurface('search', {
+      searchCatalogError: 'The film catalog is unavailable.',
+      searchQuery: 'flow'
+    });
+    const logTree = renderSurface('diary', {
+      logFilmError: 'The film catalog is unavailable.',
+      logFilmQuery: 'flow',
+      logPanelOpen: true
+    });
+
+    expect(findByClass(searchTree, 'catalog-error')).toHaveLength(1);
+    expect(findByClass(logTree, 'catalog-error')).toHaveLength(1);
+    expect(readText(searchTree)).toContain('The film catalog is unavailable.');
+    expect(readText(logTree)).not.toContain('No catalog match.');
+  });
+
   it('marks the keyboard-active search result', () => {
     const groups = buildSearchResults(state, 'flow', []);
     const tree = renderSurface('search', { searchActiveIndex: 0, searchGroups: groups, searchQuery: 'flow' });
 
     expect(findByClass(tree, 'search-result-active')).toHaveLength(1);
+  });
+
+  it('dismisses the Search surface when Escape is pressed', () => {
+    const queryChanges: string[] = [];
+    let dismissCount = 0;
+    const tree = renderSurface('search', {
+      onSearchDismiss: () => { dismissCount += 1; },
+      onSearchQueryChange: (value) => queryChanges.push(value),
+      searchQuery: 'flow'
+    });
+    const field = findByClass(tree, 'archive-search')[0];
+    const input = field?.children.find((child) => child.type === 'input');
+
+    expect(input).toBeTruthy();
+    (input?.props.onKeyDown as (event: { key: string; preventDefault(): void }) => void)({
+      key: 'Escape',
+      preventDefault: noop
+    });
+
+    expect(queryChanges).toEqual(['']);
+    expect(dismissCount).toBe(1);
   });
 
   it('renders statistics with runtime, genres, directors, decades, yearly comparison, and a 365-day grid', () => {

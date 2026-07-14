@@ -4,6 +4,7 @@ export type EntrySource = 'drop' | 'watch';
 export type EntryKind = 'file' | 'directory';
 
 export interface WatchEntry {
+  castNotes?: string;
   favorite?: boolean;
   id: string;
   location?: string;
@@ -20,6 +21,7 @@ export interface WatchEntry {
 }
 
 export interface EntryDetails {
+  castNotes?: string;
   favorite?: boolean;
   location?: string;
   rating?: number | null;

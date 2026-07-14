@@ -142,7 +142,7 @@ export function StatisticsView({ state }: StatisticsViewProps) {
             <h2>Favorite decades</h2>
           </header>
           {stats.decades.length === 0 ? (
-            <p className="chart-empty">No release years known yet.</p>
+            <p className="chart-empty">Mark favorite films to reveal preferred decades.</p>
           ) : (
             <div className="decade-rows">
               {stats.decades.map((decade) => (
