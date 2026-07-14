@@ -1,7 +1,7 @@
 // ABOUTME: Verifies the main-process orchestration for adding watched folders and logging dropped paths.
 // ABOUTME: Covers rollback and partial-failure behavior without importing the Electron runtime shell.
 import { describe, expect, it } from 'vitest';
-import { addWatchedFolderPath, logPathsFromDrop } from '../electron/main-actions.js';
+import { addWatchedFolderPath, logPathsFromDrop, searchCatalogWithFallback } from '../electron/main-actions.js';
 import { createEntryFromPath } from '../shared/history.js';
 import type { WatchedFolder } from '../shared/types.js';
 
@@ -113,5 +113,34 @@ describe('main actions', () => {
       skippedPaths: ['/Movies/Poster.jpg']
     });
     expect(savedPaths).toEqual(['/Movies/Good.mkv']);
+  });
+
+  it('rejects a catalog outage when the local cache has no matching films', async () => {
+    const outage = new Error('catalog offline');
+
+    await expect(searchCatalogWithFallback('Unknown film', {
+      searchCachedFilms: async () => [],
+      searchLiveFilms: async () => {
+        throw outage;
+      }
+    })).rejects.toBe(outage);
+  });
+
+  it('returns matching cached films during a catalog outage', async () => {
+    const cachedFilm = {
+      description: 'Cached catalog match',
+      director: ['Jane Director'],
+      pageId: 42,
+      posterUrl: null,
+      title: 'Known Film',
+      year: 2024
+    };
+
+    await expect(searchCatalogWithFallback('Known Film', {
+      searchCachedFilms: async () => [cachedFilm],
+      searchLiveFilms: async () => {
+        throw new Error('catalog offline');
+      }
+    })).resolves.toEqual([cachedFilm]);
   });
 });

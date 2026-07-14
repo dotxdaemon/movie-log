@@ -8,7 +8,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { createFilmCatalog } from './film-catalog.js';
 import { createFilmIndex, type FilmEnrichmentRequest } from './film-index.js';
 import { createFolderMonitor } from './folder-monitor.js';
-import { addWatchedFolderPath, logPathsFromDrop } from './main-actions.js';
+import { addWatchedFolderPath, logPathsFromDrop, searchCatalogWithFallback } from './main-actions.js';
 import { handleMovieLogWindowsClosed, showMovieLog } from './app-lifecycle.js';
 import { prepareAppRuntime } from './runtime.js';
 import { scanFolderContents } from './folder-scan.js';
@@ -770,11 +770,10 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('movie-log:search-catalog', async (_event, query: string) => {
-    try {
-      return await filmCatalog.searchFilms(query);
-    } catch {
-      return filmIndex.searchFilms(query);
-    }
+    return searchCatalogWithFallback(query, {
+      searchCachedFilms: filmIndex.searchFilms,
+      searchLiveFilms: filmCatalog.searchFilms
+    });
   });
 
   ipcMain.handle(

@@ -1,6 +1,6 @@
 // ABOUTME: Coordinates main-process watched-folder setup and dropped-path logging without importing Electron globals.
 // ABOUTME: Keeps rollback and partial-failure behavior testable while the BrowserWindow shell stays thin.
-import type { LogPathsResult, WatchEntry, WatchedFolder } from '../shared/types.js';
+import type { CatalogSearchResult, LogPathsResult, WatchEntry, WatchedFolder } from '../shared/types.js';
 
 interface AddWatchedFolderPathOptions {
   queueFolderRefresh(folderPath: string): Promise<void>;
@@ -14,6 +14,11 @@ interface LogPathsFromDropOptions {
   addHistoryEntries(entries: WatchEntry[]): Promise<WatchEntry[]>;
   broadcastState(): Promise<void>;
   createEntryForPath(itemPath: string): Promise<WatchEntry | null>;
+}
+
+interface SearchCatalogOptions {
+  searchCachedFilms(query: string): Promise<CatalogSearchResult[]>;
+  searchLiveFilms(query: string): Promise<CatalogSearchResult[]>;
 }
 
 export async function addWatchedFolderPath(
@@ -65,4 +70,21 @@ export async function logPathsFromDrop(paths: string[], options: LogPathsFromDro
     addedCount: entries.length,
     skippedPaths
   };
+}
+
+export async function searchCatalogWithFallback(
+  query: string,
+  options: SearchCatalogOptions
+): Promise<CatalogSearchResult[]> {
+  try {
+    return await options.searchLiveFilms(query);
+  } catch (error) {
+    const cachedFilms = await options.searchCachedFilms(query);
+
+    if (cachedFilms.length > 0) {
+      return cachedFilms;
+    }
+
+    throw error;
+  }
 }
