@@ -2926,6 +2926,18 @@ h3 {
   border-left: 1px solid var(--border);
 }
 
+.log-sheet .rating-input {
+  grid-template-columns: 1fr;
+}
+
+.log-sheet .rating-segments {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.log-sheet .rating-none {
+  width: 100%;
+}
+
 .film-search-block,
 .selected-film {
   padding-bottom: var(--space-4);

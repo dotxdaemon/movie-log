@@ -81,6 +81,14 @@ describe('styles.css', () => {
     expect(styles).toMatch(/\.log-sheet-body\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*0\.85fr\)\s+minmax\(360px,\s*1\.15fr\)/s);
   });
 
+  it('wraps the logging rating control inside its desktop form column', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+
+    expect(styles).toMatch(/\.log-sheet \.rating-input\s*\{[^}]*grid-template-columns:\s*1fr/s);
+    expect(styles).toMatch(/\.log-sheet \.rating-segments\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s);
+    expect(styles).toMatch(/\.log-sheet \.rating-none\s*\{[^}]*width:\s*100%/s);
+  });
+
   it('keeps one deliberate logging action on tablets and phones', async () => {
     const styles = await readFile(stylesPath, 'utf8');
     const tabletStyles = styles.slice(styles.indexOf('@media (max-width: 1040px)'), styles.indexOf('@media (max-width: 700px)'));
