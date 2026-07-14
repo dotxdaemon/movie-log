@@ -12,6 +12,7 @@ import {
 } from './archive-model.js';
 import { guardDragNavigation } from './drag-guard.js';
 import { createDropFeedbackMessage, createScanFeedbackMessage, formatCount, type WorkspaceFeedback } from './feedback.js';
+import { readCatalogFailureMessage } from './catalog-search.js';
 import { parseFilmTitle, readFilmKey } from '../shared/film-title.js';
 import { readTitleFromPath, readVisibleHistory } from '../shared/history.js';
 import type { CatalogSearchResult, LogEntryDetails, EntryDetails, MovieLogState } from '../shared/types.js';
@@ -58,9 +59,7 @@ function useCatalogSearch(query: string, enabled: boolean): { error: string | nu
         .catch((catalogError: unknown) => {
           if (!cancelled) {
             setResults([]);
-            setError(catalogError instanceof Error && catalogError.message
-              ? catalogError.message
-              : 'The film catalog could not be reached.');
+            setError(readCatalogFailureMessage(catalogError));
           }
         })
         .finally(() => {
