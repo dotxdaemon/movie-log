@@ -20,7 +20,14 @@ import { closeMovieLog, handleWindowCloseRequest } from './window-close.js';
 import { buildFilmSourcePath, parseFilmTitle, readFilmKey } from '../shared/film-title.js';
 import { createEntryFromPath } from '../shared/history.js';
 import { isTrackableMediaItem } from '../shared/media-items.js';
-import type { EntryDetails, EntryKind, LogEntryDetails, LogFilmRequest, MovieLogState, WatchEntry } from '../shared/types.js';
+import type {
+  EntryDetails,
+  EntryKind,
+  LogEntryDetails,
+  LogFilmRequest,
+  MovieLogState,
+  WatchEntry
+} from '../shared/types.js';
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 prepareAppRuntime(app, {
@@ -52,19 +59,34 @@ const captureHeight = Number(process.env.MOVIE_LOG_CAPTURE_HEIGHT ?? 788);
 const captureRequestedView = process.env.MOVIE_LOG_CAPTURE_VIEW ?? 'diary';
 const captureViews = new Set([
   'diary',
+  'diary-ledger',
+  'diary-grid',
   'library',
+  'library-filtered',
+  'library-empty',
+  'library-selected',
   'filters',
   'search',
+  'search-long',
   'catalog',
+  'catalog-outage',
   'statistics',
   'settings',
   'detail',
+  'detail-missing',
   'log',
-  'log-selected'
+  'log-selected',
+  'persistence-save',
+  'persistence-verify'
 ]);
 
-if (captureRequested && (!Number.isInteger(captureWidth) || !Number.isInteger(captureHeight) || captureWidth < 320 || captureHeight < 640)) {
-  throw new Error(`Capture dimensions must be whole numbers at least 320x640. Received ${captureWidth}x${captureHeight}.`);
+if (
+  captureRequested &&
+  (!Number.isInteger(captureWidth) || !Number.isInteger(captureHeight) || captureWidth < 320 || captureHeight < 640)
+) {
+  throw new Error(
+    `Capture dimensions must be whole numbers at least 320x640. Received ${captureWidth}x${captureHeight}.`
+  );
 }
 
 if (captureRequested && !captureViews.has(captureRequestedView)) {
@@ -98,10 +120,7 @@ async function readState(): Promise<MovieLogState> {
 
 function collectFilmRequests(state: MovieLogState): FilmEnrichmentRequest[] {
   const requests = new Map<string, FilmEnrichmentRequest>();
-  const titles = [
-    ...state.history.map((entry) => entry.title),
-    ...state.libraryItems.map((item) => item.title)
-  ];
+  const titles = [...state.history.map((entry) => entry.title), ...state.libraryItems.map((item) => item.title)];
 
   for (const stem of titles) {
     const parsed = parseFilmTitle(stem);
@@ -178,24 +197,31 @@ async function selectCaptureView(): Promise<void> {
       const readLabel = (element) => element.textContent?.trim().toLowerCase() ?? '';
       const navigationItems = [...document.querySelectorAll('.nav-item')];
 
-      if (requestedView === 'log' || requestedView === 'log-selected') {
+      if (requestedView === 'log' || requestedView === 'log-selected' || requestedView === 'persistence-save') {
         const action = document.querySelector(logActionSelector);
         action?.focus();
         action?.click();
         return true;
       }
 
-      if (requestedView === 'catalog') {
-        navigationItems.find((item) => readLabel(item).includes('search'))?.click();
+      if (requestedView === 'catalog' || requestedView === 'catalog-outage' || requestedView === 'search-long') {
+        const searchItem = navigationItems.find((item) => readLabel(item).includes('search'));
+        searchItem?.focus();
+        searchItem?.click();
         return true;
       }
 
-      if (requestedView === 'detail' || requestedView === 'filters') {
+      if (
+        requestedView === 'detail' ||
+        requestedView === 'detail-missing' ||
+        requestedView === 'filters' ||
+        requestedView.startsWith('library')
+      ) {
         navigationItems.find((item) => readLabel(item).includes('library'))?.click();
         return true;
       }
 
-      if (requestedView !== 'diary') {
+      if (!requestedView.startsWith('diary')) {
         navigationItems.find((item) => readLabel(item).includes(requestedView))?.click();
       }
 
@@ -209,7 +235,111 @@ async function selectCaptureView(): Promise<void> {
 
   await new Promise((resolve) => setTimeout(resolve, 180));
 
-  if (captureRequestedView === 'log' || captureRequestedView === 'log-selected') {
+  if (captureRequestedView === 'diary-ledger' || captureRequestedView === 'diary-grid') {
+    const requestedMode = captureRequestedView === 'diary-ledger' ? 'ledger' : 'grid';
+    await mainWindow.webContents.executeJavaScript(`
+      [...document.querySelectorAll('.view-switcher [role="tab"]')]
+        .find((tab) => tab.textContent?.trim().toLowerCase() === ${JSON.stringify(requestedMode)})
+        ?.click()
+    `);
+    await waitForCaptureSelector(`#diary-panel-${requestedMode}`);
+  }
+
+  if (captureRequestedView === 'library-filtered' || captureRequestedView === 'library-empty') {
+    await mainWindow.webContents.executeJavaScript(`document.querySelector('.header-filters')?.click()`);
+    await waitForCaptureSelector('.filter-sheet');
+    const filtered = (await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        const setCaptureSelect = (selector, value) => {
+          const select = document.querySelector(selector);
+          const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+          setter?.call(select, value);
+          select?.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+
+        if (${JSON.stringify(captureRequestedView)} === 'library-empty') {
+          setCaptureSelect('.filter-sheet select[name="rating"]', '4.5-plus');
+        } else {
+          const genre = document.querySelector('.filter-sheet select[name="genre"]');
+          const value = genre?.options[1]?.value ?? '';
+          setCaptureSelect('.filter-sheet select[name="genre"]', value);
+        }
+
+        document.querySelector('.filter-sheet-actions button:last-child')?.click();
+        return true;
+      })()
+    `)) as boolean;
+
+    if (!filtered) {
+      throw new Error(`Capture view did not apply filters: ${captureRequestedView}.`);
+    }
+
+    await waitForCaptureSelector('.filter-sheet', false);
+
+    if (captureRequestedView === 'library-empty') {
+      await waitForCaptureSelector('.library-film-field .blank-slate');
+    }
+  }
+
+  if (captureRequestedView === 'search-long') {
+    const moveToLongSearchResult = `
+      (() => {
+        const input = document.querySelector('.archive-search input');
+
+        for (let index = 0; index < 18; index += 1) {
+          input?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }));
+        }
+
+        const active = document.querySelector('.search-result-active');
+        const bounds = active?.getBoundingClientRect();
+        return Boolean(bounds && bounds.top >= 0 && bounds.bottom <= window.innerHeight);
+      })()
+    `;
+    const activeResultVisible = (await mainWindow.webContents.executeJavaScript(moveToLongSearchResult)) as boolean;
+
+    if (!activeResultVisible) {
+      throw new Error('Long Search keyboard navigation did not keep the active result visible.');
+    }
+
+    await mainWindow.webContents.executeJavaScript(`
+      document.querySelector('.archive-search input')?.dispatchEvent(
+        new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' })
+      )
+    `);
+    await waitForCaptureSelector('.search-view', false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const searchFocusRestored = (await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        const searchItem = [...document.querySelectorAll('.nav-item')]
+          .find((item) => item.textContent?.trim().toLowerCase().includes('search'));
+        return Boolean(document.querySelector('.diary-view') && document.activeElement === searchItem);
+      })()
+    `)) as boolean;
+
+    if (!searchFocusRestored) {
+      throw new Error('Search Escape did not return to the previous view and restore focus to its opener.');
+    }
+
+    await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        const searchItem = [...document.querySelectorAll('.nav-item')]
+          .find((item) => item.textContent?.trim().toLowerCase().includes('search'));
+        searchItem?.focus();
+        searchItem?.click();
+      })()
+    `);
+    await waitForCaptureSelector('.search-view');
+
+    if (!((await mainWindow.webContents.executeJavaScript(moveToLongSearchResult)) as boolean)) {
+      throw new Error('Long Search keyboard navigation did not remain visible after reopening Search.');
+    }
+  }
+
+  if (
+    captureRequestedView === 'log' ||
+    captureRequestedView === 'log-selected' ||
+    captureRequestedView === 'persistence-save'
+  ) {
     await verifyLogDialogKeyboard(logActionSelector);
   }
 
@@ -246,11 +376,13 @@ async function selectCaptureView(): Promise<void> {
     }
 
     await waitForCaptureSelector('.log-sheet', false);
-    await mainWindow.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(logActionSelector)})?.click()`);
+    await mainWindow.webContents.executeJavaScript(
+      `document.querySelector(${JSON.stringify(logActionSelector)})?.click()`
+    );
     await waitForCaptureSelector('.log-sheet');
   }
 
-  if (captureRequestedView === 'catalog') {
+  if (captureRequestedView === 'catalog' || captureRequestedView === 'catalog-outage') {
     await mainWindow.webContents.executeJavaScript(`
       (() => {
         const setCaptureInput = (selector, value) => {
@@ -259,13 +391,21 @@ async function selectCaptureView(): Promise<void> {
           setter?.call(input, value);
           input?.dispatchEvent(new Event('input', { bubbles: true }));
         };
-        setCaptureInput('.archive-search input', 'The Ring');
+        setCaptureInput(
+          '.archive-search input',
+          ${JSON.stringify(captureRequestedView === 'catalog-outage' ? 'Catalog Outage Proof' : 'The Ring')}
+        );
       })()
     `);
-    await waitForCaptureSelector('.search-group-catalog .poster-art');
+
+    if (captureRequestedView === 'catalog-outage') {
+      await waitForCaptureSelector('.catalog-error');
+    } else {
+      await waitForCaptureSelector('.search-group-catalog .poster-art', true, 300);
+    }
   }
 
-  if (captureRequestedView === 'log-selected') {
+  if (captureRequestedView === 'log-selected' || captureRequestedView === 'persistence-save') {
     await mainWindow.webContents.executeJavaScript(`
       (() => {
         const setCaptureInput = (selector, value) => {
@@ -323,7 +463,7 @@ async function selectCaptureView(): Promise<void> {
     await waitForCaptureSelector('.filter-sheet');
   }
 
-  if (captureRequestedView === 'detail') {
+  if (captureRequestedView === 'library-selected') {
     const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
       (() => {
         const face = document.querySelector('.movie-card:has(.poster-art) .movie-card-face');
@@ -333,7 +473,29 @@ async function selectCaptureView(): Promise<void> {
     `)) as boolean;
 
     if (!selectedMovie) {
-      throw new Error('Capture view did not render: detail has no movie card to select.');
+      throw new Error('Capture view did not render: library-selected has no movie card to select.');
+    }
+
+    await waitForCaptureSelector('.movie-card-selected');
+    await waitForCaptureSelector('.library-inspector');
+  }
+
+  if (captureRequestedView === 'detail' || captureRequestedView === 'detail-missing') {
+    const movieSelector = '.movie-card:has(.poster-art) .movie-card-face';
+    const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        const face =
+          ${JSON.stringify(captureRequestedView)} === 'detail-missing'
+            ? [...document.querySelectorAll('.movie-card:not(:has(.poster-art)) .movie-card-face')]
+                .sort((left, right) => (right.textContent?.length ?? 0) - (left.textContent?.length ?? 0))[0]
+            : document.querySelector(${JSON.stringify(movieSelector)});
+        face?.click();
+        return Boolean(face);
+      })()
+    `)) as boolean;
+
+    if (!selectedMovie) {
+      throw new Error(`Capture view did not render: ${captureRequestedView} has no matching movie card to select.`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, 180));
@@ -343,7 +505,11 @@ async function selectCaptureView(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 180));
   }
 
-  if (captureRequestedView === 'log' || captureRequestedView === 'log-selected') {
+  if (
+    captureRequestedView === 'log' ||
+    captureRequestedView === 'log-selected' ||
+    captureRequestedView === 'persistence-save'
+  ) {
     const ratingSelectionVisible = (await mainWindow.webContents.executeJavaScript(`
       (() => {
         const input = document.querySelectorAll('.log-sheet .rating-segment input')[7];
@@ -358,19 +524,57 @@ async function selectCaptureView(): Promise<void> {
     }
   }
 
+  if (captureRequestedView === 'persistence-save') {
+    await mainWindow.webContents.executeJavaScript(`
+      document.querySelector('.log-sheet .entry-form button[type="submit"]')?.click()
+    `);
+    await waitForCaptureSelector('.log-sheet', false);
+    await waitForCaptureSelector('.diary-view');
+  }
+
+  if (captureRequestedView === 'persistence-verify') {
+    const expectedEntryId = process.env.MOVIE_LOG_PERSISTENCE_ENTRY_ID;
+
+    if (!expectedEntryId) {
+      throw new Error('Persistence verification requires MOVIE_LOG_PERSISTENCE_ENTRY_ID.');
+    }
+
+    const entrySurvivedRelaunch = (await mainWindow.webContents.executeJavaScript(`
+      window.movieLog.getState().then((state) =>
+        state.history.some((entry) => entry.id === ${JSON.stringify(expectedEntryId)})
+      )
+    `)) as boolean;
+
+    if (!entrySurvivedRelaunch) {
+      throw new Error('The scratch Log Film entry did not survive the installed-app relaunch.');
+    }
+  }
+
   const viewSelector = {
     catalog: '.search-view',
+    'catalog-outage': '.catalog-error',
     detail: '.movie-dossier',
+    'detail-missing': '.movie-dossier',
     diary: '.diary-view',
+    'diary-grid': '#diary-panel-grid',
+    'diary-ledger': '#diary-panel-ledger',
     filters: '.filter-sheet',
     library: '.library-view',
+    'library-empty': '.library-film-field .blank-slate',
+    'library-filtered': '.library-view',
+    'library-selected': '.library-inspector',
     log: '.log-sheet',
     'log-selected': '.selected-film',
+    'persistence-save': '.diary-view',
+    'persistence-verify': '.diary-view',
     search: '.search-view',
+    'search-long': '.search-result-active',
     settings: '.settings-view',
     statistics: '.statistics-view'
   }[captureRequestedView];
-  const viewRendered = (await mainWindow.webContents.executeJavaScript(`Boolean(document.querySelector(${JSON.stringify(viewSelector)}))`)) as boolean;
+  const viewRendered = (await mainWindow.webContents.executeJavaScript(
+    `Boolean(document.querySelector(${JSON.stringify(viewSelector)}))`
+  )) as boolean;
 
   if (!viewRendered) {
     throw new Error(`Capture view did not render: ${captureRequestedView}.`);
@@ -393,8 +597,16 @@ async function verifyLogDialogKeyboard(logActionSelector: string): Promise<void>
   await mainWindow.webContents.executeJavaScript(`
     document.querySelector('.log-sheet button')?.focus()
   `);
-  mainWindow.webContents.sendInputEvent({ keyCode: 'Tab', modifiers: ['shift'], type: 'keyDown' });
-  mainWindow.webContents.sendInputEvent({ keyCode: 'Tab', modifiers: ['shift'], type: 'keyUp' });
+  mainWindow.webContents.sendInputEvent({
+    keyCode: 'Tab',
+    modifiers: ['shift'],
+    type: 'keyDown'
+  });
+  mainWindow.webContents.sendInputEvent({
+    keyCode: 'Tab',
+    modifiers: ['shift'],
+    type: 'keyUp'
+  });
   await new Promise((resolve) => setTimeout(resolve, 50));
   const wrappedToLast = (await mainWindow.webContents.executeJavaScript(`
     (() => {
@@ -423,7 +635,9 @@ async function verifyLogDialogKeyboard(logActionSelector: string): Promise<void>
     throw new Error('Log dialog did not restore focus to its opening action.');
   }
 
-  await mainWindow.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(logActionSelector)})?.click()`);
+  await mainWindow.webContents.executeJavaScript(
+    `document.querySelector(${JSON.stringify(logActionSelector)})?.click()`
+  );
   await waitForCaptureSelector('.log-sheet');
 }
 
@@ -488,7 +702,8 @@ async function verifyMobileSheetLifecycle({
     internalScroll: boolean;
     mobileNavigationBlocked: boolean;
   };
-  const focusLayoutStable = sheetMetrics.focusHeight === focusStart.height && sheetMetrics.focusWidth === focusStart.width;
+  const focusLayoutStable =
+    sheetMetrics.focusHeight === focusStart.height && sheetMetrics.focusWidth === focusStart.width;
 
   if (!sheetMetrics.internalScroll) {
     throw new Error(`${sheetSelector} did not preserve internal scrolling.`);
@@ -513,12 +728,12 @@ async function verifyMobileSheetLifecycle({
   await waitForCaptureSelector(sheetSelector);
 }
 
-async function waitForCaptureSelector(selector: string, expected = true): Promise<void> {
+async function waitForCaptureSelector(selector: string, expected = true, maximumAttempts = 60): Promise<void> {
   if (!mainWindow) {
     return;
   }
 
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
     const found = (await mainWindow.webContents.executeJavaScript(
       `Boolean(document.querySelector(${JSON.stringify(selector)}))`
     )) as boolean;
@@ -530,7 +745,16 @@ async function waitForCaptureSelector(selector: string, expected = true): Promis
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  throw new Error(`Capture view did not render selector: ${selector}.`);
+  const context = (await mainWindow.webContents.executeJavaScript(`
+    (() => ({
+      catalogText: document.querySelector('.search-group-catalog')?.textContent?.trim() ?? '',
+      inputValue: document.querySelector('.archive-search input')?.value ?? '',
+      pendingText: [...document.querySelectorAll('.search-group-empty')].map((element) => element.textContent?.trim()),
+      selector: ${JSON.stringify(selector)}
+    }))()
+  `)) as { catalogText: string; inputValue: string; pendingText: Array<string | undefined>; selector: string };
+
+  throw new Error(`Capture view did not render selector: ${selector}. Context: ${JSON.stringify(context)}`);
 }
 
 async function captureIfRequested(): Promise<void> {
@@ -589,7 +813,9 @@ async function captureIfRequested(): Promise<void> {
   };
 
   if (layout.scrollWidth > layout.clientWidth) {
-    throw new Error(`Capture has horizontal overflow: ${layout.scrollWidth}px content in a ${layout.clientWidth}px viewport.`);
+    throw new Error(
+      `Capture has horizontal overflow: ${layout.scrollWidth}px content in a ${layout.clientWidth}px viewport.`
+    );
   }
 
   if (captureWidth <= 700 && (layout.archiveSpineDisplay !== 'none' || layout.mobileNavigationDisplay === 'none')) {
@@ -770,9 +996,14 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('movie-log:search-catalog', async (_event, query: string) => {
+    const captureCatalogOutage = captureRequestedView === 'catalog-outage';
     return searchCatalogWithFallback(query, {
-      searchCachedFilms: filmIndex.searchFilms,
-      searchLiveFilms: filmCatalog.searchFilms
+      searchCachedFilms: captureCatalogOutage ? async () => [] : filmIndex.searchFilms,
+      searchLiveFilms: captureCatalogOutage
+        ? async () => {
+            throw new Error('Catalog connection unavailable.');
+          }
+        : filmCatalog.searchFilms
     });
   });
 

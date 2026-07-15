@@ -118,12 +118,14 @@ describe('main actions', () => {
   it('rejects a catalog outage when the local cache has no matching films', async () => {
     const outage = new Error('catalog offline');
 
-    await expect(searchCatalogWithFallback('Unknown film', {
-      searchCachedFilms: async () => [],
-      searchLiveFilms: async () => {
-        throw outage;
-      }
-    })).rejects.toBe(outage);
+    await expect(
+      searchCatalogWithFallback('Unknown film', {
+        searchCachedFilms: async () => [],
+        searchLiveFilms: async () => {
+          throw outage;
+        }
+      })
+    ).rejects.toBe(outage);
   });
 
   it('returns matching cached films during a catalog outage', async () => {
@@ -136,11 +138,53 @@ describe('main actions', () => {
       year: 2024
     };
 
-    await expect(searchCatalogWithFallback('Known Film', {
+    await expect(
+      searchCatalogWithFallback('Known Film', {
+        searchCachedFilms: async () => [cachedFilm],
+        searchLiveFilms: async () => {
+          throw new Error('catalog offline');
+        }
+      })
+    ).resolves.toEqual([cachedFilm]);
+  });
+
+  it('returns matching cached films when the live catalog never settles', async () => {
+    const cachedFilm = {
+      description: 'Cached catalog match',
+      director: ['Jane Director'],
+      pageId: 42,
+      posterUrl: null,
+      title: 'Known Film',
+      year: 2024
+    };
+    const options = {
+      liveSearchTimeoutMs: 1,
       searchCachedFilms: async () => [cachedFilm],
-      searchLiveFilms: async () => {
-        throw new Error('catalog offline');
-      }
-    })).resolves.toEqual([cachedFilm]);
+      searchLiveFilms: async () => new Promise<never>(() => {})
+    } as Parameters<typeof searchCatalogWithFallback>[1];
+    const outcome = await Promise.race([
+      searchCatalogWithFallback('Known Film', options),
+      new Promise<'blocked'>((resolve) => setTimeout(() => resolve('blocked'), 50))
+    ]);
+
+    expect(outcome).toEqual([cachedFilm]);
+  });
+
+  it('returns matching cached films when the live catalog returns no results', async () => {
+    const cachedFilm = {
+      description: 'Cached catalog match',
+      director: ['Jane Director'],
+      pageId: 42,
+      posterUrl: null,
+      title: 'Known Film',
+      year: 2024
+    };
+
+    await expect(
+      searchCatalogWithFallback('Known Film', {
+        searchCachedFilms: async () => [cachedFilm],
+        searchLiveFilms: async () => []
+      })
+    ).resolves.toEqual([cachedFilm]);
   });
 });

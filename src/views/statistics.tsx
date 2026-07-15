@@ -5,8 +5,15 @@ import { formatRuntime, readArchiveStats } from '../archive-model.js';
 import type { MovieLogState } from '../../shared/types.js';
 
 interface StatisticsViewProps {
+  now?: Date;
   state: MovieLogState;
 }
+
+const activityMonthFormatter = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  timeZone: 'UTC',
+  year: 'numeric'
+});
 
 function BarList({ maxRows = 8, rows }: { maxRows?: number; rows: Array<{ count: number; name: string }> }) {
   const visible = rows.slice(0, maxRows);
@@ -27,8 +34,8 @@ function BarList({ maxRows = 8, rows }: { maxRows?: number; rows: Array<{ count:
   );
 }
 
-export function StatisticsView({ state }: StatisticsViewProps) {
-  const stats = readArchiveStats(state);
+export function StatisticsView({ now, state }: StatisticsViewProps) {
+  const stats = readArchiveStats(state, now);
 
   if (stats.totalViewings === 0) {
     return (
@@ -44,6 +51,9 @@ export function StatisticsView({ state }: StatisticsViewProps) {
   const maxRating = Math.max(1, ...stats.ratings.map((rating) => rating.count));
   const maxYear = Math.max(1, ...stats.years.map((year) => year.count));
   const maxDecade = Math.max(1, ...stats.decades.map((decade) => decade.count));
+  const activityMonths = stats.activity.filter(
+    (day, index, activity) => index === 0 || day.date.slice(0, 7) !== activity[index - 1]?.date.slice(0, 7)
+  );
 
   return (
     <section className="statistics-view">
@@ -89,7 +99,12 @@ export function StatisticsView({ state }: StatisticsViewProps) {
                 <div className="bar-column" key={month.key}>
                   <div className="bar-column-plot">
                     <span className="bar-column-value">{month.count}</span>
-                    <span className="bar-column-bar" style={{ height: `${Math.max(6, (month.count / maxMonth) * 100)}%` }} />
+                    <span
+                      className="bar-column-bar"
+                      style={{
+                        height: `${Math.max(6, (month.count / maxMonth) * 100)}%`
+                      }}
+                    />
                   </div>
                   <small>{month.label}</small>
                 </div>
@@ -123,7 +138,11 @@ export function StatisticsView({ state }: StatisticsViewProps) {
             <p className="eyebrow">Catalog</p>
             <h2>Genres</h2>
           </header>
-          {stats.genres.length === 0 ? <p className="chart-empty">No genre metadata yet.</p> : <BarList rows={stats.genres} />}
+          {stats.genres.length === 0 ? (
+            <p className="chart-empty">No genre metadata yet.</p>
+          ) : (
+            <BarList rows={stats.genres} />
+          )}
         </section>
 
         <section className="chart-panel director-chart">
@@ -154,7 +173,9 @@ export function StatisticsView({ state }: StatisticsViewProps) {
                     <i style={{ width: `${(decade.count / maxDecade) * 100}%` }} />
                   </span>
                   <span className="decade-count">{decade.count}</span>
-                  <span className="decade-rating">{decade.averageRating === null ? '—' : `avg ${decade.averageRating.toFixed(1)}`}</span>
+                  <span className="decade-rating">
+                    {decade.averageRating === null ? '—' : `avg ${decade.averageRating.toFixed(1)}`}
+                  </span>
                 </div>
               ))}
             </div>
@@ -171,7 +192,12 @@ export function StatisticsView({ state }: StatisticsViewProps) {
               <div className="bar-column" key={year.year}>
                 <div className="bar-column-plot">
                   <span className="bar-column-value">{year.count}</span>
-                  <span className="bar-column-bar" style={{ height: `${Math.max(6, (year.count / maxYear) * 100)}%` }} />
+                  <span
+                    className="bar-column-bar"
+                    style={{
+                      height: `${Math.max(6, (year.count / maxYear) * 100)}%`
+                    }}
+                  />
                 </div>
                 <small>{year.year}</small>
               </div>
@@ -185,15 +211,37 @@ export function StatisticsView({ state }: StatisticsViewProps) {
           <p className="eyebrow">Production ledger</p>
           <h2>Yearly viewing activity</h2>
         </header>
-        <div className="activity-grid">
-          {stats.activity.map((day) => (
-            <span
-              aria-label={`${day.date}: ${day.count} ${day.count === 1 ? 'viewing' : 'viewings'}`}
-              className={`activity-cell activity-level-${Math.min(3, day.count)}`}
-              key={day.date}
-              title={`${day.date} · ${day.count}`}
-            />
-          ))}
+        <div className="activity-calendar">
+          <div aria-hidden="true" className="activity-months">
+            {activityMonths.map((day) => (
+              <span className="activity-month-label" key={day.date} style={{ gridColumn: day.week + 1 }}>
+                {activityMonthFormatter.format(new Date(`${day.date}T00:00:00.000Z`))}
+              </span>
+            ))}
+          </div>
+          <div aria-hidden="true" className="activity-weekdays">
+            <span className="activity-weekday" style={{ gridRow: 2 }}>
+              Mon
+            </span>
+            <span className="activity-weekday" style={{ gridRow: 4 }}>
+              Wed
+            </span>
+            <span className="activity-weekday" style={{ gridRow: 6 }}>
+              Fri
+            </span>
+          </div>
+          <div aria-label="Daily viewing counts for the last 365 days" className="activity-grid" role="group">
+            {stats.activity.map((day) => (
+              <span
+                aria-label={`${day.date}: ${day.count} ${day.count === 1 ? 'viewing' : 'viewings'}`}
+                className={`activity-cell activity-level-${Math.min(3, day.count)}`}
+                key={day.date}
+                role="img"
+                style={{ gridColumn: day.week + 1, gridRow: day.weekday + 1 }}
+                title={`${day.date} · ${day.count}`}
+              />
+            ))}
+          </div>
         </div>
       </section>
 

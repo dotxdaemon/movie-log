@@ -56,9 +56,18 @@ export interface SearchGroups {
 }
 
 export interface ArchiveStats {
-  activity: Array<{ count: number; date: string }>;
+  activity: Array<{
+    count: number;
+    date: string;
+    week: number;
+    weekday: number;
+  }>;
   averageRating: number | null;
-  decades: Array<{ averageRating: number | null; count: number; label: string }>;
+  decades: Array<{
+    averageRating: number | null;
+    count: number;
+    label: string;
+  }>;
   directors: Array<{ count: number; name: string }>;
   favorites: number;
   genres: Array<{ count: number; name: string }>;
@@ -153,14 +162,16 @@ export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
       continue;
     }
 
-    viewingsByPath.set(item.sourcePath, [{
-      id: `library:${item.id}`,
-      source: 'watch',
-      sourceKind: item.sourceKind,
-      sourcePath: item.sourcePath,
-      title: item.title,
-      watchedAt: item.firstSeenAt
-    }]);
+    viewingsByPath.set(item.sourcePath, [
+      {
+        id: `library:${item.id}`,
+        source: 'watch',
+        sourceKind: item.sourceKind,
+        sourcePath: item.sourcePath,
+        title: item.title,
+        watchedAt: item.firstSeenAt
+      }
+    ]);
   }
 
   return [...viewingsByPath.entries()]
@@ -210,13 +221,15 @@ export function filterArchiveItems(items: ArchiveItem[], filters: ArchiveFilters
   const filtered = items.filter((item) => {
     const decade = item.year === null ? null : `${Math.floor(item.year / 10) * 10}s`;
 
-    return (filters.decade === 'all' || decade === filters.decade) &&
+    return (
+      (filters.decade === 'all' || decade === filters.decade) &&
       (filters.favorite === 'all' || (filters.favorite === 'favorite') === item.favorite) &&
       (filters.genre === 'all' || (item.film?.genres ?? []).includes(filters.genre)) &&
       matchesRatingFilter(item.rating, filters.rating) &&
       (filters.rewatch === 'all' || (filters.rewatch === 'rewatched') === item.rewatched) &&
       (filters.status === 'all' || (filters.status === 'current') === item.current) &&
-      (filters.tag === 'all' || item.tags.includes(filters.tag));
+      (filters.tag === 'all' || item.tags.includes(filters.tag))
+    );
   });
 
   return [...filtered].sort((left, right) => {
@@ -236,7 +249,11 @@ export function filterArchiveItems(items: ArchiveItem[], filters: ArchiveFilters
   });
 }
 
-const watchedDateFormatter = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+const watchedDateFormatter = new Intl.DateTimeFormat(undefined, {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric'
+});
 
 export function buildSearchResults(
   state: MovieLogState,
@@ -250,7 +267,8 @@ export function buildSearchResults(
       return true;
     }
 
-    const haystack = `${item.displayTitle} ${item.title} ${item.sourcePath} ${(item.tags ?? []).join(' ')}`.toLowerCase();
+    const haystack =
+      `${item.displayTitle} ${item.title} ${item.sourcePath} ${(item.tags ?? []).join(' ')}`.toLowerCase();
     return haystack.includes(normalizedQuery);
   };
   const toResult = (item: ArchiveItem, kind: 'diary' | 'library'): SearchResultItem => ({
@@ -271,7 +289,8 @@ export function buildSearchResults(
   });
 
   const diaryItems = items.filter((item) => !item.latestViewing.id.startsWith('library:') && matches(item));
-  const libraryItems = items.filter((item) => item.current && matches(item));
+  const diaryPaths = new Set(diaryItems.map((item) => item.sourcePath));
+  const libraryItems = items.filter((item) => item.current && !diaryPaths.has(item.sourcePath) && matches(item));
   const localKeys = new Set(items.filter(matches).map((item) => item.filmKey));
   const catalog = catalogResults
     .filter((result) => !localKeys.has(readFilmKey({ title: result.title, year: result.year })))
@@ -347,7 +366,11 @@ export function readArchiveStats(state: MovieLogState, now = new Date()): Archiv
 
     if (entry.favorite && filmYear !== null) {
       const label = `${Math.floor(filmYear / 10) * 10}s`;
-      const decade = decadeCounts.get(label) ?? { count: 0, ratingTotal: 0, ratedCount: 0 };
+      const decade = decadeCounts.get(label) ?? {
+        count: 0,
+        ratingTotal: 0,
+        ratedCount: 0
+      };
       decade.count += 1;
 
       if (typeof entry.rating === 'number') {
@@ -359,10 +382,20 @@ export function readArchiveStats(state: MovieLogState, now = new Date()): Archiv
     }
   }
 
+  const activityStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 364));
+  const firstWeekday = activityStart.getUTCDay();
   const activity = Array.from({ length: 365 }, (_value, index) => {
-    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (364 - index)));
+    const date = new Date(
+      Date.UTC(activityStart.getUTCFullYear(), activityStart.getUTCMonth(), activityStart.getUTCDate() + index)
+    );
     const dateKey = readDateKey(date);
-    return { count: days.get(dateKey) ?? 0, date: dateKey };
+    const weekday = date.getUTCDay();
+    return {
+      count: days.get(dateKey) ?? 0,
+      date: dateKey,
+      week: Math.floor((firstWeekday + index) / 7),
+      weekday
+    };
   });
 
   const sortByCount = <T extends { count: number; name: string }>(entries: T[]): T[] =>
@@ -370,28 +403,36 @@ export function readArchiveStats(state: MovieLogState, now = new Date()): Archiv
 
   return {
     activity,
-    averageRating: ratedEntries.length === 0
-      ? null
-      : ratedEntries.reduce((total, entry) => total + (entry.rating ?? 0), 0) / ratedEntries.length,
+    averageRating:
+      ratedEntries.length === 0
+        ? null
+        : ratedEntries.reduce((total, entry) => total + (entry.rating ?? 0), 0) / ratedEntries.length,
     decades: [...decadeCounts.entries()]
       .map(([label, decade]) => ({
         averageRating: decade.ratedCount === 0 ? null : decade.ratingTotal / decade.ratedCount,
         count: decade.count,
         label
       }))
-      .sort((left, right) =>
-        right.count - left.count ||
-        (right.averageRating ?? -1) - (left.averageRating ?? -1) ||
-        left.label.localeCompare(right.label)
+      .sort(
+        (left, right) =>
+          right.count - left.count ||
+          (right.averageRating ?? -1) - (left.averageRating ?? -1) ||
+          left.label.localeCompare(right.label)
       ),
     directors: sortByCount([...directors.entries()].map(([name, count]) => ({ count, name }))),
     favorites: state.history.filter((entry) => entry.favorite).length,
     genres: sortByCount([...genres.entries()].map(([name, count]) => ({ count, name }))),
-    months: [...months.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([key, count]) => ({
-      count,
-      key,
-      label: new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' }).format(new Date(`${key}-01T00:00:00.000Z`))
-    })),
+    months: [...months.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, count]) => ({
+        count,
+        key,
+        label: new Intl.DateTimeFormat(undefined, {
+          month: 'short',
+          timeZone: 'UTC',
+          year: 'numeric'
+        }).format(new Date(`${key}-01T00:00:00.000Z`))
+      })),
     ratings: [...ratings.entries()].sort(([left], [right]) => left - right).map(([value, count]) => ({ count, value })),
     rewatches: state.history.filter((entry) => entry.rewatch).length,
     runtimeKnownCount: runtime.knownCount,

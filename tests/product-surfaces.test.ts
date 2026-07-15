@@ -144,7 +144,13 @@ const baseProps: ArchiveApplicationProps = {
 };
 
 function renderSurface(activeView: ArchiveView, overrides: Partial<ArchiveApplicationProps> = {}) {
-  return renderTree(createElement(ArchiveApplication, { ...baseProps, ...overrides, activeView }));
+  return renderTree(
+    createElement(ArchiveApplication, {
+      ...baseProps,
+      ...overrides,
+      activeView
+    })
+  );
 }
 
 describe('ArchiveApplication', () => {
@@ -236,10 +242,20 @@ describe('ArchiveApplication', () => {
   });
 
   it('marks the selected library card structurally without opening it', () => {
-    const tree = renderSurface('library', { selectedLibraryPath: '/Movies/Flow.2024.mkv' });
+    const tree = renderSurface('library', {
+      selectedLibraryPath: '/Movies/Flow.2024.mkv'
+    });
 
     expect(findByClass(tree, 'movie-card-selected')).toHaveLength(1);
+    expect(findByClass(tree, 'library-inspector')).toHaveLength(1);
+    expect(findByClass(tree, 'library-inspector-poster')).toHaveLength(1);
     expect(readText(tree)).toContain('Open dossier');
+  });
+
+  it('does not reserve an empty context inspector without a selected film', () => {
+    const tree = renderSurface('library');
+
+    expect(findByClass(tree, 'library-inspector')).toHaveLength(0);
   });
 
   it('renders the mobile filter sheet with apply and reset actions when open', () => {
@@ -273,7 +289,10 @@ describe('ArchiveApplication', () => {
         year: 2019
       }
     ]);
-    const tree = renderSurface('search', { searchGroups: groups, searchQuery: 'flow' });
+    const tree = renderSurface('search', {
+      searchGroups: groups,
+      searchQuery: 'flow'
+    });
     const text = readText(tree);
 
     expect(findByClass(tree, 'search-groups')).toHaveLength(1);
@@ -305,7 +324,11 @@ describe('ArchiveApplication', () => {
 
   it('marks the keyboard-active search result', () => {
     const groups = buildSearchResults(state, 'flow', []);
-    const tree = renderSurface('search', { searchActiveIndex: 0, searchGroups: groups, searchQuery: 'flow' });
+    const tree = renderSurface('search', {
+      searchActiveIndex: 0,
+      searchGroups: groups,
+      searchQuery: 'flow'
+    });
 
     expect(findByClass(tree, 'search-result-active')).toHaveLength(1);
   });
@@ -314,7 +337,9 @@ describe('ArchiveApplication', () => {
     const queryChanges: string[] = [];
     let dismissCount = 0;
     const tree = renderSurface('search', {
-      onSearchDismiss: () => { dismissCount += 1; },
+      onSearchDismiss: () => {
+        dismissCount += 1;
+      },
       onSearchQueryChange: (value) => queryChanges.push(value),
       searchQuery: 'flow'
     });
@@ -336,8 +361,16 @@ describe('ArchiveApplication', () => {
       ...state,
       history: [
         ...state.history,
-        { ...state.history[0]!, id: '2026-07-11:flow', watchedAt: '2026-07-11T20:00:00.000Z' },
-        { ...state.history[1]!, id: '2025-06-18:heat', watchedAt: '2025-06-18T08:00:00.000Z' }
+        {
+          ...state.history[0]!,
+          id: '2026-07-11:flow',
+          watchedAt: '2026-07-11T20:00:00.000Z'
+        },
+        {
+          ...state.history[1]!,
+          id: '2025-06-18:heat',
+          watchedAt: '2025-06-18T08:00:00.000Z'
+        }
       ]
     };
     const tree = renderSurface('statistics', { state: statisticsState });
@@ -365,7 +398,9 @@ describe('ArchiveApplication', () => {
   });
 
   it('renders the film dossier with credits, rating priority, ledger, reading sections, and rematching', () => {
-    const tree = renderSurface('detail', { selectedPath: '/Movies/Flow.2024.mkv' });
+    const tree = renderSurface('detail', {
+      selectedPath: '/Movies/Flow.2024.mkv'
+    });
     const text = readText(tree);
 
     expect(findByClass(tree, 'movie-dossier')).toHaveLength(1);
@@ -443,7 +478,9 @@ describe('ArchiveApplication', () => {
   });
 
   it('renders a designed error state with a retry action when loading fails', () => {
-    const tree = renderSurface('diary', { loadError: 'The data file could not be read.' });
+    const tree = renderSurface('diary', {
+      loadError: 'The data file could not be read.'
+    });
 
     expect(findByClass(tree, 'error-state')).toHaveLength(1);
     expect(findByClass(tree, 'state-fragment')).toHaveLength(1);
@@ -451,7 +488,11 @@ describe('ArchiveApplication', () => {
   });
 
   it('renders designed empty diary, search, and statistics states with geometric fragments', () => {
-    const blankState: MovieLogState = { history: [], libraryItems: [], watchedFolders: [] };
+    const blankState: MovieLogState = {
+      history: [],
+      libraryItems: [],
+      watchedFolders: []
+    };
     const diaryTree = renderSurface('diary', { state: blankState });
     const searchTree = renderSurface('search', {
       searchGroups: buildSearchResults(blankState, 'unmatched', []),
@@ -472,8 +513,12 @@ describe('ArchiveApplication', () => {
   });
 
   it('shows error feedback as an alert and notices as a status banner', () => {
-    const errorTree = renderSurface('diary', { feedback: { message: 'Something failed.', tone: 'error' } });
-    const noticeTree = renderSurface('diary', { feedback: { message: 'Path copied.', tone: 'notice' } });
+    const errorTree = renderSurface('diary', {
+      feedback: { message: 'Something failed.', tone: 'error' }
+    });
+    const noticeTree = renderSurface('diary', {
+      feedback: { message: 'Path copied.', tone: 'notice' }
+    });
     const errorBanner = findByClass(errorTree, 'status-error');
     const noticeBanner = findByClass(noticeTree, 'status-notice');
 

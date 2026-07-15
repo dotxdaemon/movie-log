@@ -33,7 +33,7 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
     <>
       <label className="filter-field">
         <span>{filterLabels.sort}</span>
-        <select onChange={(event) => change('sort', event.target.value)} value={filters.sort}>
+        <select name="sort" onChange={(event) => change('sort', event.target.value)} value={filters.sort}>
           <option value="recent">Recent</option>
           <option value="title">Title</option>
           <option value="rating">Rating</option>
@@ -42,7 +42,7 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
       </label>
       <label className="filter-field">
         <span>{filterLabels.genre}</span>
-        <select onChange={(event) => change('genre', event.target.value)} value={filters.genre}>
+        <select name="genre" onChange={(event) => change('genre', event.target.value)} value={filters.genre}>
           <option value="all">All</option>
           {options.genres.map((genre) => (
             <option key={genre}>{genre}</option>
@@ -51,7 +51,7 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
       </label>
       <label className="filter-field">
         <span>{filterLabels.decade}</span>
-        <select onChange={(event) => change('decade', event.target.value)} value={filters.decade}>
+        <select name="decade" onChange={(event) => change('decade', event.target.value)} value={filters.decade}>
           <option value="all">All</option>
           {options.decades.map((decade) => (
             <option key={decade}>{decade}</option>
@@ -60,7 +60,7 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
       </label>
       <label className="filter-field">
         <span>{filterLabels.rating}</span>
-        <select onChange={(event) => change('rating', event.target.value)} value={filters.rating}>
+        <select name="rating" onChange={(event) => change('rating', event.target.value)} value={filters.rating}>
           {ratingFilterOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -70,7 +70,7 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
       </label>
       <label className="filter-field">
         <span>{filterLabels.status}</span>
-        <select onChange={(event) => change('status', event.target.value)} value={filters.status}>
+        <select name="status" onChange={(event) => change('status', event.target.value)} value={filters.status}>
           <option value="all">All</option>
           <option value="current">Currently indexed</option>
           <option value="archive">Diary only</option>
@@ -78,7 +78,7 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
       </label>
       <label className="filter-field">
         <span>{filterLabels.favorite}</span>
-        <select onChange={(event) => change('favorite', event.target.value)} value={filters.favorite}>
+        <select name="favorite" onChange={(event) => change('favorite', event.target.value)} value={filters.favorite}>
           <option value="all">All</option>
           <option value="favorite">Favorite</option>
           <option value="other">Not favorite</option>
@@ -86,7 +86,7 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
       </label>
       <label className="filter-field">
         <span>{filterLabels.rewatch}</span>
-        <select onChange={(event) => change('rewatch', event.target.value)} value={filters.rewatch}>
+        <select name="rewatch" onChange={(event) => change('rewatch', event.target.value)} value={filters.rewatch}>
           <option value="all">All</option>
           <option value="rewatched">Rewatched</option>
           <option value="first">First viewings</option>
@@ -94,7 +94,7 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
       </label>
       <label className="filter-field">
         <span>{filterLabels.tag}</span>
-        <select onChange={(event) => change('tag', event.target.value)} value={filters.tag}>
+        <select name="tag" onChange={(event) => change('tag', event.target.value)} value={filters.tag}>
           <option value="all">All</option>
           {options.tags.map((tag) => (
             <option key={tag}>{tag}</option>
@@ -117,7 +117,14 @@ function countActiveFilters(filters: ArchiveFilters): number {
   ).length;
 }
 
-export function FilterPanel({ filters, onFilterChange, onSheetOpenChange, options, resultCount, sheetOpen }: FilterPanelProps) {
+export function FilterPanel({
+  filters,
+  onFilterChange,
+  onSheetOpenChange,
+  options,
+  resultCount,
+  sheetOpen
+}: FilterPanelProps) {
   const activeCount = countActiveFilters(filters);
 
   return (
@@ -154,7 +161,11 @@ export function FilterPanel({ filters, onFilterChange, onSheetOpenChange, option
             >
               Reset
             </button>
-            <button className="command-block command-block-primary" onClick={() => onSheetOpenChange(false)} type="button">
+            <button
+              className="command-block command-block-primary"
+              onClick={() => onSheetOpenChange(false)}
+              type="button"
+            >
               {`Show ${resultCount} ${resultCount === 1 ? 'title' : 'titles'}`}
             </button>
           </footer>
@@ -164,8 +175,13 @@ export function FilterPanel({ filters, onFilterChange, onSheetOpenChange, option
   );
 }
 
-
-export function ActiveFilterChips({ filters, onFilterChange }: { filters: ArchiveFilters; onFilterChange(filters: ArchiveFilters): void }) {
+export function ActiveFilterChips({
+  filters,
+  onFilterChange
+}: {
+  filters: ArchiveFilters;
+  onFilterChange(filters: ArchiveFilters): void;
+}) {
   const active = (Object.entries(filters) as Array<[keyof ArchiveFilters, string]>).filter(
     ([key, value]) => key !== 'sort' && value !== 'all'
   );
@@ -186,7 +202,9 @@ export function ActiveFilterChips({ filters, onFilterChange }: { filters: Archiv
         >
           <span className="filter-chip-key">{filterLabels[key]}</span>
           <span>{value}</span>
-          <span aria-hidden="true" className="filter-chip-x">×</span>
+          <span aria-hidden="true" className="filter-chip-x">
+            ×
+          </span>
         </button>
       ))}
       <button

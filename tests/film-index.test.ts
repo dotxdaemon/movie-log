@@ -103,6 +103,66 @@ describe('createFilmIndex', () => {
     ]);
   });
 
+  it('reads cached search results while background enrichment is still running', async () => {
+    await writeFile(
+      join(dataDirectory, 'movie-log-films.json'),
+      `${JSON.stringify({
+        films: {
+          'the plague::2025': {
+            ...plagueDetails,
+            fetchedAt: '2026-07-12T10:00:00.000Z',
+            key: 'the plague::2025',
+            status: 'matched',
+            title: 'The Plague'
+          }
+        }
+      })}\n`,
+      'utf8'
+    );
+    let releaseEnrichment = () => {};
+    let markEnrichmentStarted = () => {};
+    const enrichmentStarted = new Promise<void>((resolve) => {
+      markEnrichmentStarted = resolve;
+    });
+    const enrichmentRelease = new Promise<void>((resolve) => {
+      releaseEnrichment = resolve;
+    });
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          return null;
+        },
+        async searchFilms() {
+          markEnrichmentStarted();
+          await enrichmentRelease;
+          return [];
+        }
+      },
+      dataDirectory
+    });
+    const enrichment = index.enrichFilms([{ key: 'pending::2026', title: 'Pending', year: 2026 }]);
+    await enrichmentStarted;
+
+    const searchOutcome = await Promise.race([
+      index.searchFilms('The Plague film'),
+      new Promise<'blocked'>((resolve) => setTimeout(() => resolve('blocked'), 100))
+    ]);
+    releaseEnrichment();
+    await enrichment;
+
+    expect(searchOutcome).not.toBe('blocked');
+    expect(searchOutcome).toEqual([
+      {
+        description: 'Cached catalog match',
+        director: ['Charlie Polinger'],
+        pageId: 79985226,
+        posterUrl: plagueDetails.posterUrl,
+        title: 'The Plague',
+        year: 2025
+      }
+    ]);
+  });
+
   it('records an unmatched film so missing metadata stays a designed state instead of a refetch loop', async () => {
     const { calls, catalog } = createStubCatalog();
     const index = createFilmIndex({ catalog, dataDirectory, now: () => '2026-07-12T10:00:00.000Z' });

@@ -32,7 +32,7 @@ describe('capture pipeline', () => {
     expect(packagedCaptureScript).toContain('resolveInstalledAppPath');
     expect(packagedCaptureScript).toContain("'Contents', 'MacOS', 'Electron'");
     expect(packagedCaptureScript).not.toContain("join(process.cwd(), 'release', 'mac', 'Movie Log.app'");
-    expect(packageManifest.scripts['open:mac']).toContain("/Applications/Movie Log.app");
+    expect(packageManifest.scripts['open:mac']).toContain('/Applications/Movie Log.app');
   });
 
   it('supports exact installed-app capture profiles and rejects overflow or wrong dimensions', () => {
@@ -65,7 +65,8 @@ describe('capture pipeline', () => {
   it('can populate live catalog search and the selected-film logging unit before capture', () => {
     expect(mainProcess).toContain("'catalog'");
     expect(mainProcess).toContain("'log-selected'");
-    expect(mainProcess).toContain("setCaptureInput('.archive-search input', 'The Ring')");
+    expect(mainProcess).toContain("'.archive-search input'");
+    expect(mainProcess).toContain("'The Ring'");
     expect(mainProcess).toContain("setCaptureInput('.film-search-block input', 'The Ring')");
     expect(mainProcess).toContain("'.film-search-results button'");
     expect(mainProcess).toContain("'.selected-film .poster-art'");
@@ -93,5 +94,30 @@ describe('capture pipeline', () => {
     expect(mainProcess).toContain("const input = document.querySelectorAll('.log-sheet .rating-segment input')[7]");
     expect(mainProcess).toContain('input?.click()');
     expect(mainProcess).toContain('ratingSelectionVisible');
+  });
+
+  it('captures the remaining audit states through real installed-app interactions', () => {
+    const profiles = [
+      'diary-ledger',
+      'diary-grid',
+      'library-filtered',
+      'library-empty',
+      'library-selected',
+      'search-long',
+      'catalog-outage',
+      'detail-missing'
+    ];
+
+    for (const profile of profiles) {
+      expect(mainProcess).toContain(`'${profile}'`);
+    }
+
+    expect(mainProcess).toContain('document.querySelectorAll(\'.view-switcher [role="tab"]\')');
+    expect(mainProcess).toContain("document.querySelector('.header-filters')?.click()");
+    expect(mainProcess).toContain("setCaptureSelect('.filter-sheet select[name=\"rating\"]', '4.5-plus')");
+    expect(mainProcess).toContain("key: 'ArrowDown'");
+    expect(mainProcess).toContain('activeResultVisible');
+    expect(mainProcess).toContain("'.movie-card:not(:has(.poster-art)) .movie-card-face'");
+    expect(mainProcess).toContain("captureRequestedView === 'catalog-outage'");
   });
 });

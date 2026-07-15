@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
+import { assertGeneratedOutput } from './generated-output.mjs';
 import { resolveElectronAppTemplatePath, resolveInstalledAppPath, resolveReleaseAppPath } from './package-paths.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -27,6 +28,8 @@ const bundlePackage = {
   version: packageJson.version,
   main: 'electron/main.js'
 };
+
+await assertGeneratedOutput(projectDirectory);
 
 function replacePlistValue(plistContents, key, value) {
   const pattern = new RegExp(`(<key>${key}</key>\\s*<string>)([^<]*)(</string>)`);
@@ -66,7 +69,14 @@ async function createIconFile(iconPath) {
     const iconSizes = [16, 32, 128, 256, 512];
 
     for (const iconSize of iconSizes) {
-      await runCommand('sips', ['-z', `${iconSize}`, `${iconSize}`, previewPath, '--out', join(iconsetDirectory, `icon_${iconSize}x${iconSize}.png`)]);
+      await runCommand('sips', [
+        '-z',
+        `${iconSize}`,
+        `${iconSize}`,
+        previewPath,
+        '--out',
+        join(iconsetDirectory, `icon_${iconSize}x${iconSize}.png`)
+      ]);
       await runCommand('sips', [
         '-z',
         `${iconSize * 2}`,
@@ -102,10 +112,14 @@ await writeFile(infoPlistPath, nextInfoPlist, 'utf8');
 await createIconFile(join(bundleResourcesPath, `${iconBaseName}.icns`));
 
 await mkdir(bundleAppPath, { recursive: true });
-await cp(join(projectDirectory, 'dist'), join(bundleAppPath, 'dist'), { recursive: true });
+await cp(join(projectDirectory, 'dist'), join(bundleAppPath, 'dist'), {
+  recursive: true
+});
 await cp(join(projectDirectory, 'dist-electron', 'electron'), join(bundleAppPath, 'electron'), { recursive: true });
 await cp(join(projectDirectory, 'dist-electron', 'shared'), join(bundleAppPath, 'shared'), { recursive: true });
-await cp(join(projectDirectory, 'electron', 'preload.cjs'), join(bundleAppPath, 'electron', 'preload.cjs'), { recursive: false });
+await cp(join(projectDirectory, 'electron', 'preload.cjs'), join(bundleAppPath, 'electron', 'preload.cjs'), {
+  recursive: false
+});
 await writeFile(join(bundleAppPath, 'package.json'), `${JSON.stringify(bundlePackage, null, 2)}\n`, 'utf8');
 
 await rm(installedAppPath, { recursive: true, force: true });

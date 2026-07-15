@@ -1,5 +1,6 @@
 // ABOUTME: Renders the chronological diary as the emotional center with month metrics and three modes.
 // ABOUTME: Timeline entries expand in place; ledger and grid modes reuse the same persisted entries.
+import type { KeyboardEvent } from 'react';
 import { DiaryEntryRow } from '../components/diary-entry.js';
 import { FilmPoster } from '../components/film-poster.js';
 import { EmptyState } from '../components/states.js';
@@ -7,8 +8,15 @@ import { formatRuntime, readEntryFilm, sumRuntime, type DiaryMode } from '../arc
 import { parseFilmTitle } from '../../shared/film-title.js';
 import type { EntryDetails, MovieLogState } from '../../shared/types.js';
 
-const monthFormatter = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
-const shortDateFormatter = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short' });
+const monthFormatter = new Intl.DateTimeFormat(undefined, {
+  month: 'long',
+  year: 'numeric'
+});
+const shortDateFormatter = new Intl.DateTimeFormat(undefined, {
+  day: '2-digit',
+  month: 'short'
+});
+const diaryModes: DiaryMode[] = ['timeline', 'ledger', 'grid'];
 
 interface DiaryViewProps {
   diaryMode: DiaryMode;
@@ -19,7 +27,14 @@ interface DiaryViewProps {
   state: MovieLogState;
 }
 
-export function DiaryView({ diaryMode, onDiaryModeChange, onOpenLogPanel, onSelectPath, onUpdateEntry, state }: DiaryViewProps) {
+export function DiaryView({
+  diaryMode,
+  onDiaryModeChange,
+  onOpenLogPanel,
+  onSelectPath,
+  onUpdateEntry,
+  state
+}: DiaryViewProps) {
   const history = [...state.history].sort((left, right) => right.watchedAt.localeCompare(left.watchedAt));
 
   if (history.length === 0) {
@@ -47,6 +62,29 @@ export function DiaryView({ diaryMode, onDiaryModeChange, onOpenLogPanel, onSele
     monthRatings.length === 0
       ? null
       : monthRatings.reduce((total, entry) => total + (entry.rating ?? 0), 0) / monthRatings.length;
+
+  function handleTabKeyDown(mode: DiaryMode, event: KeyboardEvent<HTMLButtonElement>): void {
+    const currentIndex = diaryModes.indexOf(mode);
+    let nextIndex: number | null = null;
+
+    if (event.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % diaryModes.length;
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + diaryModes.length) % diaryModes.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = diaryModes.length - 1;
+    }
+
+    if (nextIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    onDiaryModeChange(diaryModes[nextIndex] as DiaryMode);
+    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus();
+  }
 
   return (
     <section className={`diary-view diary-${diaryMode}`}>
@@ -85,12 +123,16 @@ export function DiaryView({ diaryMode, onDiaryModeChange, onOpenLogPanel, onSele
       </header>
 
       <div aria-label="Diary layout" className="view-switcher" role="tablist">
-        {(['timeline', 'ledger', 'grid'] as DiaryMode[]).map((mode) => (
+        {diaryModes.map((mode) => (
           <button
+            aria-controls={`diary-panel-${mode}`}
             aria-selected={diaryMode === mode}
+            id={`diary-tab-${mode}`}
             key={mode}
             onClick={() => onDiaryModeChange(mode)}
+            onKeyDown={(event) => handleTabKeyDown(mode, event)}
             role="tab"
+            tabIndex={diaryMode === mode ? 0 : -1}
             type="button"
           >
             {mode}
@@ -98,71 +140,86 @@ export function DiaryView({ diaryMode, onDiaryModeChange, onOpenLogPanel, onSele
         ))}
       </div>
 
-      {diaryMode === 'grid' ? (
-        <div className="diary-list diary-poster-grid">
-          {history.map((entry) => {
-            const parsed = parseFilmTitle(entry.title);
-            const film = readEntryFilm(entry, state.films);
+      <div
+        aria-labelledby={`diary-tab-${diaryMode}`}
+        className="diary-tab-panel"
+        id={`diary-panel-${diaryMode}`}
+        role="tabpanel"
+        tabIndex={0}
+      >
+        {diaryMode === 'grid' ? (
+          <div className="diary-list diary-poster-grid">
+            {history.map((entry) => {
+              const parsed = parseFilmTitle(entry.title);
+              const film = readEntryFilm(entry, state.films);
 
-            return (
-              <button className="diary-grid-card" key={entry.id} onClick={() => onSelectPath(entry.sourcePath)} type="button">
-                <FilmPoster
-                  displayTitle={film?.status === 'matched' ? film.title : parsed.title}
-                  film={film}
-                  size="card"
-                  year={film?.year ?? parsed.year}
-                />
-                <span className="diary-grid-caption">
-                  <span className="diary-grid-title">{film?.status === 'matched' ? film.title : parsed.title}</span>
-                  <span className="diary-grid-date">{shortDateFormatter.format(new Date(entry.watchedAt))}</span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ) : diaryMode === 'ledger' ? (
-        <ol className="diary-list diary-ledger-list">
-          {history.map((entry) => {
-            const parsed = parseFilmTitle(entry.title);
-            const film = readEntryFilm(entry, state.films);
-
-            return (
-              <li className="diary-entry diary-ledger-row" key={entry.id}>
-                <button onClick={() => onSelectPath(entry.sourcePath)} type="button">
-                  <span className="ledger-date">{shortDateFormatter.format(new Date(entry.watchedAt))}</span>
-                  <span className="ledger-title">{film?.status === 'matched' ? film.title : parsed.title}</span>
-                  <span className="ledger-year">{film?.year ?? parsed.year ?? '—'}</span>
-                  <span className="ledger-rating">{typeof entry.rating === 'number' ? entry.rating.toFixed(1) : 'NR'}</span>
-                  <span className="ledger-marks">
-                    {entry.favorite ? <i className="entry-mark entry-mark-favorite">FAV</i> : null}
-                    {entry.rewatch ? <i className="entry-mark entry-mark-rewatch">RW</i> : null}
+              return (
+                <button
+                  className="diary-grid-card"
+                  key={entry.id}
+                  onClick={() => onSelectPath(entry.sourcePath)}
+                  type="button"
+                >
+                  <FilmPoster
+                    displayTitle={film?.status === 'matched' ? film.title : parsed.title}
+                    film={film}
+                    size="card"
+                    year={film?.year ?? parsed.year}
+                  />
+                  <span className="diary-grid-caption">
+                    <span className="diary-grid-title">{film?.status === 'matched' ? film.title : parsed.title}</span>
+                    <span className="diary-grid-date">{shortDateFormatter.format(new Date(entry.watchedAt))}</span>
                   </span>
                 </button>
-              </li>
-            );
-          })}
-        </ol>
-      ) : (
-        <div className="diary-list">
-          {history.map((entry, index) => {
-            const parsed = parseFilmTitle(entry.title);
-            const film = readEntryFilm(entry, state.films);
+              );
+            })}
+          </div>
+        ) : diaryMode === 'ledger' ? (
+          <ol className="diary-list diary-ledger-list">
+            {history.map((entry) => {
+              const parsed = parseFilmTitle(entry.title);
+              const film = readEntryFilm(entry, state.films);
 
-            return (
-              <DiaryEntryRow
-                displayTitle={film?.status === 'matched' ? film.title : parsed.title}
-                entry={entry}
-                film={film}
-                key={entry.id}
-                onOpen={onSelectPath}
-                onUpdateEntry={onUpdateEntry}
-                sequence={history.length - index}
-                year={film?.year ?? parsed.year}
-              />
-            );
-          })}
-        </div>
-      )}
+              return (
+                <li className="diary-entry diary-ledger-row" key={entry.id}>
+                  <button onClick={() => onSelectPath(entry.sourcePath)} type="button">
+                    <span className="ledger-date">{shortDateFormatter.format(new Date(entry.watchedAt))}</span>
+                    <span className="ledger-title">{film?.status === 'matched' ? film.title : parsed.title}</span>
+                    <span className="ledger-year">{film?.year ?? parsed.year ?? '—'}</span>
+                    <span className="ledger-rating">
+                      {typeof entry.rating === 'number' ? entry.rating.toFixed(1) : 'NR'}
+                    </span>
+                    <span className="ledger-marks">
+                      {entry.favorite ? <i className="entry-mark entry-mark-favorite">FAV</i> : null}
+                      {entry.rewatch ? <i className="entry-mark entry-mark-rewatch">RW</i> : null}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <div className="diary-list">
+            {history.map((entry, index) => {
+              const parsed = parseFilmTitle(entry.title);
+              const film = readEntryFilm(entry, state.films);
+
+              return (
+                <DiaryEntryRow
+                  displayTitle={film?.status === 'matched' ? film.title : parsed.title}
+                  entry={entry}
+                  film={film}
+                  key={entry.id}
+                  onOpen={onSelectPath}
+                  onUpdateEntry={onUpdateEntry}
+                  sequence={history.length - index}
+                  year={film?.year ?? parsed.year}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

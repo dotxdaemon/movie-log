@@ -5,12 +5,18 @@ import type { ArchiveView } from '../archive-model.js';
 export type NavigationView = Exclude<ArchiveView, 'detail'>;
 export type NavIconName = 'diary' | 'library' | 'search' | 'statistics' | 'settings';
 
-export const navigationItems: Array<{ icon: NavIconName; index: string; label: string; view: NavigationView }> = [
-  { icon: 'diary', index: '01', label: 'Diary', view: 'diary' },
-  { icon: 'library', index: '02', label: 'Library', view: 'library' },
-  { icon: 'search', index: '03', label: 'Search', view: 'search' },
-  { icon: 'statistics', index: '04', label: 'Statistics', view: 'statistics' },
-  { icon: 'settings', index: '05', label: 'Settings', view: 'settings' }
+export const navigationItems: Array<{
+  icon: NavIconName;
+  index: string;
+  label: string;
+  mobileLabel: string;
+  view: NavigationView;
+}> = [
+  { icon: 'diary', index: '01', label: 'Diary', mobileLabel: 'Diary', view: 'diary' },
+  { icon: 'library', index: '02', label: 'Library', mobileLabel: 'Library', view: 'library' },
+  { icon: 'search', index: '03', label: 'Search', mobileLabel: 'Search', view: 'search' },
+  { icon: 'statistics', index: '04', label: 'Statistics', mobileLabel: 'Stats', view: 'statistics' },
+  { icon: 'settings', index: '05', label: 'Settings', mobileLabel: 'Settings', view: 'settings' }
 ];
 
 export function readNavigationView(view: ArchiveView): NavigationView {

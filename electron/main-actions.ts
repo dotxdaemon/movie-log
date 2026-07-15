@@ -17,6 +17,7 @@ interface LogPathsFromDropOptions {
 }
 
 interface SearchCatalogOptions {
+  liveSearchTimeoutMs?: number;
   searchCachedFilms(query: string): Promise<CatalogSearchResult[]>;
   searchLiveFilms(query: string): Promise<CatalogSearchResult[]>;
 }
@@ -76,8 +77,22 @@ export async function searchCatalogWithFallback(
   query: string,
   options: SearchCatalogOptions
 ): Promise<CatalogSearchResult[]> {
+  const liveSearchTimeoutMs = options.liveSearchTimeoutMs ?? 8000;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
   try {
-    return await options.searchLiveFilms(query);
+    const liveFilms = await Promise.race([
+      options.searchLiveFilms(query),
+      new Promise<CatalogSearchResult[]>((_, reject) => {
+        timeout = setTimeout(() => reject(new Error('Catalog request timed out.')), liveSearchTimeoutMs);
+      })
+    ]);
+
+    if (liveFilms.length > 0) {
+      return liveFilms;
+    }
+
+    return options.searchCachedFilms(query);
   } catch (error) {
     const cachedFilms = await options.searchCachedFilms(query);
 
@@ -86,5 +101,7 @@ export async function searchCatalogWithFallback(
     }
 
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }

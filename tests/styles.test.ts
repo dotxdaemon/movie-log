@@ -46,7 +46,9 @@ describe('styles.css', () => {
     const styles = await readFile(stylesPath, 'utf8');
 
     expect(styles).toMatch(/\.entry-body h3 button\s*\{[^}]*max-width:\s*100%[^}]*overflow-wrap:\s*anywhere/s);
-    expect(styles).toMatch(/\.current-contents-list button > span\s*\{[^}]*overflow:\s*hidden[^}]*text-overflow:\s*ellipsis/s);
+    expect(styles).toMatch(
+      /\.current-contents-list button > span\s*\{[^}]*overflow:\s*hidden[^}]*text-overflow:\s*ellipsis/s
+    );
     expect(styles).toMatch(/\.dossier-identity h2\s*\{[^}]*overflow-wrap:\s*anywhere/s);
   });
 
@@ -71,27 +73,36 @@ describe('styles.css', () => {
   it('styles the selected diary view tab through its rendered ARIA state', async () => {
     const styles = await readFile(stylesPath, 'utf8');
 
-    expect(styles).toMatch(/\.view-switcher button\[aria-selected="true"\]\s*\{[^}]*background:\s*var\(--structural\)/s);
+    expect(styles).toMatch(
+      /\.view-switcher button\[aria-selected=['"]true['"]\]\s*\{[^}]*background:\s*var\(--structural\)/s
+    );
     expect(styles).not.toMatch(/\.view-switcher button\[aria-pressed="true"\]/);
   });
 
   it('uses a two-column logging workspace on desktop', async () => {
     const styles = await readFile(stylesPath, 'utf8');
 
-    expect(styles).toMatch(/\.log-sheet-body\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*0\.85fr\)\s+minmax\(360px,\s*1\.15fr\)/s);
+    expect(styles).toMatch(
+      /\.log-sheet-body\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*0\.85fr\)\s+minmax\(360px,\s*1\.15fr\)/s
+    );
   });
 
   it('wraps the logging rating control inside its desktop form column', async () => {
     const styles = await readFile(stylesPath, 'utf8');
 
     expect(styles).toMatch(/\.log-sheet \.rating-input\s*\{[^}]*grid-template-columns:\s*1fr/s);
-    expect(styles).toMatch(/\.log-sheet \.rating-segments\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s);
+    expect(styles).toMatch(
+      /\.log-sheet \.rating-segments\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s
+    );
     expect(styles).toMatch(/\.log-sheet \.rating-none\s*\{[^}]*width:\s*100%/s);
   });
 
   it('keeps one deliberate logging action on tablets and phones', async () => {
     const styles = await readFile(stylesPath, 'utf8');
-    const tabletStyles = styles.slice(styles.indexOf('@media (max-width: 1040px)'), styles.indexOf('@media (max-width: 700px)'));
+    const tabletStyles = styles.slice(
+      styles.indexOf('@media (max-width: 1040px)'),
+      styles.indexOf('@media (max-width: 700px)')
+    );
     const phoneStyles = styles.slice(styles.lastIndexOf('@media (max-width: 700px)'));
 
     expect(tabletStyles).toMatch(/\.archive-spine \.log-action\s*\{/);
@@ -125,7 +136,9 @@ describe('styles.css', () => {
   it('shows three library poster columns on wider phones', async () => {
     const styles = await readFile(stylesPath, 'utf8');
 
-    expect(styles).toMatch(/@media \(min-width:\s*520px\) and \(max-width:\s*700px\)\s*\{[^}]*\.movie-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s);
+    expect(styles).toMatch(
+      /@media \(min-width:\s*520px\) and \(max-width:\s*700px\)\s*\{[^}]*\.movie-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s
+    );
   });
 
   it('defines spacing, shadow, and motion tokens for the shared visual system', async () => {
@@ -165,6 +178,39 @@ describe('styles.css', () => {
   it('gives catalog failures a designed alert state', async () => {
     const styles = await readFile(stylesPath, 'utf8');
 
-    expect(styles).toMatch(/\.catalog-error\s*\{[^}]*min-height:\s*96px[^}]*border-left:\s*4px solid var\(--active-red\)[^}]*background:\s*var\(--surface\)/s);
+    expect(styles).toMatch(
+      /\.catalog-error\s*\{[^}]*min-height:\s*96px[^}]*border-left:\s*4px solid var\(--active-red\)[^}]*background:\s*var\(--surface\)/s
+    );
+  });
+
+  it('uses one cardless archive composition instead of dashboard matrices', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+    const composition = styles.split('/* Remaining audit composition */')[1] ?? '';
+
+    expect(composition).toMatch(/\.month-metrics\s*>\s*div\s*\{[^}]*background:\s*transparent/s);
+    expect(composition).toMatch(/\.filter-toolbar\s*\{[^}]*display:\s*none/s);
+    expect(composition).toMatch(/\.search-groups\s*\{[^}]*display:\s*block/s);
+    expect(composition).toMatch(/\.metric-strip\s*>\s*div\s*\{[^}]*background:\s*transparent/s);
+    expect(composition).toMatch(
+      /\.statistics-panels\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1\.4fr\)\s+minmax\(260px,\s*0\.7fr\)/s
+    );
+    expect(composition).toMatch(
+      /\.activity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(53,[^}]*grid-template-rows:\s*repeat\(7,/s
+    );
+    expect(composition).toMatch(/@media \(min-width:\s*1500px\)\s*\{[^}]*\.library-workspace-selected/s);
+  });
+
+  it('keeps the phone dossier informative and motion functional', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+    const composition = styles.split('/* Remaining audit composition */')[1] ?? '';
+    const phoneStyles = composition.split('@media (max-width: 700px)')[1] ?? '';
+    const reducedMotion = composition.split('@media (prefers-reduced-motion: reduce)')[1] ?? '';
+
+    expect(phoneStyles).toMatch(
+      /\.dossier-identity\s*>\s*\.dossier-poster-col\s*\{[^}]*width:\s*min\(46vw,\s*180px\)/s
+    );
+    expect(composition).toContain('@keyframes sheet-reveal');
+    expect(composition).toContain('@keyframes dossier-arrive');
+    expect(reducedMotion).toMatch(/animation-duration:\s*0\.01ms\s*!important/);
   });
 });

@@ -1,7 +1,12 @@
 // ABOUTME: Renders Movie Log's desktop rail and mobile navigation from one archive view register.
 // ABOUTME: Keeps icon, label, active-state, and logging-action behavior consistent across shell sizes.
 import type { ArchiveView } from '../archive-model.js';
-import { navigationItems, readNavigationView, type NavigationView, type NavIconName } from './archive-navigation-data.js';
+import {
+  navigationItems,
+  readNavigationView,
+  type NavigationView,
+  type NavIconName
+} from './archive-navigation-data.js';
 
 const navIconPaths: Record<NavIconName, string> = {
   diary: 'M3.5 2h8v12h-8zM3.5 5h8M6 8h3M6 10.5h3',
@@ -14,7 +19,13 @@ const navIconPaths: Record<NavIconName, string> = {
 function NavIcon({ name }: { name: NavIconName }) {
   return (
     <svg aria-hidden="true" className="nav-icon" fill="none" height="16" viewBox="0 0 16 16" width="16">
-      <path d={navIconPaths[name]} stroke="currentColor" strokeLinecap="square" strokeLinejoin="miter" strokeWidth="1.2" />
+      <path
+        d={navIconPaths[name]}
+        stroke="currentColor"
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+        strokeWidth="1.2"
+      />
     </svg>
   );
 }
@@ -44,7 +55,7 @@ function NavigationButton({
       type="button"
     >
       <NavIcon name={item.icon} />
-      <span className={mobile ? undefined : 'nav-item-label'}>{item.label}</span>
+      <span className={mobile ? undefined : 'nav-item-label'}>{mobile ? item.mobileLabel : item.label}</span>
       {mobile ? null : <span className="nav-item-index">{item.index}</span>}
     </button>
   );
@@ -71,7 +82,9 @@ export function ArchiveNavigation({ activeView, onOpenLogPanel, onViewChange }: 
         ))}
       </nav>
       <button className="log-action" onClick={onOpenLogPanel} type="button">
-        <span aria-hidden="true" className="log-action-plus">+</span>
+        <span aria-hidden="true" className="log-action-plus">
+          +
+        </span>
         Log a Film
       </button>
       <p className="rail-caption">A private register of watched things.</p>

@@ -121,18 +121,36 @@ describe('archive model', () => {
   it('filters by catalog genre and graded rating bands', () => {
     const items = buildArchiveItems(state);
 
-    expect(filterArchiveItems(items, { ...defaultArchiveFilters, genre: 'Crime' }).map((item) => item.displayTitle)).toEqual(['Heat']);
-    expect(filterArchiveItems(items, { ...defaultArchiveFilters, rating: '4.5-plus' }).map((item) => item.displayTitle)).toEqual(['Flow']);
-    expect(filterArchiveItems(items, { ...defaultArchiveFilters, rating: 'unrated' }).map((item) => item.displayTitle)).toEqual(['Heat']);
+    expect(
+      filterArchiveItems(items, {
+        ...defaultArchiveFilters,
+        genre: 'Crime'
+      }).map((item) => item.displayTitle)
+    ).toEqual(['Heat']);
+    expect(
+      filterArchiveItems(items, {
+        ...defaultArchiveFilters,
+        rating: '4.5-plus'
+      }).map((item) => item.displayTitle)
+    ).toEqual(['Flow']);
+    expect(
+      filterArchiveItems(items, {
+        ...defaultArchiveFilters,
+        rating: 'unrated'
+      }).map((item) => item.displayTitle)
+    ).toEqual(['Heat']);
   });
 
   it('reads films for entries and sums known runtimes', () => {
     expect(readEntryFilm(state.history[2]!, state.films)?.director).toEqual(['Michael Mann']);
-    expect(sumRuntime(state.history, state.films)).toEqual({ knownCount: 3, minutes: 85 + 85 + 170 });
+    expect(sumRuntime(state.history, state.films)).toEqual({
+      knownCount: 3,
+      minutes: 85 + 85 + 170
+    });
     expect(sumRuntime([], state.films)).toEqual({ knownCount: 0, minutes: 0 });
   });
 
-  it('groups search results into diary, library, and catalog lanes with a flat keyboard order', () => {
+  it('gives diary records precedence over indexed-only and catalog search results', () => {
     const groups = buildSearchResults(state, 'flow', [
       {
         description: '2024 animated film',
@@ -141,16 +159,22 @@ describe('archive model', () => {
         title: 'Flow',
         year: 2024
       },
-      { description: '2014 documentary', pageId: 999, posterUrl: null, title: 'Flowing Home', year: 2014 }
+      {
+        description: '2014 documentary',
+        pageId: 999,
+        posterUrl: null,
+        title: 'Flowing Home',
+        year: 2014
+      }
     ]);
 
     expect(groups.diary.map((result) => result.title)).toEqual(['Flow']);
     expect(groups.diary[0]?.director).toBe('Gints Zilbalodis');
     expect(groups.diary[0]?.year).toBe(2024);
     expect(groups.diary[0]?.posterUrl).toContain('Flow_poster');
-    expect(groups.library.map((result) => result.title)).toEqual(['Flow']);
+    expect(groups.library).toEqual([]);
     expect(groups.catalog.map((result) => result.pageId)).toEqual([999]);
-    expect(groups.flat).toHaveLength(3);
+    expect(groups.flat).toHaveLength(2);
     expect(groups.flat[0]?.key).toBeTruthy();
   });
 

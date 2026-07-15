@@ -1,0 +1,71 @@
+// ABOUTME: Verifies the yearly activity ledger exposes calendar orientation and unambiguous time labels.
+// ABOUTME: Pins week and weekday coordinates, visible month anchors, and accessible daily values.
+import { createElement } from 'react';
+import { describe, expect, it } from 'vitest';
+import { readArchiveStats } from '../src/archive-model.js';
+import { StatisticsView } from '../src/views/statistics.js';
+import type { MovieLogState } from '../shared/types.js';
+import { findByClass, readText, renderTree } from './render-tree.js';
+
+const state: MovieLogState = {
+  films: {},
+  history: [
+    {
+      id: 'one',
+      source: 'watch',
+      sourceKind: 'file',
+      sourcePath: '/Movies/One.mkv',
+      title: 'One',
+      watchedAt: '2025-07-16T12:00:00.000Z'
+    },
+    {
+      id: 'two',
+      source: 'watch',
+      sourceKind: 'file',
+      sourcePath: '/Movies/Two.mkv',
+      title: 'Two',
+      watchedAt: '2026-07-14T12:00:00.000Z'
+    }
+  ],
+  libraryItems: [],
+  watchedFolders: []
+};
+
+describe('yearly statistics activity', () => {
+  it('models each day by calendar week and weekday', () => {
+    const stats = readArchiveStats(state, new Date('2026-07-14T12:00:00.000Z'));
+
+    expect(stats.activity).toHaveLength(365);
+    expect(stats.activity[0]).toMatchObject({
+      date: '2025-07-15',
+      week: 0,
+      weekday: 2
+    });
+    expect(stats.activity.at(-1)).toMatchObject({
+      date: '2026-07-14',
+      week: 52,
+      weekday: 2
+    });
+    expect(stats.months.map((month) => month.label)).toEqual(['Jul 2025', 'Jul 2026']);
+  });
+
+  it('renders visible month and weekday anchors with accessible positioned day values', () => {
+    const tree = renderTree(
+      createElement(StatisticsView, {
+        now: new Date('2026-07-14T12:00:00.000Z'),
+        state
+      })
+    );
+    const monthLabels = findByClass(tree, 'activity-month-label');
+    const weekdays = findByClass(tree, 'activity-weekday');
+    const cells = findByClass(tree, 'activity-cell');
+
+    expect(monthLabels.length).toBeGreaterThanOrEqual(11);
+    expect(readText(monthLabels)).toContain('Jul 2025');
+    expect(readText(monthLabels)).toContain('Jul 2026');
+    expect(weekdays.map((weekday) => weekday.text)).toEqual(['Mon', 'Wed', 'Fri']);
+    expect(cells[0]?.props['aria-label']).toBe('2025-07-15: 0 viewings');
+    expect(cells[0]?.props.role).toBe('img');
+    expect(cells[0]?.props.style).toEqual({ gridColumn: 1, gridRow: 3 });
+  });
+});

@@ -50,9 +50,16 @@ function SearchLane({
           key={result.key}
           onClick={() => onOpenResult(result)}
           role="option"
+          tabIndex={-1}
           type="button"
         >
-          <FilmPoster displayTitle={result.title} film={null} posterUrl={result.posterUrl} size="thumb" year={result.year} />
+          <FilmPoster
+            displayTitle={result.title}
+            film={null}
+            posterUrl={result.posterUrl}
+            size="thumb"
+            year={result.year}
+          />
           <span className="search-result-copy">
             <span className="search-result-title">
               {result.title}
@@ -85,16 +92,25 @@ export function SearchView({
   const flat = groups.flat;
   const activeKey = flat[activeIndex]?.key ?? null;
 
+  function moveActive(nextIndex: number): void {
+    if (flat.length === 0) {
+      return;
+    }
+
+    onActiveIndexChange(nextIndex);
+    document.getElementById(`search-option-${nextIndex}`)?.scrollIntoView({ block: 'nearest' });
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      onActiveIndexChange(Math.min(activeIndex + 1, flat.length - 1));
+      moveActive(Math.min(activeIndex + 1, flat.length - 1));
       return;
     }
 
     if (event.key === 'ArrowUp') {
       event.preventDefault();
-      onActiveIndexChange(Math.max(activeIndex - 1, 0));
+      moveActive(Math.max(activeIndex - 1, 0));
       return;
     }
 
@@ -135,7 +151,12 @@ export function SearchView({
         />
       </label>
       {noMatches ? (
-        <EmptyState fragment="hand" hint="Try a title, a diary tag, or a film not logged yet." index="00" title="No archive matches." />
+        <EmptyState
+          fragment="hand"
+          hint="Try a title, a diary tag, or a film not logged yet."
+          index="00"
+          title="No archive matches."
+        />
       ) : (
         <div className="search-groups" id="search-results" role="listbox">
           <SearchLane
@@ -178,18 +199,25 @@ export function SearchView({
                 key={result.key}
                 onClick={() => onOpenResult(result)}
                 role="option"
+                tabIndex={-1}
                 type="button"
               >
-                <FilmPoster displayTitle={result.title} film={null} posterUrl={result.posterUrl} size="thumb" year={result.year} />
+                <FilmPoster
+                  displayTitle={result.title}
+                  film={null}
+                  posterUrl={result.posterUrl}
+                  size="thumb"
+                  year={result.year}
+                />
                 <span className="search-result-copy">
                   <span className="search-result-title">
                     {result.title}
                     <span className="search-result-year">{result.year ?? ''}</span>
                   </span>
-                <span className="search-result-meta">
-                  {result.director ? `${result.director} · ` : ''}
-                  {result.status}
-                </span>
+                  <span className="search-result-meta">
+                    {result.director ? `${result.director} · ` : ''}
+                    {result.status}
+                  </span>
                 </span>
                 <span className="search-result-kind">Log</span>
               </button>

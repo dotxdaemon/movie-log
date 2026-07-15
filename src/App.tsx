@@ -11,8 +11,15 @@ import {
   type SearchResultItem
 } from './archive-model.js';
 import { guardDragNavigation } from './drag-guard.js';
-import { createDropFeedbackMessage, createScanFeedbackMessage, formatCount, type WorkspaceFeedback } from './feedback.js';
+import { readDialogFocusTarget } from './dialog-focus.js';
+import {
+  createDropFeedbackMessage,
+  createScanFeedbackMessage,
+  formatCount,
+  type WorkspaceFeedback
+} from './feedback.js';
 import { readCatalogFailureMessage } from './catalog-search.js';
+import { focusSearchReturnTarget } from './search-focus.js';
 import { parseFilmTitle, readFilmKey } from '../shared/film-title.js';
 import { readTitleFromPath, readVisibleHistory } from '../shared/history.js';
 import type { CatalogSearchResult, LogEntryDetails, EntryDetails, MovieLogState } from '../shared/types.js';
@@ -30,7 +37,10 @@ function updateState(nextState: MovieLogState, setState: (value: MovieLogState) 
   });
 }
 
-function useCatalogSearch(query: string, enabled: boolean): { error: string | null; pending: boolean; results: CatalogSearchResult[] } {
+function useCatalogSearch(
+  query: string,
+  enabled: boolean
+): { error: string | null; pending: boolean; results: CatalogSearchResult[] } {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<CatalogSearchResult[]>([]);
   const [pending, setPending] = useState(false);
@@ -39,35 +49,38 @@ function useCatalogSearch(query: string, enabled: boolean): { error: string | nu
     const trimmed = query.trim();
     const active = enabled && trimmed.length >= 2;
     let cancelled = false;
-    const timer = window.setTimeout(() => {
-      if (!active) {
-        setError(null);
-        setResults([]);
-        setPending(false);
-        return;
-      }
+    const timer = window.setTimeout(
+      () => {
+        if (!active) {
+          setError(null);
+          setResults([]);
+          setPending(false);
+          return;
+        }
 
-      setPending(true);
-      setError(null);
-      window.movieLog
-        .searchCatalog(`${trimmed} film`)
-        .then((nextResults) => {
-          if (!cancelled) {
-            setResults(nextResults);
-          }
-        })
-        .catch((catalogError: unknown) => {
-          if (!cancelled) {
-            setResults([]);
-            setError(readCatalogFailureMessage(catalogError));
-          }
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setPending(false);
-          }
-        });
-    }, active ? 300 : 0);
+        setPending(true);
+        setError(null);
+        window.movieLog
+          .searchCatalog(`${trimmed} film`)
+          .then((nextResults) => {
+            if (!cancelled) {
+              setResults(nextResults);
+            }
+          })
+          .catch((catalogError: unknown) => {
+            if (!cancelled) {
+              setResults([]);
+              setError(readCatalogFailureMessage(catalogError));
+            }
+          })
+          .finally(() => {
+            if (!cancelled) {
+              setPending(false);
+            }
+          });
+      },
+      active ? 300 : 0
+    );
 
     return () => {
       cancelled = true;
@@ -104,6 +117,7 @@ export default function App() {
   const [selectedLibraryPath, setSelectedLibraryPath] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
+  const searchReturnFocus = useRef<HTMLElement | null>(null);
   const searchReturnView = useRef<Exclude<ArchiveView, 'detail' | 'search'>>('diary');
 
   const searchCatalog = useCatalogSearch(searchQuery, activeView === 'search');
@@ -198,19 +212,11 @@ export default function App() {
       }
 
       const focusable = readFocusable();
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      const target = readDialogFocusTarget(focusable, document.activeElement, event.shiftKey);
 
-      if (!first || !last) {
-        return;
-      }
-
-      if (event.shiftKey && document.activeElement === first) {
+      if (target) {
         event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
+        target.focus();
       }
     };
 
@@ -261,14 +267,16 @@ export default function App() {
     setFilterSheetOpen(open);
   };
 
-  const handleAddWatchedFolders = () => runAction(async () => {
-    await window.movieLog.addWatchedFolders();
-  });
+  const handleAddWatchedFolders = () =>
+    runAction(async () => {
+      await window.movieLog.addWatchedFolders();
+    });
 
-  const handleCopyPathFor = (itemPath: string) => runAction(async () => {
-    await window.movieLog.copyPath(itemPath);
-    setFeedback({ message: 'Path copied.', tone: 'notice' });
-  });
+  const handleCopyPathFor = (itemPath: string) =>
+    runAction(async () => {
+      await window.movieLog.copyPath(itemPath);
+      setFeedback({ message: 'Path copied.', tone: 'notice' });
+    });
 
   const handleDrop = async (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
@@ -280,7 +288,10 @@ export default function App() {
       .filter((itemPath) => itemPath.length > 0);
 
     if (paths.length === 0) {
-      setFeedback({ message: 'Drop a Finder file or folder so Movie Log can read its full path.', tone: 'error' });
+      setFeedback({
+        message: 'Drop a Finder file or folder so Movie Log can read its full path.',
+        tone: 'error'
+      });
       return;
     }
 
@@ -288,13 +299,14 @@ export default function App() {
     handleLogPanelOpenChange(true);
   };
 
-  const handleChooseLogPaths = () => runAction(async () => {
-    const paths = await window.movieLog.chooseLogPaths();
+  const handleChooseLogPaths = () =>
+    runAction(async () => {
+      const paths = await window.movieLog.chooseLogPaths();
 
-    if (paths.length > 0) {
-      setPendingLogPaths(paths);
-    }
-  });
+      if (paths.length > 0) {
+        setPendingLogPaths(paths);
+      }
+    });
 
   const resetLogDraft = () => {
     setPendingLogPaths([]);
@@ -307,7 +319,10 @@ export default function App() {
     setFeedback(null);
 
     if (pendingLogPaths.length === 0 && !logSelectedFilm) {
-      setFeedback({ message: 'Search for a film or choose at least one media file.', tone: 'error' });
+      setFeedback({
+        message: 'Search for a film or choose at least one media file.',
+        tone: 'error'
+      });
       return;
     }
 
@@ -316,7 +331,10 @@ export default function App() {
         const loggedPaths = await window.movieLog.logPaths(pendingLogPaths, details);
 
         if (logSelectedFilm) {
-          const film = { title: logSelectedFilm.title, year: logSelectedFilm.year };
+          const film = {
+            title: logSelectedFilm.title,
+            year: logSelectedFilm.year
+          };
 
           for (const path of pendingLogPaths) {
             const key = readFilmKey(parseFilmTitle(readTitleFromPath(path)));
@@ -325,19 +343,35 @@ export default function App() {
         }
 
         if (loggedPaths.skippedPaths.length > 0) {
-          setFeedback({ message: createDropFeedbackMessage(loggedPaths), tone: 'error' });
+          setFeedback({
+            message: createDropFeedbackMessage(loggedPaths),
+            tone: 'error'
+          });
         } else if (loggedPaths.addedCount === 0) {
-          setFeedback({ message: 'Only folders and likely media files are logged. Hidden files and junk are ignored.', tone: 'error' });
+          setFeedback({
+            message: 'Only folders and likely media files are logged. Hidden files and junk are ignored.',
+            tone: 'error'
+          });
           return;
         } else {
-          setFeedback({ message: `Logged ${formatCount(loggedPaths.addedCount, 'item')}.`, tone: 'notice' });
+          setFeedback({
+            message: `Logged ${formatCount(loggedPaths.addedCount, 'item')}.`,
+            tone: 'notice'
+          });
         }
       } else if (logSelectedFilm) {
         await window.movieLog.logFilm(
-          { pageId: logSelectedFilm.pageId, title: logSelectedFilm.title, year: logSelectedFilm.year },
+          {
+            pageId: logSelectedFilm.pageId,
+            title: logSelectedFilm.title,
+            year: logSelectedFilm.year
+          },
           details
         );
-        setFeedback({ message: `Logged ${logSelectedFilm.title}.`, tone: 'notice' });
+        setFeedback({
+          message: `Logged ${logSelectedFilm.title}.`,
+          tone: 'notice'
+        });
       }
 
       updateState(await window.movieLog.getState(), setState);
@@ -356,7 +390,10 @@ export default function App() {
       const updatedEntry = await window.movieLog.updateEntry(entryId, details);
 
       if (!updatedEntry) {
-        setFeedback({ message: 'That diary entry is no longer available.', tone: 'error' });
+        setFeedback({
+          message: 'That diary entry is no longer available.',
+          tone: 'error'
+        });
         return;
       }
 
@@ -367,17 +404,20 @@ export default function App() {
     }
   };
 
-  const handleOpenInFinder = (itemPath: string) => runAction(async () => {
-    await window.movieLog.openInFinder(itemPath);
-  });
+  const handleOpenInFinder = (itemPath: string) =>
+    runAction(async () => {
+      await window.movieLog.openInFinder(itemPath);
+    });
 
-  const handleOpenItem = (itemPath: string) => runAction(async () => {
-    await window.movieLog.openItem(itemPath);
-  });
+  const handleOpenItem = (itemPath: string) =>
+    runAction(async () => {
+      await window.movieLog.openItem(itemPath);
+    });
 
-  const handleRemoveWatchedFolder = (folderId: string) => runAction(async () => {
-    await window.movieLog.removeWatchedFolder(folderId);
-  });
+  const handleRemoveWatchedFolder = (folderId: string) =>
+    runAction(async () => {
+      await window.movieLog.removeWatchedFolder(folderId);
+    });
 
   const handleScanNow = async () => {
     setFeedback(null);
@@ -389,7 +429,10 @@ export default function App() {
       const nextState = await window.movieLog.getState();
       const nextHistoryCount = readVisibleHistory(nextState.history).length;
       updateState(nextState, setState);
-      setFeedback({ message: createScanFeedbackMessage(Math.max(0, nextHistoryCount - previousHistoryCount)), tone: 'notice' });
+      setFeedback({
+        message: createScanFeedbackMessage(Math.max(0, nextHistoryCount - previousHistoryCount)),
+        tone: 'notice'
+      });
     } catch (error) {
       setFeedback({ message: (error as Error).message, tone: 'error' });
     } finally {
@@ -438,7 +481,10 @@ export default function App() {
     void runAction(async () => {
       await window.movieLog.matchFilm(item.filmKey, { title: parsed.title, year: parsed.year }, pageId);
       updateState(await window.movieLog.getState(), setState);
-      setFeedback({ message: pageId === null ? 'Catalog match cleared.' : 'Catalog match updated.', tone: 'notice' });
+      setFeedback({
+        message: pageId === null ? 'Catalog match cleared.' : 'Catalog match updated.',
+        tone: 'notice'
+      });
     });
   };
 
@@ -448,14 +494,18 @@ export default function App() {
   };
 
   const handleSearchDismiss = () => {
+    const returnTarget = searchReturnFocus.current;
     setSearchQuery('');
     setSearchActiveIndex(0);
     setActiveView(searchReturnView.current);
+    searchReturnFocus.current = null;
+    window.setTimeout(() => focusSearchReturnTarget(returnTarget), 0);
   };
 
   const handleViewChange = (view: ArchiveView) => {
     if (view === 'search' && activeView !== 'search') {
       searchReturnView.current = activeView === 'detail' ? 'library' : activeView;
+      searchReturnFocus.current = document.activeElement as HTMLElement | null;
     }
 
     setActiveView(view);
