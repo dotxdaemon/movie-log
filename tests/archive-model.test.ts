@@ -6,6 +6,7 @@ import {
   buildSearchResults,
   defaultArchiveFilters,
   filterArchiveItems,
+  readArchiveCoverage,
   readArchiveStats,
   readEntryFilm,
   sumRuntime
@@ -178,6 +179,12 @@ describe('archive model', () => {
     expect(groups.flat[0]?.key).toBeTruthy();
   });
 
+  it('does not materialize the complete archive before Search has a query', () => {
+    const groups = buildSearchResults(state, '', []);
+
+    expect(groups).toEqual({ catalog: [], diary: [], flat: [], library: [] });
+  });
+
   it('filters by real metadata and sorts without mutating the source state', () => {
     const items = buildArchiveItems(state);
     const filters = {
@@ -215,5 +222,29 @@ describe('archive model', () => {
     expect(stats.directors[0]).toEqual({ count: 2, name: 'Gints Zilbalodis' });
     expect(stats.decades).toEqual([{ averageRating: 4.5, count: 1, label: '2020s' }]);
     expect(stats.years).toEqual([{ count: 3, year: 2026 }]);
+  });
+
+  it('calculates honest metadata and personal-annotation progress states', () => {
+    const coverageState: MovieLogState = {
+      ...state,
+      films: {
+        'flow::2024': flowFilm,
+        'heat::1995': {
+          ...heatFilm,
+          attempts: 2,
+          failureReason: 'temporary',
+          status: 'failed'
+        }
+      }
+    };
+
+    expect(readArchiveCoverage(coverageState)).toEqual({
+      annotated: 1,
+      failed: 1,
+      matched: 1,
+      pending: 0,
+      total: 2,
+      unmatched: 0
+    });
   });
 });

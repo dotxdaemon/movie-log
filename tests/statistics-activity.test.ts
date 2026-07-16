@@ -64,8 +64,13 @@ describe('yearly statistics activity', () => {
     expect(readText(monthLabels)).toContain('Jul 2025');
     expect(readText(monthLabels)).toContain('Jul 2026');
     expect(weekdays.map((weekday) => weekday.text)).toEqual(['Mon', 'Wed', 'Fri']);
-    expect(cells[0]?.props['aria-label']).toBe('2025-07-15: 0 viewings');
-    expect(cells[0]?.props.role).toBe('img');
+    expect(findByClass(tree, 'activity-grid')[0]?.props['aria-hidden']).toBe('true');
+    expect(cells[0]?.props['aria-label']).toBeUndefined();
+    expect(cells[0]?.props.role).toBeUndefined();
     expect(cells[0]?.props.style).toEqual({ gridColumn: 1, gridRow: 3 });
+    const summary = findByClass(tree, 'activity-accessible-summary');
+    expect(summary).toHaveLength(1);
+    expect(readText(summary)).toContain('2025-07-16: 1 viewing');
+    expect(readText(summary)).toContain('2026-07-14: 1 viewing');
   });
 });

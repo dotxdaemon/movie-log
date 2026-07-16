@@ -103,9 +103,19 @@ describe('capture pipeline', () => {
       'library-filtered',
       'library-empty',
       'library-selected',
+      'search-results',
       'search-long',
       'catalog-outage',
-      'detail-missing'
+      'detail-missing',
+      'detail-outage',
+      'log-ambiguity',
+      'log-path-match',
+      'log-multiple-paths',
+      'log-rating-none',
+      'log-rating-numeric',
+      'loading',
+      'load-error',
+      'statistics-lower'
     ];
 
     for (const profile of profiles) {
@@ -113,11 +123,21 @@ describe('capture pipeline', () => {
     }
 
     expect(mainProcess).toContain('document.querySelectorAll(\'.view-switcher [role="tab"]\')');
-    expect(mainProcess).toContain("document.querySelector('.header-filters')?.click()");
-    expect(mainProcess).toContain("setCaptureSelect('.filter-sheet select[name=\"rating\"]', '4.5-plus')");
+    expect(mainProcess).toContain("document.querySelector('.filter-sheet-trigger')?.click()");
+    expect(mainProcess).toContain('filterSurface + \' select[name="rating"]\'');
+    expect(mainProcess).toContain('filterSurface + \' select[name="genre"]\'');
     expect(mainProcess).toContain("key: 'ArrowDown'");
     expect(mainProcess).toContain('activeResultVisible');
     expect(mainProcess).toContain("'.movie-card:not(:has(.poster-art)) .movie-card-face'");
     expect(mainProcess).toContain("captureRequestedView === 'catalog-outage'");
+    expect(mainProcess).toContain('verifyRatingKeyboardFocus');
+    expect(mainProcess).toContain("captureRequestedView === 'detail-outage'");
+    expect(mainProcess).toContain("captureRequestedView === 'log-ambiguity'");
+    expect(mainProcess).toContain("captureRequestedView === 'log-path-match'");
+    expect(mainProcess).toContain("captureRequestedView === 'log-multiple-paths'");
+    expect(mainProcess).toContain('Installed persistence proof');
+    expect(mainProcess).toContain("captureRequestedView === 'loading'");
+    expect(mainProcess).toContain("captureRequestedView === 'load-error'");
+    expect(mainProcess).toContain("document.querySelector('.activity-panel')?.scrollIntoView");
   });
 });

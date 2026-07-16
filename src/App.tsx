@@ -20,8 +20,9 @@ import {
 } from './feedback.js';
 import { readCatalogFailureMessage } from './catalog-search.js';
 import { focusSearchReturnTarget } from './search-focus.js';
-import { parseFilmTitle, readFilmKey } from '../shared/film-title.js';
-import { readTitleFromPath, readVisibleHistory } from '../shared/history.js';
+import { readArchiveLoadFailureMessage } from './load-error.js';
+import { parseFilmTitle } from '../shared/film-title.js';
+import { readVisibleHistory } from '../shared/history.js';
 import type { CatalogSearchResult, LogEntryDetails, EntryDetails, MovieLogState } from '../shared/types.js';
 
 const emptyState: MovieLogState = {
@@ -108,6 +109,7 @@ export default function App() {
   const [logReview, setLogReview] = useState('');
   const [logSelectedFilm, setLogSelectedFilm] = useState<CatalogSearchResult | null>(null);
   const [dossierMatchPending, setDossierMatchPending] = useState(false);
+  const [dossierMatchError, setDossierMatchError] = useState<string | null>(null);
   const [dossierMatchResults, setDossierMatchResults] = useState<CatalogSearchResult[]>([]);
   const [noteFilePath, setNoteFilePath] = useState('');
   const [pendingLogPaths, setPendingLogPaths] = useState<string[]>([]);
@@ -130,7 +132,12 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     let hasLiveState = false;
+    const captureProfile = new URLSearchParams(window.location.search).get('capture');
     document.documentElement.dataset.movieLogCaptureReady = 'false';
+
+    if (captureProfile === 'loading') {
+      document.documentElement.dataset.movieLogCaptureReady = 'true';
+    }
 
     const unsubscribe = window.movieLog.subscribe((nextState) => {
       hasLiveState = true;
@@ -159,7 +166,8 @@ export default function App() {
         document.documentElement.dataset.movieLogCaptureReady = 'true';
       } catch (error) {
         if (isMounted) {
-          setLoadError((error as Error).message);
+          setLoadError(readArchiveLoadFailureMessage(error));
+          document.documentElement.dataset.movieLogCaptureReady = 'true';
         }
       } finally {
         if (isMounted) {
@@ -326,21 +334,28 @@ export default function App() {
       return;
     }
 
+    if (logSelectedFilm && pendingLogPaths.length > 1) {
+      setFeedback({
+        message:
+          'Attach one media item for this catalog film, or clear the selected film before logging multiple items.',
+        tone: 'error'
+      });
+      return;
+    }
+
     try {
       if (pendingLogPaths.length > 0) {
-        const loggedPaths = await window.movieLog.logPaths(pendingLogPaths, details);
-
-        if (logSelectedFilm) {
-          const film = {
-            title: logSelectedFilm.title,
-            year: logSelectedFilm.year
-          };
-
-          for (const path of pendingLogPaths) {
-            const key = readFilmKey(parseFilmTitle(readTitleFromPath(path)));
-            await window.movieLog.matchFilm(key, film, logSelectedFilm.pageId);
-          }
-        }
+        const loggedPaths = await window.movieLog.logPaths(
+          pendingLogPaths,
+          details,
+          logSelectedFilm
+            ? {
+                pageId: logSelectedFilm.pageId,
+                title: logSelectedFilm.title,
+                year: logSelectedFilm.year
+              }
+            : undefined
+        );
 
         if (loggedPaths.skippedPaths.length > 0) {
           setFeedback({
@@ -467,26 +482,38 @@ export default function App() {
 
   const handleSearchMatch = (query: string) => {
     setDossierMatchPending(true);
+    setDossierMatchError(null);
     setDossierMatchResults([]);
     window.movieLog
       .searchCatalog(`${query} film`)
       .then((results) => setDossierMatchResults(results))
-      .catch((error: Error) => setFeedback({ message: error.message, tone: 'error' }))
+      .catch((error: unknown) => setDossierMatchError(readCatalogFailureMessage(error)))
       .finally(() => setDossierMatchPending(false));
   };
 
   const handleMatchFilm = (item: ArchiveItem, pageId: number | null) => {
     const parsed = parseFilmTitle(item.title);
     setDossierMatchResults([]);
-    void runAction(async () => {
-      await window.movieLog.matchFilm(item.filmKey, { title: parsed.title, year: parsed.year }, pageId);
-      updateState(await window.movieLog.getState(), setState);
-      setFeedback({
-        message: pageId === null ? 'Catalog match cleared.' : 'Catalog match updated.',
-        tone: 'notice'
-      });
-    });
+    setDossierMatchError(null);
+    void (async () => {
+      try {
+        await window.movieLog.matchFilm(item.filmKey, { title: parsed.title, year: parsed.year }, pageId);
+        updateState(await window.movieLog.getState(), setState);
+        setFeedback({
+          message: pageId === null ? 'Catalog match cleared.' : 'Catalog match updated.',
+          tone: 'notice'
+        });
+      } catch (error) {
+        setDossierMatchError(readCatalogFailureMessage(error));
+      }
+    })();
   };
+
+  const handleRetryMetadata = () =>
+    runAction(async () => {
+      await window.movieLog.retryFilmEnrichment();
+      setFeedback({ message: 'Metadata matching resumed.', tone: 'notice' });
+    });
 
   const handleSearchQueryChange = (value: string) => {
     setSearchQuery(value);
@@ -522,6 +549,7 @@ export default function App() {
       activeView={activeView}
       dataFilePath={dataFilePath}
       diaryMode={diaryMode}
+      dossierMatchError={dossierMatchError}
       dossierMatchPending={dossierMatchPending}
       dossierMatchResults={dossierMatchResults}
       dropActive={dropActive}
@@ -559,6 +587,7 @@ export default function App() {
       onOpenSearchResult={handleOpenSearchResult}
       onRemoveWatchedFolder={handleRemoveWatchedFolder}
       onRetryLoad={handleRetryLoad}
+      onRetryMetadata={handleRetryMetadata}
       onScanNow={handleScanNow}
       onSearchDismiss={handleSearchDismiss}
       onSearchActiveIndexChange={setSearchActiveIndex}

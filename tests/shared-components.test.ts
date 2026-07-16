@@ -33,14 +33,15 @@ describe('shared archive components', () => {
     expect(readText(mobile)).not.toContain('Statistics');
   });
 
-  it('renders shared title, search, filter, and logging header actions', () => {
+  it('renders shared title, search, and logging header actions without duplicating view-local filters', () => {
     const tree = renderTree(
       createElement(PageHeader, {
         activeView: 'library',
         archiveCount: 22,
+        coverage: { annotated: 0, failed: 0, matched: 12, pending: 2, total: 22, unmatched: 8 },
         diaryCount: 98,
-        onFilterSheetOpen: noop,
         onOpenLogPanel: noop,
+        onRetryMetadata: async () => {},
         onSearchQueryChange: noop,
         onViewChange: noop,
         periodLabel: 'JUL 2026',
@@ -50,7 +51,7 @@ describe('shared archive components', () => {
 
     expect(findByClass(tree, 'archive-header')).toHaveLength(1);
     expect(findByClass(tree, 'header-search')).toHaveLength(1);
-    expect(findByClass(tree, 'header-filters')).toHaveLength(1);
+    expect(findByClass(tree, 'header-filters')).toHaveLength(0);
     expect(findByClass(tree, 'header-log-action')).toHaveLength(1);
     expect(readText(tree)).toContain('Library');
   });

@@ -57,7 +57,7 @@ export interface LibraryItem extends FolderContentsItem {
   lastSeenAt: string;
 }
 
-export type FilmStatus = 'matched' | 'unmatched';
+export type FilmStatus = 'failed' | 'matched' | 'pending' | 'unmatched';
 
 export interface FilmDetails {
   cast: string[];
@@ -73,14 +73,17 @@ export interface FilmDetails {
 }
 
 export interface FilmRecord {
+  attempts?: number;
   cast: string[];
   country: string[];
   director: string[];
   fetchedAt: string;
+  failureReason?: 'temporary';
   genres: string[];
   key: string;
   language: string[];
   pageId: number | null;
+  nextRetryAt?: string;
   posterUrl: string | null;
   runtimeMinutes: number | null;
   status: FilmStatus;
@@ -122,12 +125,13 @@ export interface MovieLogApi {
   getDataFilePath(): Promise<string>;
   getNoteFilePath(): Promise<string>;
   logFilm(film: LogFilmRequest, details?: LogEntryDetails): Promise<void>;
-  logPaths(paths: string[], details?: LogEntryDetails): Promise<LogPathsResult>;
+  logPaths(paths: string[], details?: LogEntryDetails, film?: LogFilmRequest): Promise<LogPathsResult>;
   matchFilm(filmKey: string, film: { title: string; year: number | null }, pageId: number | null): Promise<void>;
   searchCatalog(query: string): Promise<CatalogSearchResult[]>;
   updateEntry(entryId: string, details: EntryDetails): Promise<WatchEntry | null>;
   addWatchedFolders(): Promise<WatchedFolder[]>;
   removeWatchedFolder(id: string): Promise<void>;
+  retryFilmEnrichment(): Promise<void>;
   copyPath(path: string): Promise<void>;
   openInFinder(path: string): Promise<void>;
   openItem(path: string): Promise<void>;

@@ -8,6 +8,7 @@ import process from 'node:process';
 import { promisify } from 'node:util';
 import { assertGeneratedOutput } from './generated-output.mjs';
 import { resolveElectronAppTemplatePath, resolveInstalledAppPath, resolveReleaseAppPath } from './package-paths.mjs';
+import { rewriteMovieLogInfoPlist } from './package-plist.mjs';
 
 const execFileAsync = promisify(execFile);
 const appName = 'Movie Log';
@@ -30,11 +31,6 @@ const bundlePackage = {
 };
 
 await assertGeneratedOutput(projectDirectory);
-
-function replacePlistValue(plistContents, key, value) {
-  const pattern = new RegExp(`(<key>${key}</key>\\s*<string>)([^<]*)(</string>)`);
-  return plistContents.replace(pattern, `$1${value}$3`);
-}
 
 async function runCommand(command, args) {
   await execFileAsync(command, args);
@@ -99,14 +95,12 @@ await runCommand('ditto', [electronAppTemplatePath, bundlePath]);
 
 const infoPlistPath = join(bundlePath, 'Contents', 'Info.plist');
 const infoPlist = await readFile(infoPlistPath, 'utf8');
-const nextInfoPlist = [
-  ['CFBundleDisplayName', appName],
-  ['CFBundleIconFile', iconBaseName],
-  ['CFBundleIdentifier', appIdentifier],
-  ['CFBundleName', appName],
-  ['CFBundleShortVersionString', bundlePackage.version],
-  ['CFBundleVersion', bundlePackage.version]
-].reduce((contents, [key, value]) => replacePlistValue(contents, key, value), infoPlist);
+const nextInfoPlist = rewriteMovieLogInfoPlist(infoPlist, {
+  appIdentifier,
+  appName,
+  iconBaseName,
+  version: bundlePackage.version
+});
 
 await writeFile(infoPlistPath, nextInfoPlist, 'utf8');
 await createIconFile(join(bundleResourcesPath, `${iconBaseName}.icns`));

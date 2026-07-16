@@ -1,6 +1,13 @@
 // ABOUTME: Builds the filterable film archive, search lanes, and viewing statistics from persisted state.
 // ABOUTME: Joins diary history and watched-folder contents with cached catalog metadata for every view.
 import { parseFilmTitle, readFilmKey } from '../shared/film-title.js';
+import {
+  createLocalCalendarDate,
+  readLocalCalendarDateKey,
+  readLocalCalendarMonthKey,
+  readLocalCalendarParts,
+  readLocalCalendarYear
+} from '../shared/local-calendar.js';
 import type { CatalogSearchResult, FilmRecord, MovieLogState, WatchEntry } from '../shared/types.js';
 
 export type ArchiveView = 'diary' | 'library' | 'search' | 'statistics' | 'settings' | 'detail';
@@ -79,6 +86,15 @@ export interface ArchiveStats {
   totalRuntimeMinutes: number;
   totalViewings: number;
   years: Array<{ count: number; year: number }>;
+}
+
+export interface ArchiveCoverage {
+  annotated: number;
+  failed: number;
+  matched: number;
+  pending: number;
+  total: number;
+  unmatched: number;
 }
 
 export const defaultArchiveFilters: ArchiveFilters = {
@@ -204,6 +220,45 @@ export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
     .sort((left, right) => right.latestViewing.watchedAt.localeCompare(left.latestViewing.watchedAt));
 }
 
+export function readArchiveCoverage(state: MovieLogState): ArchiveCoverage {
+  const itemsByFilm = new Map<string, ArchiveItem>();
+
+  for (const item of buildArchiveItems(state)) {
+    if (!itemsByFilm.has(item.filmKey)) {
+      itemsByFilm.set(item.filmKey, item);
+    }
+  }
+
+  const items = [...itemsByFilm.values()];
+  const countStatus = (status: NonNullable<ArchiveItem['film']>['status']) =>
+    items.filter((item) => item.film?.status === status).length;
+  const annotated = items.filter((item) =>
+    item.viewings.some(
+      (entry) =>
+        typeof entry.rating === 'number' ||
+        Boolean(entry.review?.trim()) ||
+        Boolean(entry.castNotes?.trim()) ||
+        Boolean(entry.favorite) ||
+        Boolean(entry.rewatch) ||
+        Boolean(entry.tags?.length) ||
+        Boolean(entry.viewingFormat?.trim()) ||
+        Boolean(entry.location?.trim())
+    )
+  ).length;
+  const matched = countStatus('matched');
+  const unmatched = countStatus('unmatched');
+  const failed = countStatus('failed');
+
+  return {
+    annotated,
+    failed,
+    matched,
+    pending: Math.max(0, items.length - matched - unmatched - failed),
+    total: items.length,
+    unmatched
+  };
+}
+
 function matchesRatingFilter(rating: number | null, filter: string): boolean {
   if (filter === 'all') {
     return true;
@@ -261,12 +316,13 @@ export function buildSearchResults(
   catalogResults: CatalogSearchResult[]
 ): SearchGroups {
   const normalizedQuery = query.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return { catalog: [], diary: [], flat: [], library: [] };
+  }
+
   const items = buildArchiveItems(state);
   const matches = (item: ArchiveItem): boolean => {
-    if (!normalizedQuery) {
-      return true;
-    }
-
     const haystack =
       `${item.displayTitle} ${item.title} ${item.sourcePath} ${(item.tags ?? []).join(' ')}`.toLowerCase();
     return haystack.includes(normalizedQuery);
@@ -317,13 +373,6 @@ export function buildSearchResults(
   };
 }
 
-function readDateKey(date: Date): string {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 export function readArchiveStats(state: MovieLogState, now = new Date()): ArchiveStats {
   const ratings = new Map<number, number>();
   const tags = new Map<string, number>();
@@ -337,9 +386,9 @@ export function readArchiveStats(state: MovieLogState, now = new Date()): Archiv
   const runtime = sumRuntime(state.history, state.films);
 
   for (const entry of state.history) {
-    const month = entry.watchedAt.slice(0, 7);
-    const day = entry.watchedAt.slice(0, 10);
-    const watchedYear = Number(entry.watchedAt.slice(0, 4));
+    const month = readLocalCalendarMonthKey(entry.watchedAt);
+    const day = readLocalCalendarDateKey(entry.watchedAt);
+    const watchedYear = readLocalCalendarYear(entry.watchedAt);
     months.set(month, (months.get(month) ?? 0) + 1);
     days.set(day, (days.get(day) ?? 0) + 1);
     years.set(watchedYear, (years.get(watchedYear) ?? 0) + 1);
@@ -382,14 +431,13 @@ export function readArchiveStats(state: MovieLogState, now = new Date()): Archiv
     }
   }
 
-  const activityStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 364));
-  const firstWeekday = activityStart.getUTCDay();
+  const today = readLocalCalendarParts(now);
+  const activityStart = new Date(today.year, today.month - 1, today.day - 364, 12);
+  const firstWeekday = activityStart.getDay();
   const activity = Array.from({ length: 365 }, (_value, index) => {
-    const date = new Date(
-      Date.UTC(activityStart.getUTCFullYear(), activityStart.getUTCMonth(), activityStart.getUTCDate() + index)
-    );
-    const dateKey = readDateKey(date);
-    const weekday = date.getUTCDay();
+    const date = new Date(activityStart.getFullYear(), activityStart.getMonth(), activityStart.getDate() + index, 12);
+    const dateKey = readLocalCalendarDateKey(date);
+    const weekday = date.getDay();
     return {
       count: days.get(dateKey) ?? 0,
       date: dateKey,
@@ -429,9 +477,8 @@ export function readArchiveStats(state: MovieLogState, now = new Date()): Archiv
         key,
         label: new Intl.DateTimeFormat(undefined, {
           month: 'short',
-          timeZone: 'UTC',
           year: 'numeric'
-        }).format(new Date(`${key}-01T00:00:00.000Z`))
+        }).format(createLocalCalendarDate(`${key}-01`))
       })),
     ratings: [...ratings.entries()].sort(([left], [right]) => left - right).map(([value, count]) => ({ count, value })),
     rewatches: state.history.filter((entry) => entry.rewatch).length,

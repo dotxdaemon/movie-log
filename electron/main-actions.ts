@@ -1,6 +1,12 @@
 // ABOUTME: Coordinates main-process watched-folder setup and dropped-path logging without importing Electron globals.
 // ABOUTME: Keeps rollback and partial-failure behavior testable while the BrowserWindow shell stays thin.
-import type { CatalogSearchResult, LogPathsResult, WatchEntry, WatchedFolder } from '../shared/types.js';
+import type {
+  CatalogSearchResult,
+  LogFilmRequest,
+  LogPathsResult,
+  WatchEntry,
+  WatchedFolder
+} from '../shared/types.js';
 
 interface AddWatchedFolderPathOptions {
   queueFolderRefresh(folderPath: string): Promise<void>;
@@ -14,12 +20,13 @@ interface LogPathsFromDropOptions {
   addHistoryEntries(entries: WatchEntry[]): Promise<WatchEntry[]>;
   broadcastState(): Promise<void>;
   createEntryForPath(itemPath: string): Promise<WatchEntry | null>;
+  matchFilmForEntry?(entry: WatchEntry, film: LogFilmRequest): Promise<void>;
 }
 
 interface SearchCatalogOptions {
   liveSearchTimeoutMs?: number;
   searchCachedFilms(query: string): Promise<CatalogSearchResult[]>;
-  searchLiveFilms(query: string): Promise<CatalogSearchResult[]>;
+  searchLiveFilms(query: string, signal: AbortSignal): Promise<CatalogSearchResult[]>;
 }
 
 export async function addWatchedFolderPath(
@@ -44,7 +51,17 @@ export async function addWatchedFolderPath(
   }
 }
 
-export async function logPathsFromDrop(paths: string[], options: LogPathsFromDropOptions): Promise<LogPathsResult> {
+export async function logPathsFromDrop(
+  paths: string[],
+  options: LogPathsFromDropOptions,
+  selectedFilm?: LogFilmRequest
+): Promise<LogPathsResult> {
+  if (selectedFilm && paths.length !== 1) {
+    throw new Error(
+      'Attach one media item for this catalog film, or clear the selected catalog film before logging multiple items.'
+    );
+  }
+
   const entries: WatchEntry[] = [];
   const skippedPaths: string[] = [];
 
@@ -64,6 +81,17 @@ export async function logPathsFromDrop(paths: string[], options: LogPathsFromDro
 
   if (entries.length > 0) {
     await options.addHistoryEntries(entries);
+
+    if (selectedFilm) {
+      const acceptedEntry = entries[0] as WatchEntry;
+
+      if (!options.matchFilmForEntry) {
+        throw new Error('The selected film could not be attached to this media item.');
+      }
+
+      await options.matchFilmForEntry(acceptedEntry, selectedFilm);
+    }
+
     await options.broadcastState();
   }
 
@@ -78,13 +106,17 @@ export async function searchCatalogWithFallback(
   options: SearchCatalogOptions
 ): Promise<CatalogSearchResult[]> {
   const liveSearchTimeoutMs = options.liveSearchTimeoutMs ?? 8000;
+  const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
   try {
     const liveFilms = await Promise.race([
-      options.searchLiveFilms(query),
+      options.searchLiveFilms(query, controller.signal),
       new Promise<CatalogSearchResult[]>((_, reject) => {
-        timeout = setTimeout(() => reject(new Error('Catalog request timed out.')), liveSearchTimeoutMs);
+        timeout = setTimeout(() => {
+          controller.abort();
+          reject(new Error('Catalog request timed out.'));
+        }, liveSearchTimeoutMs);
       })
     ]);
 

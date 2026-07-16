@@ -39,7 +39,7 @@ const dataDirectory = process.env.MOVIE_LOG_DATA_DIR ?? join(app.getPath('userDa
 const historyStore = createHistoryStore(dataDirectory);
 const filmCatalog = createFilmCatalog();
 const filmIndex = createFilmIndex({ catalog: filmCatalog, dataDirectory });
-let filmEnrichmentRunning = false;
+let filmEnrichmentJob: Promise<void> | null = null;
 let watchedFolderSync: ReturnType<typeof createWatchedFolderSync>;
 const folderMonitor = createFolderMonitor({
   loadKnownPaths: historyStore.readKnownPaths,
@@ -57,6 +57,16 @@ const captureRequested = Boolean(process.env.MOVIE_LOG_CAPTURE_PATH);
 const captureWidth = Number(process.env.MOVIE_LOG_CAPTURE_WIDTH ?? 1180);
 const captureHeight = Number(process.env.MOVIE_LOG_CAPTURE_HEIGHT ?? 788);
 const captureRequestedView = process.env.MOVIE_LOG_CAPTURE_VIEW ?? 'diary';
+const persistenceProof = {
+  castNotes: 'Installed persistence proof cast notes',
+  favorite: true,
+  location: 'Home archive',
+  rating: 4,
+  review: 'Installed persistence proof · 2026-07-16',
+  rewatch: true,
+  tags: ['proof', 'archive'],
+  viewingFormat: 'Digital file'
+} as const;
 const captureViews = new Set([
   'diary',
   'diary-ledger',
@@ -67,15 +77,25 @@ const captureViews = new Set([
   'library-selected',
   'filters',
   'search',
+  'search-results',
   'search-long',
   'catalog',
   'catalog-outage',
   'statistics',
+  'statistics-lower',
   'settings',
   'detail',
   'detail-missing',
+  'detail-outage',
   'log',
   'log-selected',
+  'log-ambiguity',
+  'log-path-match',
+  'log-multiple-paths',
+  'log-rating-none',
+  'log-rating-numeric',
+  'loading',
+  'load-error',
   'persistence-save',
   'persistence-verify'
 ]);
@@ -91,6 +111,20 @@ if (
 
 if (captureRequested && !captureViews.has(captureRequestedView)) {
   throw new Error(`Unknown capture view: ${captureRequestedView}.`);
+}
+
+function entryMatchesPersistenceProof(entry: WatchEntry | undefined): boolean {
+  return Boolean(
+    entry &&
+    entry.castNotes === persistenceProof.castNotes &&
+    entry.favorite === persistenceProof.favorite &&
+    entry.location === persistenceProof.location &&
+    entry.rating === persistenceProof.rating &&
+    entry.review === persistenceProof.review &&
+    entry.rewatch === persistenceProof.rewatch &&
+    JSON.stringify(entry.tags) === JSON.stringify(persistenceProof.tags) &&
+    entry.viewingFormat === persistenceProof.viewingFormat
+  );
 }
 
 async function createEntryForPath(
@@ -139,25 +173,28 @@ function collectFilmRequests(state: MovieLogState): FilmEnrichmentRequest[] {
   return [...requests.values()];
 }
 
-async function enrichFilms(): Promise<void> {
-  if (filmEnrichmentRunning) {
-    return;
+function enrichFilms(forceRetry = false): Promise<void> {
+  if (filmEnrichmentJob) {
+    return filmEnrichmentJob;
   }
 
-  filmEnrichmentRunning = true;
-
-  try {
+  const job = (async () => {
     const state = await historyStore.readState();
-    const changed = await filmIndex.enrichFilms(collectFilmRequests({ ...state, films: {} }));
-
-    if (changed) {
-      await broadcastState();
-    }
-  } catch {
-    return;
-  } finally {
-    filmEnrichmentRunning = false;
-  }
+    await filmIndex.enrichFilms(collectFilmRequests({ ...state, films: {} }), {
+      forceRetry,
+      onProgress: broadcastState
+    });
+  })()
+    .catch((error: unknown) => {
+      console.error('Film metadata enrichment stopped unexpectedly.', error);
+    })
+    .finally(() => {
+      if (filmEnrichmentJob === job) {
+        filmEnrichmentJob = null;
+      }
+    });
+  filmEnrichmentJob = job;
+  return job;
 }
 
 async function broadcastState(): Promise<void> {
@@ -190,21 +227,38 @@ async function selectCaptureView(): Promise<void> {
   }
 
   const logActionSelector = captureWidth <= 700 ? '.mobile-log-action' : '.archive-spine .log-action';
+  const initialRawHistoryCount = (await historyStore.readState()).history.length;
+  const navigationSelector = captureWidth <= 700 ? '.mobile-nav-item' : '.nav-item';
   const selected = (await mainWindow.webContents.executeJavaScript(`
     (() => {
       const requestedView = ${JSON.stringify(captureRequestedView)};
       const logActionSelector = ${JSON.stringify(logActionSelector)};
+      const navigationSelector = ${JSON.stringify(navigationSelector)};
       const readLabel = (element) => element.textContent?.trim().toLowerCase() ?? '';
-      const navigationItems = [...document.querySelectorAll('.nav-item')];
+      const navigationItems = [...document.querySelectorAll(navigationSelector)];
 
-      if (requestedView === 'log' || requestedView === 'log-selected' || requestedView === 'persistence-save') {
+      if (
+        requestedView === 'log' ||
+        requestedView === 'log-selected' ||
+        requestedView === 'log-ambiguity' ||
+        requestedView === 'log-path-match' ||
+        requestedView === 'log-multiple-paths' ||
+        requestedView === 'log-rating-none' ||
+        requestedView === 'log-rating-numeric' ||
+        requestedView === 'persistence-save'
+      ) {
         const action = document.querySelector(logActionSelector);
         action?.focus();
         action?.click();
         return true;
       }
 
-      if (requestedView === 'catalog' || requestedView === 'catalog-outage' || requestedView === 'search-long') {
+      if (
+        requestedView === 'catalog' ||
+        requestedView === 'catalog-outage' ||
+        requestedView === 'search-results' ||
+        requestedView === 'search-long'
+      ) {
         const searchItem = navigationItems.find((item) => readLabel(item).includes('search'));
         searchItem?.focus();
         searchItem?.click();
@@ -214,6 +268,7 @@ async function selectCaptureView(): Promise<void> {
       if (
         requestedView === 'detail' ||
         requestedView === 'detail-missing' ||
+        requestedView === 'detail-outage' ||
         requestedView === 'filters' ||
         requestedView.startsWith('library')
       ) {
@@ -222,7 +277,8 @@ async function selectCaptureView(): Promise<void> {
       }
 
       if (!requestedView.startsWith('diary')) {
-        navigationItems.find((item) => readLabel(item).includes(requestedView))?.click();
+        const navigationView = requestedView.startsWith('statistics') ? 'statistics' : requestedView;
+        navigationItems.find((item) => readLabel(item).includes(navigationView))?.click();
       }
 
       return true;
@@ -246,10 +302,16 @@ async function selectCaptureView(): Promise<void> {
   }
 
   if (captureRequestedView === 'library-filtered' || captureRequestedView === 'library-empty') {
-    await mainWindow.webContents.executeJavaScript(`document.querySelector('.header-filters')?.click()`);
-    await waitForCaptureSelector('.filter-sheet');
+    const filterSurface = captureWidth <= 700 ? '.filter-sheet' : '.filter-toolbar';
+
+    if (captureWidth <= 700) {
+      await mainWindow.webContents.executeJavaScript(`document.querySelector('.filter-sheet-trigger')?.click()`);
+    }
+
+    await waitForCaptureSelector(filterSurface);
     const filtered = (await mainWindow.webContents.executeJavaScript(`
       (() => {
+        const filterSurface = ${JSON.stringify(filterSurface)};
         const setCaptureSelect = (selector, value) => {
           const select = document.querySelector(selector);
           const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
@@ -258,14 +320,16 @@ async function selectCaptureView(): Promise<void> {
         };
 
         if (${JSON.stringify(captureRequestedView)} === 'library-empty') {
-          setCaptureSelect('.filter-sheet select[name="rating"]', '4.5-plus');
+          setCaptureSelect(filterSurface + ' select[name="rating"]', '4.5-plus');
         } else {
-          const genre = document.querySelector('.filter-sheet select[name="genre"]');
+          const genre = document.querySelector(filterSurface + ' select[name="genre"]');
           const value = genre?.options[1]?.value ?? '';
-          setCaptureSelect('.filter-sheet select[name="genre"]', value);
+          setCaptureSelect(filterSurface + ' select[name="genre"]', value);
         }
 
-        document.querySelector('.filter-sheet-actions button:last-child')?.click();
+        if (filterSurface === '.filter-sheet') {
+          document.querySelector('.filter-sheet-actions button:last-child')?.click();
+        }
         return true;
       })()
     `)) as boolean;
@@ -274,7 +338,9 @@ async function selectCaptureView(): Promise<void> {
       throw new Error(`Capture view did not apply filters: ${captureRequestedView}.`);
     }
 
-    await waitForCaptureSelector('.filter-sheet', false);
+    if (captureWidth <= 700) {
+      await waitForCaptureSelector('.filter-sheet', false);
+    }
 
     if (captureRequestedView === 'library-empty') {
       await waitForCaptureSelector('.library-film-field .blank-slate');
@@ -282,6 +348,16 @@ async function selectCaptureView(): Promise<void> {
   }
 
   if (captureRequestedView === 'search-long') {
+    const setLongSearchQuery = `
+      (() => {
+        const input = document.querySelector('.archive-search input');
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        setter?.call(input, 'a');
+        input?.dispatchEvent(new Event('input', { bubbles: true }));
+      })()
+    `;
+    await mainWindow.webContents.executeJavaScript(setLongSearchQuery);
+    await waitForCaptureSelector('.search-result');
     const moveToLongSearchResult = `
       (() => {
         const input = document.querySelector('.archive-search input');
@@ -310,7 +386,7 @@ async function selectCaptureView(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 50));
     const searchFocusRestored = (await mainWindow.webContents.executeJavaScript(`
       (() => {
-        const searchItem = [...document.querySelectorAll('.nav-item')]
+        const searchItem = [...document.querySelectorAll(${JSON.stringify(navigationSelector)})]
           .find((item) => item.textContent?.trim().toLowerCase().includes('search'));
         return Boolean(document.querySelector('.diary-view') && document.activeElement === searchItem);
       })()
@@ -322,7 +398,7 @@ async function selectCaptureView(): Promise<void> {
 
     await mainWindow.webContents.executeJavaScript(`
       (() => {
-        const searchItem = [...document.querySelectorAll('.nav-item')]
+        const searchItem = [...document.querySelectorAll(${JSON.stringify(navigationSelector)})]
           .find((item) => item.textContent?.trim().toLowerCase().includes('search'));
         searchItem?.focus();
         searchItem?.click();
@@ -330,14 +406,34 @@ async function selectCaptureView(): Promise<void> {
     `);
     await waitForCaptureSelector('.search-view');
 
+    await mainWindow.webContents.executeJavaScript(setLongSearchQuery);
+    await waitForCaptureSelector('.search-result');
+
     if (!((await mainWindow.webContents.executeJavaScript(moveToLongSearchResult)) as boolean)) {
       throw new Error('Long Search keyboard navigation did not remain visible after reopening Search.');
     }
   }
 
+  if (captureRequestedView === 'search-results') {
+    await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        const input = document.querySelector('.archive-search input');
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+        setter?.call(input, 'ring');
+        input?.dispatchEvent(new Event('input', { bubbles: true }));
+      })()
+    `);
+    await waitForCaptureSelector('.search-result');
+  }
+
   if (
     captureRequestedView === 'log' ||
     captureRequestedView === 'log-selected' ||
+    captureRequestedView === 'log-ambiguity' ||
+    captureRequestedView === 'log-path-match' ||
+    captureRequestedView === 'log-multiple-paths' ||
+    captureRequestedView === 'log-rating-none' ||
+    captureRequestedView === 'log-rating-numeric' ||
     captureRequestedView === 'persistence-save'
   ) {
     await verifyLogDialogKeyboard(logActionSelector);
@@ -405,7 +501,12 @@ async function selectCaptureView(): Promise<void> {
     }
   }
 
-  if (captureRequestedView === 'log-selected' || captureRequestedView === 'persistence-save') {
+  if (
+    captureRequestedView === 'log-selected' ||
+    captureRequestedView === 'log-ambiguity' ||
+    captureRequestedView === 'log-path-match' ||
+    captureRequestedView === 'persistence-save'
+  ) {
     await mainWindow.webContents.executeJavaScript(`
       (() => {
         const setCaptureInput = (selector, value) => {
@@ -420,6 +521,60 @@ async function selectCaptureView(): Promise<void> {
     await waitForCaptureSelector('.film-search-results button');
     await mainWindow.webContents.executeJavaScript(`document.querySelector('.film-search-results button')?.click()`);
     await waitForCaptureSelector('.selected-film .poster-art');
+  }
+
+  if (captureRequestedView === 'log-ambiguity') {
+    await mainWindow.webContents.executeJavaScript(`document.querySelector('.media-chooser')?.click()`);
+    await waitForCaptureSelector('.log-ambiguity-error');
+    const blocked = (await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        const submit = document.querySelector('.log-sheet .entry-form button[type="submit"]');
+        return document.querySelectorAll('.selected-media p').length > 1 && submit?.disabled === true;
+      })()
+    `)) as boolean;
+
+    if (!blocked) {
+      throw new Error('Ambiguous multi-media logging did not remain visibly blocked without submission.');
+    }
+
+    if ((await historyStore.readState()).history.length !== initialRawHistoryCount) {
+      throw new Error('Ambiguous multi-media logging changed history before the blocked submission was resolved.');
+    }
+  }
+
+  if (captureRequestedView === 'log-path-match' || captureRequestedView === 'log-multiple-paths') {
+    await mainWindow.webContents.executeJavaScript(`document.querySelector('.media-chooser')?.click()`);
+    const expectedPathCount = captureRequestedView === 'log-path-match' ? 1 : 2;
+    await waitForCaptureSelector('.selected-media');
+    const selectedPathCount = (await mainWindow.webContents.executeJavaScript(
+      `document.querySelectorAll('.selected-media p').length`
+    )) as number;
+
+    if (selectedPathCount !== expectedPathCount) {
+      throw new Error(`${captureRequestedView} selected ${selectedPathCount} paths instead of ${expectedPathCount}.`);
+    }
+
+    await mainWindow.webContents.executeJavaScript(`
+      document.querySelector('.log-sheet .entry-form button[type="submit"]')?.click()
+    `);
+    await waitForCaptureSelector('.log-sheet', false);
+    const nextState = await readState();
+
+    if (nextState.history.length !== initialRawHistoryCount + expectedPathCount) {
+      throw new Error(`${captureRequestedView} did not persist exactly ${expectedPathCount} accepted paths.`);
+    }
+
+    if (captureRequestedView === 'log-path-match') {
+      const sourcePath = nextState.libraryItems[0]?.sourcePath;
+      const entry = nextState.history.find(
+        (candidate) => candidate.source === 'drop' && candidate.sourcePath === sourcePath
+      );
+      const film = entry ? nextState.films?.[readFilmKey(parseFilmTitle(entry.title))] : null;
+
+      if (!entry || film?.status !== 'matched' || film.title !== 'The Ring') {
+        throw new Error('The accepted single media path did not receive the selected catalog match.');
+      }
+    }
   }
 
   if (captureRequestedView === 'filters') {
@@ -480,7 +635,11 @@ async function selectCaptureView(): Promise<void> {
     await waitForCaptureSelector('.library-inspector');
   }
 
-  if (captureRequestedView === 'detail' || captureRequestedView === 'detail-missing') {
+  if (
+    captureRequestedView === 'detail' ||
+    captureRequestedView === 'detail-missing' ||
+    captureRequestedView === 'detail-outage'
+  ) {
     const movieSelector = '.movie-card:has(.poster-art) .movie-card-face';
     const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
       (() => {
@@ -503,6 +662,31 @@ async function selectCaptureView(): Promise<void> {
       document.querySelector('.movie-card-selected .movie-card-face')?.click()
     `);
     await new Promise((resolve) => setTimeout(resolve, 180));
+
+    if (captureRequestedView === 'detail-outage') {
+      await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          const details = document.querySelector('.match-study');
+          if (details) details.open = true;
+          document.querySelector('.match-search')?.requestSubmit();
+        })()
+      `);
+      await waitForCaptureSelector('.dossier-match-error');
+      await mainWindow.webContents.executeJavaScript(`
+        document.querySelector('.dossier-match-error')?.scrollIntoView({ block: 'center' })
+      `);
+    }
+  }
+
+  if (captureRequestedView === 'statistics-lower') {
+    await waitForCaptureSelector('.activity-panel');
+    await mainWindow.webContents.executeJavaScript(`
+      document.querySelector('.activity-panel')?.scrollIntoView({ block: 'start' })
+    `);
+  }
+
+  if (captureRequestedView === 'log-rating-none' || captureRequestedView === 'log-rating-numeric') {
+    await verifyRatingKeyboardFocus(captureRequestedView);
   }
 
   if (
@@ -525,25 +709,62 @@ async function selectCaptureView(): Promise<void> {
   }
 
   if (captureRequestedView === 'persistence-save') {
+    const populated = (await mainWindow.webContents.executeJavaScript(`
+      (() => {
+        const proof = ${JSON.stringify(persistenceProof)};
+        const setValue = (selector, value) => {
+          const control = document.querySelector(selector);
+          const prototype = control instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+          const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+          setter?.call(control, value);
+          control?.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        setValue('.log-sheet .entry-form textarea[name="review"]', proof.review);
+        setValue('.log-sheet .entry-form textarea[name="castNotes"]', proof.castNotes);
+        setValue('.log-sheet .entry-form input[name="tags"]', proof.tags.join(', '));
+        setValue('.log-sheet .entry-form input[name="viewingFormat"]', proof.viewingFormat);
+        setValue('.log-sheet .entry-form input[name="location"]', proof.location);
+        for (const name of ['favorite', 'rewatch']) {
+          const checkbox = document.querySelector('.log-sheet .entry-form input[name="' + name + '"]');
+          if (checkbox && !checkbox.checked) checkbox.click();
+        }
+        return (
+          document.querySelector('.log-sheet textarea[name="review"]')?.value === proof.review &&
+          document.querySelector('.log-sheet textarea[name="castNotes"]')?.value === proof.castNotes &&
+          document.querySelector('.log-sheet input[name="tags"]')?.value === proof.tags.join(', ') &&
+          document.querySelector('.log-sheet input[name="viewingFormat"]')?.value === proof.viewingFormat &&
+          document.querySelector('.log-sheet input[name="location"]')?.value === proof.location &&
+          document.querySelector('.log-sheet input[name="favorite"]')?.checked === true &&
+          document.querySelector('.log-sheet input[name="rewatch"]')?.checked === true
+        );
+      })()
+    `)) as boolean;
+
+    if (!populated) {
+      throw new Error('The installed Log Film form did not accept every persistence proof value.');
+    }
     await mainWindow.webContents.executeJavaScript(`
       document.querySelector('.log-sheet .entry-form button[type="submit"]')?.click()
     `);
     await waitForCaptureSelector('.log-sheet', false);
     await waitForCaptureSelector('.diary-view');
+    const savedEntry = (await historyStore.readState()).history.find(
+      (entry) => entry.review === persistenceProof.review
+    );
+
+    if (!entryMatchesPersistenceProof(savedEntry)) {
+      throw new Error('The installed Log Film flow did not persist every annotation exactly.');
+    }
+
+    if (process.env.MOVIE_LOG_PERSISTENCE_PROOF_PATH) {
+      await writeFile(process.env.MOVIE_LOG_PERSISTENCE_PROOF_PATH, `${JSON.stringify(savedEntry, null, 2)}\n`, 'utf8');
+    }
   }
 
   if (captureRequestedView === 'persistence-verify') {
-    const expectedEntryId = process.env.MOVIE_LOG_PERSISTENCE_ENTRY_ID;
-
-    if (!expectedEntryId) {
-      throw new Error('Persistence verification requires MOVIE_LOG_PERSISTENCE_ENTRY_ID.');
-    }
-
-    const entrySurvivedRelaunch = (await mainWindow.webContents.executeJavaScript(`
-      window.movieLog.getState().then((state) =>
-        state.history.some((entry) => entry.id === ${JSON.stringify(expectedEntryId)})
-      )
-    `)) as boolean;
+    const entrySurvivedRelaunch = entryMatchesPersistenceProof(
+      (await historyStore.readState()).history.find((entry) => entry.review === persistenceProof.review)
+    );
 
     if (!entrySurvivedRelaunch) {
       throw new Error('The scratch Log Film entry did not survive the installed-app relaunch.');
@@ -555,6 +776,7 @@ async function selectCaptureView(): Promise<void> {
     'catalog-outage': '.catalog-error',
     detail: '.movie-dossier',
     'detail-missing': '.movie-dossier',
+    'detail-outage': '.dossier-match-error',
     diary: '.diary-view',
     'diary-grid': '#diary-panel-grid',
     'diary-ledger': '#diary-panel-ledger',
@@ -565,12 +787,21 @@ async function selectCaptureView(): Promise<void> {
     'library-selected': '.library-inspector',
     log: '.log-sheet',
     'log-selected': '.selected-film',
+    'log-ambiguity': '.log-ambiguity-error',
+    'log-path-match': '.diary-view',
+    'log-multiple-paths': '.diary-view',
+    'log-rating-none': '.rating-none:has(input:focus-visible)',
+    'log-rating-numeric': '.rating-segment:has(input:focus-visible)',
+    loading: '.screen-loading',
+    'load-error': '.error-state',
     'persistence-save': '.diary-view',
     'persistence-verify': '.diary-view',
     search: '.search-view',
+    'search-results': '.search-result',
     'search-long': '.search-result-active',
     settings: '.settings-view',
-    statistics: '.statistics-view'
+    statistics: '.statistics-view',
+    'statistics-lower': '.activity-panel'
   }[captureRequestedView];
   const viewRendered = (await mainWindow.webContents.executeJavaScript(
     `Boolean(document.querySelector(${JSON.stringify(viewSelector)}))`
@@ -639,6 +870,55 @@ async function verifyLogDialogKeyboard(logActionSelector: string): Promise<void>
     `document.querySelector(${JSON.stringify(logActionSelector)})?.click()`
   );
   await waitForCaptureSelector('.log-sheet');
+}
+
+async function verifyRatingKeyboardFocus(profile: 'log-rating-none' | 'log-rating-numeric'): Promise<void> {
+  if (!mainWindow) {
+    return;
+  }
+
+  const focusSelector =
+    profile === 'log-rating-none' ? '.log-sheet .rating-none input' : '.log-sheet .rating-segment input:first-of-type';
+
+  if (profile === 'log-rating-none') {
+    await mainWindow.webContents.executeJavaScript(`
+      document.querySelectorAll('.log-sheet .rating-segment input')[3]?.focus()
+    `);
+    mainWindow.webContents.sendInputEvent({ keyCode: 'Space', type: 'keyDown' });
+    mainWindow.webContents.sendInputEvent({ keyCode: 'Space', type: 'keyUp' });
+  }
+
+  await mainWindow.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(focusSelector)})?.focus()`);
+  mainWindow.webContents.sendInputEvent({ keyCode: 'Space', type: 'keyDown' });
+  mainWindow.webContents.sendInputEvent({ keyCode: 'Space', type: 'keyUp' });
+
+  if (profile === 'log-rating-numeric') {
+    mainWindow.webContents.sendInputEvent({ keyCode: 'Right', type: 'keyDown' });
+    mainWindow.webContents.sendInputEvent({ keyCode: 'Right', type: 'keyUp' });
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  const focusVisible = (await mainWindow.webContents.executeJavaScript(`
+    (() => {
+      const input =
+        ${JSON.stringify(profile)} === 'log-rating-none'
+          ? document.querySelector('.log-sheet .rating-none input')
+          : document.querySelector('.log-sheet .rating-segment input:checked');
+      const control = input?.closest('label');
+      const style = control ? getComputedStyle(control) : null;
+      return Boolean(
+        input?.checked &&
+        document.activeElement === input &&
+        style &&
+        style.outlineStyle !== 'none' &&
+        Number.parseFloat(style.outlineWidth) >= 2
+      );
+    })()
+  `)) as boolean;
+
+  if (!focusVisible) {
+    throw new Error(`${profile} did not preserve a structural focus outline after keyboard selection.`);
+  }
 }
 
 async function verifyMobileSheetLifecycle({
@@ -792,6 +1072,8 @@ async function captureIfRequested(): Promise<void> {
 
   await selectCaptureView();
   await new Promise((resolve) => setTimeout(resolve, 300));
+  mainWindow.webContents.sendInputEvent({ type: 'mouseMove', x: 1, y: 1 });
+  await new Promise((resolve) => setTimeout(resolve, 50));
   const layout = (await mainWindow.webContents.executeJavaScript(`
     (() => {
       const root = document.documentElement;
@@ -826,6 +1108,10 @@ async function captureIfRequested(): Promise<void> {
     throw new Error('Desktop capture did not keep the structural spine visible and mobile navigation hidden.');
   }
 
+  // The first capture after a tab or focus transition can contain incomplete
+  // compositor layers on macOS. Warm the surface, then retain the settled frame.
+  await mainWindow.webContents.capturePage();
+  await new Promise((resolve) => setTimeout(resolve, 100));
   const image = await mainWindow.webContents.capturePage();
   const imageSize = image.getSize();
 
@@ -874,9 +1160,18 @@ async function createWindow(): Promise<void> {
   });
 
   if (process.env.VITE_DEV_SERVER_URL) {
-    await mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+    const rendererUrl = new URL(process.env.VITE_DEV_SERVER_URL);
+
+    if (captureRequested) {
+      rendererUrl.searchParams.set('capture', captureRequestedView);
+    }
+
+    await mainWindow.loadURL(rendererUrl.toString());
   } else {
-    await mainWindow.loadFile(join(currentDirectory, '../dist/index.html'));
+    await mainWindow.loadFile(
+      join(currentDirectory, '../dist/index.html'),
+      captureRequested ? { query: { capture: captureRequestedView } } : undefined
+    );
   }
 
   mainWindow.on('close', (event) => {
@@ -953,6 +1248,15 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('movie-log:choose-log-paths', async () => {
+    if (
+      captureRequestedView === 'log-ambiguity' ||
+      captureRequestedView === 'log-path-match' ||
+      captureRequestedView === 'log-multiple-paths'
+    ) {
+      const limit = captureRequestedView === 'log-path-match' ? 1 : 2;
+      return (await historyStore.readState()).libraryItems.slice(0, limit).map((item) => item.sourcePath);
+    }
+
     const result = await dialog.showOpenDialog({
       properties: ['openFile', 'openDirectory', 'multiSelections']
     });
@@ -964,17 +1268,38 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('movie-log:get-note-file-path', async () => historyStore.getNoteFilePath());
 
-  ipcMain.handle('movie-log:get-state', async () => readState());
+  ipcMain.handle('movie-log:get-state', async () => {
+    if (captureRequestedView === 'loading') {
+      await new Promise((resolve) => setTimeout(resolve, 10_000));
+    }
 
-  ipcMain.handle('movie-log:log-paths', async (_event, paths: string[], details?: LogEntryDetails) => {
-    const result = await logPathsFromDrop(paths, {
-      addHistoryEntries: async (entries) => historyStore.addHistoryEntries(entries),
-      broadcastState,
-      createEntryForPath: async (itemPath) => createEntryForPath(itemPath, 'drop', details)
-    });
-    void enrichFilms();
-    return result;
+    if (captureRequestedView === 'load-error') {
+      throw new Error("Error invoking remote method 'movie-log:get-state': ENOENT /private/archive.json");
+    }
+
+    return readState();
   });
+
+  ipcMain.handle(
+    'movie-log:log-paths',
+    async (_event, paths: string[], details?: LogEntryDetails, selectedFilm?: LogFilmRequest) => {
+      const result = await logPathsFromDrop(
+        paths,
+        {
+          addHistoryEntries: async (entries) => historyStore.addHistoryEntries(entries),
+          broadcastState,
+          createEntryForPath: async (itemPath) => createEntryForPath(itemPath, 'drop', details),
+          matchFilmForEntry: async (entry, film) => {
+            const key = readFilmKey(parseFilmTitle(entry.title));
+            await filmIndex.matchFilm(key, film, film.pageId);
+          }
+        },
+        selectedFilm
+      );
+      void enrichFilms();
+      return result;
+    }
+  );
 
   ipcMain.handle('movie-log:log-film', async (_event, film: LogFilmRequest, details?: LogEntryDetails) => {
     const { watchedAt = new Date().toISOString(), ...annotations } = details ?? {};
@@ -996,14 +1321,14 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('movie-log:search-catalog', async (_event, query: string) => {
-    const captureCatalogOutage = captureRequestedView === 'catalog-outage';
+    const captureCatalogOutage = captureRequestedView === 'catalog-outage' || captureRequestedView === 'detail-outage';
     return searchCatalogWithFallback(query, {
       searchCachedFilms: captureCatalogOutage ? async () => [] : filmIndex.searchFilms,
       searchLiveFilms: captureCatalogOutage
         ? async () => {
             throw new Error('Catalog connection unavailable.');
           }
-        : filmCatalog.searchFilms
+        : (query, signal) => filmCatalog.searchFilms(query, { signal })
     });
   });
 
@@ -1047,6 +1372,10 @@ function registerIpcHandlers(): void {
       await broadcastState();
     }
   });
+
+  ipcMain.handle('movie-log:retry-film-enrichment', async () => {
+    void enrichFilms(true);
+  });
 }
 
 async function startExistingWatchers(): Promise<void> {
@@ -1068,6 +1397,7 @@ async function pauseBackgroundWork(): Promise<void> {
   }
 
   await folderMonitor.dispose();
+  filmIndex.cancelEnrichment();
   backgroundWorkRunning = false;
 }
 
@@ -1107,6 +1437,7 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
+  filmIndex.cancelEnrichment();
   statusItem?.destroy();
   statusItem = null;
 });

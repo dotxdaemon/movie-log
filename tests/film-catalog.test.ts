@@ -10,7 +10,11 @@ const searchPayload = {
         pageid: 79985226,
         title: 'The Plague (2025 film)',
         index: 1,
-        thumbnail: { source: 'https://upload.wikimedia.org/wikipedia/en/c/c3/The_Plague_film_poster.jpg', width: 282, height: 353 },
+        thumbnail: {
+          source: 'https://upload.wikimedia.org/wikipedia/en/c/c3/The_Plague_film_poster.jpg',
+          width: 282,
+          height: 353
+        },
         pageprops: { wikibase_item: 'Q134052834' },
         description: 'Psychological drama thriller film'
       },
@@ -18,7 +22,11 @@ const searchPayload = {
         pageid: 2411105,
         title: 'The Plague Dogs (film)',
         index: 2,
-        thumbnail: { source: 'https://upload.wikimedia.org/wikipedia/en/0/08/Plaguedogsposter.jpg', width: 261, height: 380 },
+        thumbnail: {
+          source: 'https://upload.wikimedia.org/wikipedia/en/0/08/Plaguedogsposter.jpg',
+          width: 261,
+          height: 380
+        },
         pageprops: { wikibase_item: 'Q1138751' },
         description: '1982 British-American film'
       },
@@ -40,7 +48,11 @@ const pagePayload = {
         pageid: 23270459,
         title: 'Inception',
         fullurl: 'https://en.wikipedia.org/wiki/Inception',
-        thumbnail: { source: 'https://upload.wikimedia.org/wikipedia/en/2/2e/Inception_poster.jpg', width: 220, height: 326 },
+        thumbnail: {
+          source: 'https://upload.wikimedia.org/wikipedia/en/2/2e/Inception_poster.jpg',
+          width: 220,
+          height: 326
+        },
         pageprops: { wikibase_item: 'Q25188' }
       }
     }
@@ -56,7 +68,10 @@ const claimsPayload = {
           { mainsnak: { datavalue: { value: { id: 'Q38111' } } } },
           { mainsnak: { datavalue: { value: { id: 'Q211553' } } } }
         ],
-        P495: [{ mainsnak: { datavalue: { value: { id: 'Q145' } } } }, { mainsnak: { datavalue: { value: { id: 'Q30' } } } }],
+        P495: [
+          { mainsnak: { datavalue: { value: { id: 'Q145' } } } },
+          { mainsnak: { datavalue: { value: { id: 'Q30' } } } }
+        ],
         P364: [{ mainsnak: { datavalue: { value: { id: 'Q1860' } } } }],
         P2047: [{ mainsnak: { datavalue: { value: { amount: '+148' } } } }],
         P136: [{ mainsnak: { datavalue: { value: { id: 'Q471839' } } } }],
@@ -142,6 +157,42 @@ describe('searchFilms', () => {
     });
     expect(results[1]?.year).toBe(1982);
     expect(results[2]?.posterUrl).toBeNull();
+  });
+
+  it('times out a stalled Wikipedia or Wikidata request boundary', async () => {
+    const catalog = createFilmCatalog({
+      fetchJson: async () => new Promise<never>(() => {}),
+      requestTimeoutMs: 2
+    });
+    const outcome = await Promise.race([
+      catalog.searchFilms('Never Settles').then(
+        () => 'resolved',
+        (error: Error) => error.message
+      ),
+      new Promise<'blocked'>((resolve) => setTimeout(() => resolve('blocked'), 100))
+    ]);
+
+    expect(outcome).toContain('timed out');
+  });
+
+  it('cancels an in-flight catalog request explicitly', async () => {
+    const catalog = createFilmCatalog({
+      fetchJson: async () => new Promise<never>(() => {}),
+      requestTimeoutMs: 1000
+    });
+    const controller = new AbortController();
+    const search = catalog.searchFilms('Cancel Me', { signal: controller.signal });
+    controller.abort();
+
+    const outcome = await Promise.race([
+      search.then(
+        () => 'resolved',
+        (error: Error) => error.message
+      ),
+      new Promise<'blocked'>((resolve) => setTimeout(() => resolve('blocked'), 100))
+    ]);
+
+    expect(outcome).toContain('cancelled');
   });
 });
 

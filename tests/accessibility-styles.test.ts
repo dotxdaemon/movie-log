@@ -40,4 +40,10 @@ describe('accessible archive styles', () => {
 
     expect(undersized).toEqual([]);
   });
+
+  it('outlines the full None and numeric rating options on keyboard focus', () => {
+    expect(stylesheet).toMatch(
+      /\.rating-segment:has\(input:focus-visible\),\s*\.rating-none:has\(input:focus-visible\)\s*\{[^}]*outline:\s*2px solid var\(--ink\)[^}]*outline-offset:\s*2px/s
+    );
+  });
 });

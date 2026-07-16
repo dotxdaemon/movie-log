@@ -23,8 +23,12 @@ describe('Movie Log public API', () => {
     const appSource = await readFile(join(rootDirectory, 'src', 'App.tsx'), 'utf8');
 
     expect(sharedTypesSource).toContain('export interface LogPathsResult');
-    expect(sharedTypesSource).toContain('logPaths(paths: string[], details?: LogEntryDetails): Promise<LogPathsResult>;');
-    expect(preloadSource).toContain("logPaths: (paths, details) => ipcRenderer.invoke('movie-log:log-paths', paths, details)");
+    expect(sharedTypesSource).toContain(
+      'logPaths(paths: string[], details?: LogEntryDetails, film?: LogFilmRequest): Promise<LogPathsResult>;'
+    );
+    expect(preloadSource).toContain(
+      "logPaths: (paths, details, film) => ipcRenderer.invoke('movie-log:log-paths', paths, details, film)"
+    );
     expect(appSource).toContain('loggedPaths.addedCount');
     expect(appSource).toContain('loggedPaths.skippedPaths');
   });
@@ -34,9 +38,16 @@ describe('Movie Log public API', () => {
     const sharedTypesSource = await readFile(join(rootDirectory, 'shared', 'types.ts'), 'utf8');
 
     expect(sharedTypesSource).toContain('chooseLogPaths(): Promise<string[]>;');
-    expect(sharedTypesSource).toContain('updateEntry(entryId: string, details: EntryDetails): Promise<WatchEntry | null>;');
-    expect(sharedTypesSource).toContain('logPaths(paths: string[], details?: LogEntryDetails): Promise<LogPathsResult>;');
+    expect(sharedTypesSource).toContain(
+      'updateEntry(entryId: string, details: EntryDetails): Promise<WatchEntry | null>;'
+    );
+    expect(sharedTypesSource).toContain(
+      'logPaths(paths: string[], details?: LogEntryDetails, film?: LogFilmRequest): Promise<LogPathsResult>;'
+    );
     expect(preloadSource).toContain("chooseLogPaths: () => ipcRenderer.invoke('movie-log:choose-log-paths')");
-    expect(preloadSource).toContain("updateEntry: (entryId, details) => ipcRenderer.invoke('movie-log:update-entry', entryId, details)");
+    expect(preloadSource).toContain(
+      "updateEntry: (entryId, details) => ipcRenderer.invoke('movie-log:update-entry', entryId, details)"
+    );
+    expect(preloadSource).toContain("retryFilmEnrichment: () => ipcRenderer.invoke('movie-log:retry-film-enrichment')");
   });
 });

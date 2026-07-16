@@ -2,11 +2,44 @@
 // ABOUTME: Keeps renderer compositing cost low enough for responsive desktop interactions.
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import postcss, { type Container } from 'postcss';
 import { describe, expect, it } from 'vitest';
 
 const stylesPath = fileURLToPath(new URL('../src/styles.css', import.meta.url));
 
 describe('styles.css', () => {
+  it('keeps one authoritative rule per selector and one block per responsive query', async () => {
+    const styles = await readFile(stylesPath, 'utf8');
+    const root = postcss.parse(styles);
+    const duplicateSelectors: string[] = [];
+
+    function inspect(container: Container, context: string): void {
+      const seen = new Set<string>();
+
+      for (const node of container.nodes ?? []) {
+        if (node.type === 'rule') {
+          if (seen.has(node.selector)) {
+            duplicateSelectors.push(`${context}: ${node.selector}`);
+          }
+
+          seen.add(node.selector);
+        }
+
+        if (node.type === 'atrule' && node.nodes) {
+          inspect(node, `${node.name} ${node.params}`);
+        }
+      }
+    }
+
+    inspect(root, 'root');
+    const mediaQueries = root.nodes.flatMap((node) =>
+      node.type === 'atrule' && node.name === 'media' ? [node.params] : []
+    );
+
+    expect(duplicateSelectors).toEqual([]);
+    expect(new Set(mediaQueries).size).toBe(mediaQueries.length);
+  });
+
   it('keeps the large window surfaces free of backdrop blur', async () => {
     const styles = await readFile(stylesPath, 'utf8');
 
@@ -139,6 +172,9 @@ describe('styles.css', () => {
     expect(styles).toMatch(
       /@media \(min-width:\s*520px\) and \(max-width:\s*700px\)\s*\{[^}]*\.movie-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s
     );
+    expect(styles.lastIndexOf('@media (min-width: 520px) and (max-width: 700px)')).toBeGreaterThan(
+      styles.lastIndexOf('@media (max-width: 700px)')
+    );
   });
 
   it('defines spacing, shadow, and motion tokens for the shared visual system', async () => {
@@ -153,7 +189,7 @@ describe('styles.css', () => {
     expect(styles).toContain('--motion:');
   });
 
-  it('contains none of the twelve obsolete style families', async () => {
+  it('contains none of the obsolete style families removed by the archive passes', async () => {
     const styles = await readFile(stylesPath, 'utf8');
     const obsoleteFamilies = [
       'entry-poster',
@@ -167,7 +203,8 @@ describe('styles.css', () => {
       'primary-button',
       'secondary-button',
       'text-button',
-      'loading-row'
+      'loading-row',
+      'header-filters'
     ];
 
     for (const family of obsoleteFamilies) {

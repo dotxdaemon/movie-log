@@ -13,6 +13,7 @@ import type { CatalogSearchResult, EntryDetails, MovieLogState } from '../../sha
 const dateFormatter = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 
 interface DossierViewProps {
+  matchError: string | null;
   matchPending: boolean;
   matchResults: CatalogSearchResult[];
   onCopyPath(path: string): Promise<void>;
@@ -26,6 +27,7 @@ interface DossierViewProps {
 }
 
 export function DossierView({
+  matchError,
   matchPending,
   matchResults,
   onCopyPath,
@@ -110,9 +112,15 @@ export function DossierView({
           <div className="dossier-actions">
             {fileBacked ? (
               <>
-                <button onClick={() => void onOpenItem(item.sourcePath)} type="button">Open</button>
-                <button onClick={() => void onOpenInFinder(item.sourcePath)} type="button">Show in Finder</button>
-                <button onClick={() => void onCopyPath(item.sourcePath)} type="button">Copy path</button>
+                <button onClick={() => void onOpenItem(item.sourcePath)} type="button">
+                  Open
+                </button>
+                <button onClick={() => void onOpenInFinder(item.sourcePath)} type="button">
+                  Show in Finder
+                </button>
+                <button onClick={() => void onCopyPath(item.sourcePath)} type="button">
+                  Copy path
+                </button>
               </>
             ) : (
               <span className="dossier-source-note">Logged from the film catalog</span>
@@ -120,23 +128,33 @@ export function DossierView({
           </div>
 
           <details className="match-study">
-            <summary>
-              Catalog match · {film?.status === 'matched' ? film.title : 'None'}
-            </summary>
+            <summary>Catalog match · {film?.status === 'matched' ? film.title : 'None'}</summary>
             <div className="match-study-body">
               <form className="match-search" onSubmit={submitMatchSearch}>
-                <label className="visually-hidden" htmlFor="dossier-match-input">Search the film catalog</label>
+                <label className="visually-hidden" htmlFor="dossier-match-input">
+                  Search the film catalog
+                </label>
                 <input defaultValue={item.displayTitle} id="dossier-match-input" name="matchQuery" type="search" />
-                <button className="command-block" type="submit">Search catalog</button>
+                <button className="command-block" type="submit">
+                  Search catalog
+                </button>
               </form>
               {matchPending ? <p className="match-pending">Searching…</p> : null}
+              {matchError ? (
+                <div className="catalog-error dossier-match-error" role="alert">
+                  <strong>Catalog search failed</strong>
+                  <span>{matchError}</span>
+                </div>
+              ) : null}
               {matchResults.length > 0 ? (
                 <ol className="match-results">
                   {matchResults.map((result) => (
                     <li key={result.pageId}>
                       <button onClick={() => onMatchFilm(item, result.pageId)} type="button">
                         <span className="match-result-title">{result.title}</span>
-                        <span className="match-result-meta">{result.year ?? '—'} · {result.description || 'Catalog page'}</span>
+                        <span className="match-result-meta">
+                          {result.year ?? '—'} · {result.description || 'Catalog page'}
+                        </span>
                       </button>
                     </li>
                   ))}
@@ -177,7 +195,9 @@ export function DossierView({
               <time className="viewing-date" dateTime={entry.watchedAt}>
                 {dateFormatter.format(new Date(entry.watchedAt))}
               </time>
-              <span className="viewing-rating">{typeof entry.rating === 'number' ? entry.rating.toFixed(1) : 'NR'}</span>
+              <span className="viewing-rating">
+                {typeof entry.rating === 'number' ? entry.rating.toFixed(1) : 'NR'}
+              </span>
               <span className="viewing-kind">{entry.rewatch ? 'Rewatch' : 'Viewing'}</span>
               <span className="viewing-format">{entry.viewingFormat || '—'}</span>
               <span className="viewing-location">{entry.location || '—'}</span>

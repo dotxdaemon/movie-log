@@ -189,6 +189,41 @@ describe('createFilmIndex', () => {
     expect(cleared?.posterUrl).toBeNull();
   });
 
+  it('reuses a complete cached page when attaching that catalog film to another accepted media key', async () => {
+    let catalogAvailable = true;
+    let detailCalls = 0;
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          detailCalls += 1;
+
+          if (!catalogAvailable) {
+            throw new Error('rate limited');
+          }
+
+          return plagueDetails;
+        },
+        async searchFilms() {
+          return [plagueResult];
+        }
+      },
+      dataDirectory
+    });
+    await index.enrichFilms([{ key: 'the plague::2025', title: 'The Plague', year: 2025 }]);
+    catalogAvailable = false;
+
+    const attached = await index.matchFilm('local media::', { title: 'The Plague', year: 2025 }, plagueResult.pageId);
+
+    expect(attached).toMatchObject({
+      director: ['Charlie Polinger'],
+      key: 'local media::',
+      pageId: plagueResult.pageId,
+      status: 'matched',
+      title: 'The Plague'
+    });
+    expect(detailCalls).toBe(1);
+  });
+
   it('keeps films readable when the cache file is corrupt', async () => {
     await writeFile(join(dataDirectory, 'movie-log-films.json'), 'not json', 'utf8');
     const { catalog } = createStubCatalog();
@@ -197,7 +232,7 @@ describe('createFilmIndex', () => {
     expect(await index.readFilms()).toEqual({});
   });
 
-  it('leaves no cache entry when the catalog fails so the next trigger retries', async () => {
+  it('records a temporary failure without mislabeling it as confidently unmatched', async () => {
     const index = createFilmIndex({
       catalog: {
         async fetchFilmDetails() {
@@ -208,11 +243,215 @@ describe('createFilmIndex', () => {
         }
       },
       dataDirectory,
+      maxAttempts: 1,
       now: () => '2026-07-12T10:00:00.000Z'
     });
 
     const changed = await index.enrichFilms([{ key: 'flow::2024', title: 'Flow', year: 2024 }]);
-    expect(changed).toBe(false);
-    expect(await index.readFilms()).toEqual({});
+    expect(changed).toBe(true);
+    expect(await index.readFilms()).toMatchObject({
+      'flow::2024': {
+        attempts: 1,
+        status: 'failed',
+        title: 'Flow'
+      }
+    });
+  });
+
+  it('persists each successful record before the rest of a batch finishes', async () => {
+    let releaseSecond = () => {};
+    let notifyFirstPersisted = () => {};
+    const secondRelease = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    const firstPersisted = new Promise<void>((resolve) => {
+      notifyFirstPersisted = resolve;
+    });
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails(pageId: number) {
+          return pageId === plagueResult.pageId ? plagueDetails : null;
+        },
+        async searchFilms(query: string) {
+          if (query.toLowerCase().includes('slow')) {
+            await secondRelease;
+            return [];
+          }
+
+          return [plagueResult];
+        }
+      },
+      concurrency: 1,
+      dataDirectory,
+      now: () => '2026-07-12T10:00:00.000Z'
+    });
+    const enrichment = index.enrichFilms(
+      [
+        { key: 'the plague::2025', title: 'The Plague', year: 2025 },
+        { key: 'slow::2026', title: 'Slow', year: 2026 }
+      ],
+      {
+        onProgress: (films) => {
+          if (films['the plague::2025']?.status === 'matched') {
+            notifyFirstPersisted();
+          }
+        }
+      }
+    );
+
+    expect(
+      await Promise.race([
+        firstPersisted.then(() => 'persisted'),
+        new Promise((resolve) => setTimeout(() => resolve('blocked'), 100))
+      ])
+    ).toBe('persisted');
+    expect(JSON.parse(await readFile(join(dataDirectory, 'movie-log-films.json'), 'utf8')).films).toMatchObject({
+      'slow::2026': { status: 'pending' },
+      'the plague::2025': { status: 'matched' }
+    });
+
+    releaseSecond();
+    await enrichment;
+  });
+
+  it('times out a catalog boundary and reaches a temporary failed state', async () => {
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          return null;
+        },
+        async searchFilms() {
+          return new Promise<never>(() => {});
+        }
+      },
+      dataDirectory,
+      maxAttempts: 1,
+      requestTimeoutMs: 2
+    });
+    const outcome = await Promise.race([
+      index.enrichFilms([{ key: 'timeout::2026', title: 'Timeout', year: 2026 }]),
+      new Promise<'blocked'>((resolve) => setTimeout(() => resolve('blocked'), 100))
+    ]);
+
+    expect(outcome).not.toBe('blocked');
+    expect((await index.readFilms())['timeout::2026']?.status).toBe('failed');
+  });
+
+  it('retries one transient failure with bounded backoff and persists the eventual match', async () => {
+    let searchCount = 0;
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          return plagueDetails;
+        },
+        async searchFilms() {
+          searchCount += 1;
+
+          if (searchCount === 1) {
+            throw new Error('temporary outage');
+          }
+
+          return [plagueResult];
+        }
+      },
+      dataDirectory,
+      retryDelaysMs: [0]
+    });
+
+    await index.enrichFilms([{ key: 'the plague::2025', title: 'The Plague', year: 2025 }]);
+
+    expect(searchCount).toBe(2);
+    expect((await index.readFilms())['the plague::2025']?.status).toBe('matched');
+  });
+
+  it('prevents duplicate simultaneous enrichment jobs', async () => {
+    let release = () => {};
+    let searchCount = 0;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          return plagueDetails;
+        },
+        async searchFilms() {
+          searchCount += 1;
+          await gate;
+          return [plagueResult];
+        }
+      },
+      dataDirectory
+    });
+    const requests = [{ key: 'the plague::2025', title: 'The Plague', year: 2025 }];
+    const first = index.enrichFilms(requests);
+    const duplicate = index.enrichFilms(requests);
+    release();
+
+    await Promise.all([first, duplicate]);
+    expect(searchCount).toBe(1);
+  });
+
+  it('resumes a persisted pending title after an interrupted application run', async () => {
+    await writeFile(
+      join(dataDirectory, 'movie-log-films.json'),
+      `${JSON.stringify({
+        films: {
+          'the plague::2025': {
+            attempts: 0,
+            cast: [],
+            country: [],
+            director: [],
+            fetchedAt: '2026-07-12T10:00:00.000Z',
+            genres: [],
+            key: 'the plague::2025',
+            language: [],
+            pageId: null,
+            posterUrl: null,
+            runtimeMinutes: null,
+            status: 'pending',
+            title: 'The Plague',
+            wikipediaUrl: null,
+            year: 2025
+          }
+        }
+      })}\n`,
+      'utf8'
+    );
+    const { catalog } = createStubCatalog();
+    const restarted = createFilmIndex({ catalog, dataDirectory });
+
+    await restarted.enrichFilms([{ key: 'the plague::2025', title: 'The Plague', year: 2025 }]);
+
+    expect((await restarted.readFilms())['the plague::2025']?.status).toBe('matched');
+  });
+
+  it('allows an explicit retry to recover a persisted temporary failure', async () => {
+    let available = false;
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          return plagueDetails;
+        },
+        async searchFilms() {
+          if (!available) {
+            throw new Error('offline');
+          }
+
+          return [plagueResult];
+        }
+      },
+      dataDirectory,
+      maxAttempts: 1,
+      now: () => '2026-07-12T10:00:00.000Z'
+    });
+    const requests = [{ key: 'the plague::2025', title: 'The Plague', year: 2025 }];
+    await index.enrichFilms(requests);
+    expect((await index.readFilms())['the plague::2025']?.status).toBe('failed');
+
+    available = true;
+    await index.enrichFilms(requests, { forceRetry: true });
+
+    expect((await index.readFilms())['the plague::2025']?.status).toBe('matched');
   });
 });

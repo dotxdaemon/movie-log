@@ -85,6 +85,7 @@ const baseProps: ArchiveApplicationProps = {
   dataFilePath: '/Data/movie-log.json',
   diaryMode: 'timeline',
   dossierMatchPending: false,
+  dossierMatchError: null,
   dossierMatchResults: [],
   dropActive: false,
   feedback: null,
@@ -121,6 +122,7 @@ const baseProps: ArchiveApplicationProps = {
   onOpenSearchResult: noop,
   onRemoveWatchedFolder: asyncNoop,
   onRetryLoad: noop,
+  onRetryMetadata: asyncNoop,
   onScanNow: asyncNoop,
   onSearchDismiss: noop,
   onSearchActiveIndexChange: noop,
@@ -180,10 +182,12 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'header-rule')).toHaveLength(1);
   });
 
-  it('shows the header filters control on the library view', () => {
+  it('does not duplicate Library filters in the page header', () => {
     const tree = renderSurface('library');
 
-    expect(findByClass(tree, 'header-filters')).toHaveLength(1);
+    expect(findByClass(tree, 'header-filters')).toHaveLength(0);
+    expect(findByClass(tree, 'filter-toolbar')).toHaveLength(1);
+    expect(findByClass(tree, 'filter-sheet-trigger')).toHaveLength(1);
   });
 
   it('renders diary metrics with total runtime from cached film metadata', () => {
@@ -305,6 +309,18 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'search-result-year')).not.toHaveLength(0);
   });
 
+  it('opens Search with a restrained instructional state instead of the complete diary', () => {
+    const tree = renderSurface('search', {
+      searchGroups: buildSearchResults(state, '', []),
+      searchQuery: ''
+    });
+
+    expect(findByClass(tree, 'search-initial')).toHaveLength(1);
+    expect(findByClass(tree, 'search-groups')).toHaveLength(0);
+    expect(findByClass(tree, 'search-result')).toHaveLength(0);
+    expect(readText(tree)).toContain('Search by title, tag, or catalog film');
+  });
+
   it('renders catalog failures as designed errors instead of empty results', () => {
     const searchTree = renderSurface('search', {
       searchCatalogError: 'The film catalog is unavailable.',
@@ -320,6 +336,30 @@ describe('ArchiveApplication', () => {
     expect(findByClass(logTree, 'catalog-error')).toHaveLength(1);
     expect(readText(searchTree)).toContain('The film catalog is unavailable.');
     expect(readText(logTree)).not.toContain('No catalog match.');
+  });
+
+  it('renders subordinate metadata progress with an actionable temporary-failure retry', () => {
+    const progressState: MovieLogState = {
+      ...state,
+      films: {
+        'flow::2024': flowFilm,
+        'heat::1995': {
+          ...flowFilm,
+          attempts: 2,
+          failureReason: 'temporary',
+          key: 'heat::1995',
+          status: 'failed',
+          title: 'Heat',
+          year: 1995
+        }
+      }
+    };
+    const tree = renderSurface('library', { state: progressState });
+
+    expect(findByClass(tree, 'metadata-status')).toHaveLength(1);
+    expect(findByClass(tree, 'metadata-retry')).toHaveLength(1);
+    expect(readText(tree)).toContain('1 of 2 enriched');
+    expect(readText(tree)).toContain('Catalog unavailable');
   });
 
   it('marks the keyboard-active search result', () => {
@@ -385,6 +425,31 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'bar-column-plot').length).toBeGreaterThanOrEqual(2);
     expect(findByClass(tree, 'bar-column-bar').map((bar) => bar.props.style)).toContainEqual({ height: '50%' });
     expect(findByClass(tree, 'activity-cell')).toHaveLength(365);
+    expect(findByClass(tree, 'statistics-coverage')).toHaveLength(1);
+  });
+
+  it('explains an unannotated archive without fabricating ratings or favorites', () => {
+    const unannotatedState: MovieLogState = {
+      ...state,
+      history: state.history.map((entry) => ({
+        ...entry,
+        castNotes: '',
+        favorite: false,
+        location: '',
+        rating: null,
+        review: '',
+        rewatch: false,
+        tags: [],
+        viewingFormat: ''
+      }))
+    };
+    const tree = renderSurface('statistics', { state: unannotatedState });
+    const coverage = findByClass(tree, 'statistics-coverage');
+
+    expect(coverage).toHaveLength(1);
+    expect(readText(coverage)).toContain('Catalog metadata');
+    expect(readText(coverage)).toContain('Personal annotations');
+    expect(readText(coverage)).toContain('Ratings and favorites will appear after you annotate diary entries.');
   });
 
   it('renders settings with watched folders, current contents, and durable file paths', () => {
@@ -423,6 +488,19 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'dossier-backdrop')).toHaveLength(1);
   });
 
+  it('renders sanitized dossier catalog-match failures inside the match study', () => {
+    const tree = renderSurface('detail', {
+      dossierMatchError: 'The film catalog could not be reached. Check your connection and try again.',
+      selectedPath: '/Movies/Flow.2024.mkv'
+    });
+    const error = findByClass(tree, 'dossier-match-error');
+
+    expect(error).toHaveLength(1);
+    expect(error[0]?.props.role).toBe('alert');
+    expect(readText(error)).not.toContain('Error invoking remote method');
+    expect(readText(error)).not.toContain('movie-log:search-catalog');
+  });
+
   it('renders the logging panel with film search before media choice and a visible save footer', () => {
     const tree = renderSurface('diary', { logPanelOpen: true });
     const text = readText(tree);
@@ -445,6 +523,24 @@ describe('ArchiveApplication', () => {
     expect(text).toContain('Current —');
   });
 
+  it('exposes None and every half-step as native radio choices in the shared rating control', () => {
+    const tree = renderSurface('diary', { logPanelOpen: true });
+    const rating = findByClass(tree, 'rating-control')[0];
+    const none = findByClass(tree, 'rating-none')[0];
+    const segments = findByClass(rating ? [rating] : [], 'rating-segment');
+
+    expect(rating?.type).toBe('fieldset');
+    expect(segments).toHaveLength(10);
+    expect(
+      segments.every((segment) =>
+        segment.children.some((child) => child.type === 'input' && child.props.type === 'radio')
+      )
+    ).toBe(true);
+    expect(none?.type).toBe('label');
+    expect(readText(none ? [none] : [])).toContain('None');
+    expect(none?.children.some((child) => child.type === 'input' && child.props.type === 'radio')).toBe(true);
+  });
+
   it('shows the selected film as a poster and metadata unit in the logging panel', () => {
     const tree = renderSurface('diary', {
       logPanelOpen: true,
@@ -463,6 +559,27 @@ describe('ArchiveApplication', () => {
     expect(readText(tree)).toContain('Flow');
     expect(readText(tree)).toContain('2024');
     expect(readText(tree)).toContain('Gints Zilbalodis');
+  });
+
+  it('blocks an ambiguous selected film plus multiple-media draft with designed guidance', () => {
+    const tree = renderSurface('diary', {
+      logPanelOpen: true,
+      logSelectedFilm: {
+        description: '2024 animated film',
+        pageId: 71441742,
+        posterUrl: null,
+        title: 'Flow',
+        year: 2024
+      },
+      pendingLogPaths: ['/Movies/Flow.mkv', '/Movies/Flow-Extras.mkv']
+    });
+    const error = findByClass(tree, 'log-ambiguity-error');
+    const submit = findByClass(tree, 'entry-form-footer')[0]?.children.find((child) => child.type === 'button');
+
+    expect(error).toHaveLength(1);
+    expect(error[0]?.props.role).toBe('alert');
+    expect(readText(error)).toContain('Attach one media item');
+    expect(submit?.props.disabled).toBe(true);
   });
 
   it('uses per-view dimension-preserving loading surfaces instead of the empty state', () => {

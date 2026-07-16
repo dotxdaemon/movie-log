@@ -14,6 +14,7 @@ import { SettingsView } from './views/settings.js';
 import { StatisticsView } from './views/statistics.js';
 import {
   buildArchiveItems,
+  readArchiveCoverage,
   type ArchiveFilters,
   type ArchiveItem,
   type ArchiveView,
@@ -29,6 +30,7 @@ export interface ArchiveApplicationProps {
   dataFilePath: string;
   diaryMode: DiaryMode;
   dossierMatchPending: boolean;
+  dossierMatchError: string | null;
   dossierMatchResults: CatalogSearchResult[];
   dropActive: boolean;
   feedback: WorkspaceFeedback | null;
@@ -65,6 +67,7 @@ export interface ArchiveApplicationProps {
   onOpenSearchResult(result: SearchResultItem): void;
   onRemoveWatchedFolder(id: string): Promise<void>;
   onRetryLoad(): void;
+  onRetryMetadata(): Promise<void>;
   onScanNow(): Promise<void>;
   onSearchDismiss(): void;
   onSearchActiveIndexChange(index: number): void;
@@ -91,11 +94,24 @@ const periodFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', yea
 
 export function ArchiveApplication(props: ArchiveApplicationProps) {
   const archiveItems = buildArchiveItems(props.state);
+  const coverage = readArchiveCoverage(props.state);
   const latestEntry = props.state.history[0];
   const periodLabel = latestEntry ? periodFormatter.format(new Date(latestEntry.watchedAt)).toUpperCase() : 'EMPTY';
 
-  const navigation = <ArchiveNavigation activeView={props.activeView} onOpenLogPanel={props.onOpenLogPanel} onViewChange={props.onViewChange} />;
-  const mobileNavigation = <MobileArchiveNavigation activeView={props.activeView} onOpenLogPanel={props.onOpenLogPanel} onViewChange={props.onViewChange} />;
+  const navigation = (
+    <ArchiveNavigation
+      activeView={props.activeView}
+      onOpenLogPanel={props.onOpenLogPanel}
+      onViewChange={props.onViewChange}
+    />
+  );
+  const mobileNavigation = (
+    <MobileArchiveNavigation
+      activeView={props.activeView}
+      onOpenLogPanel={props.onOpenLogPanel}
+      onViewChange={props.onViewChange}
+    />
+  );
 
   let view = (
     <DiaryView
@@ -158,6 +174,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
     view = (
       <DossierView
         matchPending={props.dossierMatchPending}
+        matchError={props.dossierMatchError}
         matchResults={props.dossierMatchResults}
         onCopyPath={props.onCopyPath}
         onMatchFilm={props.onMatchFilm}
@@ -191,9 +208,10 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
       <PageHeader
         activeView={props.activeView}
         archiveCount={archiveItems.length}
+        coverage={coverage}
         diaryCount={props.state.history.length}
-        onFilterSheetOpen={() => props.onFilterSheetOpenChange(true)}
         onOpenLogPanel={props.onOpenLogPanel}
+        onRetryMetadata={props.onRetryMetadata}
         onSearchQueryChange={props.onSearchQueryChange}
         onViewChange={props.onViewChange}
         periodLabel={periodLabel}
@@ -205,7 +223,9 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
           role={props.feedback.tone === 'error' ? 'alert' : 'status'}
         >
           <span>{props.feedback.message}</span>
-          <button onClick={props.onFeedbackDismiss} type="button">Dismiss</button>
+          <button onClick={props.onFeedbackDismiss} type="button">
+            Dismiss
+          </button>
         </div>
       ) : null}
       <div className="archive-content">{view}</div>

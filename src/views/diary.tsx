@@ -6,6 +6,7 @@ import { FilmPoster } from '../components/film-poster.js';
 import { EmptyState } from '../components/states.js';
 import { formatRuntime, readEntryFilm, sumRuntime, type DiaryMode } from '../archive-model.js';
 import { parseFilmTitle } from '../../shared/film-title.js';
+import { readLocalCalendarMonthKey } from '../../shared/local-calendar.js';
 import type { EntryDetails, MovieLogState } from '../../shared/types.js';
 
 const monthFormatter = new Intl.DateTimeFormat(undefined, {
@@ -53,8 +54,8 @@ export function DiaryView({
   }
 
   const latestDate = new Date((history[0] as (typeof history)[0]).watchedAt);
-  const monthKey = history[0]?.watchedAt.slice(0, 7) ?? '';
-  const monthEntries = history.filter((entry) => entry.watchedAt.startsWith(monthKey));
+  const monthKey = readLocalCalendarMonthKey((history[0] as (typeof history)[0]).watchedAt);
+  const monthEntries = history.filter((entry) => readLocalCalendarMonthKey(entry.watchedAt) === monthKey);
   const monthRatings = monthEntries.filter((entry) => typeof entry.rating === 'number');
   const highestRated = [...monthRatings].sort((left, right) => (right.rating ?? 0) - (left.rating ?? 0))[0];
   const monthRuntime = sumRuntime(monthEntries, state.films);

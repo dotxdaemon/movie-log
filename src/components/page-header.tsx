@@ -1,14 +1,16 @@
 // ABOUTME: Renders the shared archive page title, count line, search, filters, and logging action.
 // ABOUTME: Keeps every view's heading controls in one consistent character-sheet header.
 import { navigationItems, readNavigationView, readViewTitle } from './archive-navigation-data.js';
-import type { ArchiveView } from '../archive-model.js';
+import { MetadataStatus } from './metadata-status.js';
+import type { ArchiveCoverage, ArchiveView } from '../archive-model.js';
 
 interface PageHeaderProps {
   activeView: ArchiveView;
   archiveCount: number;
+  coverage: ArchiveCoverage;
   diaryCount: number;
-  onFilterSheetOpen(): void;
   onOpenLogPanel(): void;
+  onRetryMetadata(): Promise<void>;
   onSearchQueryChange(value: string): void;
   onViewChange(view: ArchiveView): void;
   periodLabel: string;
@@ -18,9 +20,10 @@ interface PageHeaderProps {
 export function PageHeader({
   activeView,
   archiveCount,
+  coverage,
   diaryCount,
-  onFilterSheetOpen,
   onOpenLogPanel,
+  onRetryMetadata,
   onSearchQueryChange,
   onViewChange,
   periodLabel,
@@ -32,9 +35,14 @@ export function PageHeader({
   return (
     <header className="archive-header">
       <div className="header-title-block">
-        <p className="section-index">{sectionIndex} / {periodLabel}</p>
+        <p className="section-index">
+          {sectionIndex} / {periodLabel}
+        </p>
         <h1>{readViewTitle(activeView)}</h1>
-        <p className="header-count-line">{diaryCount} diary entries · {archiveCount} titles</p>
+        <p className="header-count-line">
+          {diaryCount} diary entries · {archiveCount} titles
+        </p>
+        <MetadataStatus coverage={coverage} onRetry={onRetryMetadata} />
         <span aria-hidden="true" className="header-rule" />
       </div>
       <div className="header-actions">
@@ -56,13 +64,10 @@ export function PageHeader({
             />
           </label>
         )}
-        {activeView === 'library' ? (
-          <button className="header-filters" onClick={onFilterSheetOpen} type="button">
-            Filters
-          </button>
-        ) : null}
         <button className="log-action header-log-action" onClick={onOpenLogPanel} type="button">
-          <span aria-hidden="true" className="log-action-plus">+</span>
+          <span aria-hidden="true" className="log-action-plus">
+            +
+          </span>
           Log a Film
         </button>
       </div>

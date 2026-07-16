@@ -1,7 +1,8 @@
 // ABOUTME: Renders viewing statistics as editorial strips, thin bars, compact tables, and a yearly grid.
 // ABOUTME: Every figure derives from persisted diary entries joined with cached film metadata.
 import { EmptyState } from '../components/states.js';
-import { formatRuntime, readArchiveStats } from '../archive-model.js';
+import { formatRuntime, readArchiveCoverage, readArchiveStats } from '../archive-model.js';
+import { createLocalCalendarDate } from '../../shared/local-calendar.js';
 import type { MovieLogState } from '../../shared/types.js';
 
 interface StatisticsViewProps {
@@ -11,9 +12,9 @@ interface StatisticsViewProps {
 
 const activityMonthFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'short',
-  timeZone: 'UTC',
   year: 'numeric'
 });
+const activityMonthShortFormatter = new Intl.DateTimeFormat(undefined, { month: 'short' });
 
 function BarList({ maxRows = 8, rows }: { maxRows?: number; rows: Array<{ count: number; name: string }> }) {
   const visible = rows.slice(0, maxRows);
@@ -36,6 +37,7 @@ function BarList({ maxRows = 8, rows }: { maxRows?: number; rows: Array<{ count:
 
 export function StatisticsView({ now, state }: StatisticsViewProps) {
   const stats = readArchiveStats(state, now);
+  const coverage = readArchiveCoverage(state);
 
   if (stats.totalViewings === 0) {
     return (
@@ -84,6 +86,27 @@ export function StatisticsView({ now, state }: StatisticsViewProps) {
           <dd>{stats.rewatches}</dd>
         </div>
       </dl>
+
+      <section aria-label="Archive coverage" className="statistics-coverage">
+        <div>
+          <span>Catalog metadata</span>
+          <strong>{`${coverage.matched} of ${coverage.total} enriched`}</strong>
+          <small>
+            {coverage.unmatched > 0
+              ? `${coverage.unmatched} need review`
+              : 'Matched details power posters and credits.'}
+          </small>
+        </div>
+        <div>
+          <span>Personal annotations</span>
+          <strong>{`${coverage.annotated} of ${coverage.total} annotated`}</strong>
+          <small>
+            {coverage.annotated === 0
+              ? 'Ratings and favorites will appear after you annotate diary entries.'
+              : 'Ratings, reviews, favorites, tags, and viewing notes come only from your diary.'}
+          </small>
+        </div>
+      </section>
 
       <div className="statistics-panels">
         <section className="chart-panel monthly-chart">
@@ -213,9 +236,11 @@ export function StatisticsView({ now, state }: StatisticsViewProps) {
         </header>
         <div className="activity-calendar">
           <div aria-hidden="true" className="activity-months">
-            {activityMonths.map((day) => (
-              <span className="activity-month-label" key={day.date} style={{ gridColumn: day.week + 1 }}>
-                {activityMonthFormatter.format(new Date(`${day.date}T00:00:00.000Z`))}
+            {activityMonths.map((day, index) => (
+              <span className="activity-month-label" key={day.date} style={{ gridColumn: `${day.week + 1} / span 4` }}>
+                {index === 0 || index === activityMonths.length - 1 || day.date.slice(5, 7) === '01'
+                  ? activityMonthFormatter.format(createLocalCalendarDate(day.date))
+                  : activityMonthShortFormatter.format(createLocalCalendarDate(day.date))}
               </span>
             ))}
           </div>
@@ -230,18 +255,27 @@ export function StatisticsView({ now, state }: StatisticsViewProps) {
               Fri
             </span>
           </div>
-          <div aria-label="Daily viewing counts for the last 365 days" className="activity-grid" role="group">
+          <div aria-hidden="true" className="activity-grid">
             {stats.activity.map((day) => (
               <span
-                aria-label={`${day.date}: ${day.count} ${day.count === 1 ? 'viewing' : 'viewings'}`}
                 className={`activity-cell activity-level-${Math.min(3, day.count)}`}
                 key={day.date}
-                role="img"
                 style={{ gridColumn: day.week + 1, gridRow: day.weekday + 1 }}
                 title={`${day.date} · ${day.count}`}
               />
             ))}
           </div>
+          <ul className="visually-hidden activity-accessible-summary">
+            {stats.activity.some((day) => day.count > 0) ? (
+              stats.activity
+                .filter((day) => day.count > 0)
+                .map((day) => (
+                  <li key={day.date}>{`${day.date}: ${day.count} ${day.count === 1 ? 'viewing' : 'viewings'}`}</li>
+                ))
+            ) : (
+              <li>No viewings in the last 365 days.</li>
+            )}
+          </ul>
         </div>
       </section>
 

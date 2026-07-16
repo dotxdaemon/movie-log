@@ -115,6 +115,112 @@ describe('main actions', () => {
     expect(savedPaths).toEqual(['/Movies/Good.mkv']);
   });
 
+  it('matches one selected catalog film to one accepted media path', async () => {
+    const savedPaths: string[] = [];
+    const matchedPaths: string[] = [];
+    const film = { pageId: 42, title: 'Known Film', year: 2024 };
+
+    const result = await logPathsFromDrop(
+      ['/Movies/Known.Film.2024.mkv'],
+      {
+        addHistoryEntries: async (entries) => {
+          savedPaths.push(...entries.map((entry) => entry.sourcePath));
+          return entries;
+        },
+        broadcastState: async () => {},
+        createEntryForPath: async (itemPath) =>
+          createEntryFromPath(itemPath, 'drop', '2026-07-16T12:00:00.000Z', 'file'),
+        matchFilmForEntry: async (entry, selectedFilm) => {
+          expect(selectedFilm).toEqual(film);
+          matchedPaths.push(entry.sourcePath);
+        }
+      },
+      film
+    );
+
+    expect(result).toEqual({ addedCount: 1, skippedPaths: [] });
+    expect(savedPaths).toEqual(['/Movies/Known.Film.2024.mkv']);
+    expect(matchedPaths).toEqual(['/Movies/Known.Film.2024.mkv']);
+  });
+
+  it('rejects a selected catalog film with multiple media paths before any partial save', async () => {
+    const calls: string[] = [];
+
+    await expect(
+      logPathsFromDrop(
+        ['/Movies/One.mkv', '/Movies/Two.mkv'],
+        {
+          addHistoryEntries: async () => {
+            calls.push('save');
+            return [];
+          },
+          broadcastState: async () => {
+            calls.push('broadcast');
+          },
+          createEntryForPath: async (itemPath) => {
+            calls.push(`create:${itemPath}`);
+            return createEntryFromPath(itemPath, 'drop', '2026-07-16T12:00:00.000Z', 'file');
+          },
+          matchFilmForEntry: async () => {
+            calls.push('match');
+          }
+        },
+        { pageId: 42, title: 'Known Film', year: 2024 }
+      )
+    ).rejects.toThrow('Attach one media item');
+
+    expect(calls).toEqual([]);
+  });
+
+  it('rejects one valid and one skipped path with a selected film before inspecting either path', async () => {
+    const calls: string[] = [];
+
+    await expect(
+      logPathsFromDrop(
+        ['/Movies/Good.mkv', '/Movies/Poster.jpg'],
+        {
+          addHistoryEntries: async () => {
+            calls.push('save');
+            return [];
+          },
+          broadcastState: async () => {},
+          createEntryForPath: async (itemPath) => {
+            calls.push(`create:${itemPath}`);
+            return itemPath.endsWith('.jpg')
+              ? null
+              : createEntryFromPath(itemPath, 'drop', '2026-07-16T12:00:00.000Z', 'file');
+          },
+          matchFilmForEntry: async () => {
+            calls.push('match');
+          }
+        },
+        { pageId: 42, title: 'Known Film', year: 2024 }
+      )
+    ).rejects.toThrow('clear the selected catalog film');
+
+    expect(calls).toEqual([]);
+  });
+
+  it('never matches a selected film when its only media path is skipped', async () => {
+    let matchCount = 0;
+
+    const result = await logPathsFromDrop(
+      ['/Movies/Poster.jpg'],
+      {
+        addHistoryEntries: async (entries) => entries,
+        broadcastState: async () => {},
+        createEntryForPath: async () => null,
+        matchFilmForEntry: async () => {
+          matchCount += 1;
+        }
+      },
+      { pageId: 42, title: 'Known Film', year: 2024 }
+    );
+
+    expect(result).toEqual({ addedCount: 0, skippedPaths: ['/Movies/Poster.jpg'] });
+    expect(matchCount).toBe(0);
+  });
+
   it('rejects a catalog outage when the local cache has no matching films', async () => {
     const outage = new Error('catalog offline');
 
@@ -168,6 +274,23 @@ describe('main actions', () => {
     ]);
 
     expect(outcome).toEqual([cachedFilm]);
+  });
+
+  it('cancels the live catalog request when the interactive timeout expires', async () => {
+    let requestSignal: AbortSignal | undefined;
+
+    await expect(
+      searchCatalogWithFallback('Unknown Film', {
+        liveSearchTimeoutMs: 1,
+        searchCachedFilms: async () => [],
+        searchLiveFilms: async (_query, signal) => {
+          requestSignal = signal;
+          return new Promise<never>(() => {});
+        }
+      })
+    ).rejects.toThrow('timed out');
+
+    expect(requestSignal?.aborted).toBe(true);
   });
 
   it('returns matching cached films when the live catalog returns no results', async () => {

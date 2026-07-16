@@ -150,7 +150,19 @@ export function SearchView({
           value={searchQuery}
         />
       </label>
-      {noMatches ? (
+      {!query ? (
+        <section className="search-initial">
+          <span className="study-index">00</span>
+          <div>
+            <p className="eyebrow">Archive index</p>
+            <h2>Search by title, tag, or catalog film</h2>
+            <p>
+              Diary and current Library matches appear first. Catalog films stay separate and never duplicate local
+              results.
+            </p>
+          </div>
+        </section>
+      ) : noMatches ? (
         <EmptyState
           fragment="hand"
           hint="Try a title, a diary tag, or a film not logged yet."
@@ -183,7 +195,6 @@ export function SearchView({
               <h2>Catalog</h2>
               <span className="search-group-count">{catalogPending ? '…' : groups.catalog.length}</span>
             </header>
-            {!query ? <p className="search-group-empty">Type to search the film catalog.</p> : null}
             {catalogPending ? <p className="search-group-empty">Searching the catalog…</p> : null}
             {catalogError ? (
               <div className="catalog-error" role="alert">
