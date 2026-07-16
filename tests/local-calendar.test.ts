@@ -3,7 +3,6 @@
 import { createElement } from 'react';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readArchiveStats } from '../src/archive-model.js';
-import { DiaryView } from '../src/views/diary.js';
 import {
   readLocalCalendarDateKey,
   readLocalCalendarMonthKey,
@@ -79,7 +78,8 @@ describe('local calendar', () => {
     expect(stats.activity.find((day) => day.date === '2027-01-01')?.count).toBe(1);
   });
 
-  it('selects and labels the Diary active month from local calendar parts', () => {
+  it('selects and labels the Diary active month from local calendar parts', async () => {
+    const { DiaryView } = await import('../src/views/diary.js');
     const state: MovieLogState = {
       films: {},
       history: [

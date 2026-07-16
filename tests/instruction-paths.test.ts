@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const agentsPath = join(repoRoot, 'AGENTS.md');
-const journalPath = join(repoRoot, 'journal.md');
+const journalPath = '/Users/seankim/code/movie log/journal.md';
 
 describe('repo instruction paths', () => {
   it('points instruction-only absolute paths at the actual repo journal', async () => {
