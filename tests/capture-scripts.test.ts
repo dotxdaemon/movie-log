@@ -122,6 +122,7 @@ describe('capture pipeline', () => {
       'aggregation-verify',
       'diary-ledger',
       'diary-grid',
+      'empty-archive',
       'library-filtered',
       'library-empty',
       'library-selected',
