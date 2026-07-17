@@ -9,12 +9,7 @@ import { scanFolderContents } from '../electron/folder-scan.js';
 import { createHistoryStore } from '../electron/store.js';
 import { createEntryFromPath } from '../shared/history.js';
 
-function scannedItem(
-  sourcePath: string,
-  itemKey: string,
-  sourceKind: 'file' | 'directory' = 'file',
-  addedAt?: string
-) {
+function scannedItem(sourcePath: string, itemKey: string, sourceKind: 'file' | 'directory' = 'file', addedAt?: string) {
   return {
     addedAt,
     itemKey,
@@ -107,6 +102,21 @@ describe('createHistoryStore', () => {
     expect(noteAfter.split('\n').filter((line) => line.startsWith('- '))).toHaveLength(
       noteBefore.split('\n').filter((line) => line.startsWith('- ')).length
     );
+  });
+
+  it('preserves the watched timestamp when an annotation form omits its date field', async () => {
+    const store = createHistoryStore(dataDirectory);
+    const entry = createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'drop', '2026-03-12T08:00:00.000Z');
+    await store.addHistoryEntry(entry);
+    const details = { review: 'Edited without a date control.', watchedAt: undefined };
+
+    await store.updateHistoryEntry(entry.id, details);
+
+    const reloaded = createHistoryStore(dataDirectory);
+    expect((await reloaded.readState()).history[0]).toMatchObject({
+      review: 'Edited without a date control.',
+      watchedAt: '2026-03-12T08:00:00.000Z'
+    });
   });
 
   it('does not rewrite the readable note when state is only being read', async () => {
@@ -223,7 +233,12 @@ describe('createHistoryStore', () => {
     await store.addWatchedFolder('/Users/seankim/Movies');
 
     const manualEntries = Array.from({ length: 20 }, (_, index) =>
-      createEntryFromPath(`/Users/seankim/Manual/Drop ${index + 1}.mkv`, 'drop', `2026-03-12T08:${index.toString().padStart(2, '0')}:00.000Z`, 'file')
+      createEntryFromPath(
+        `/Users/seankim/Manual/Drop ${index + 1}.mkv`,
+        'drop',
+        `2026-03-12T08:${index.toString().padStart(2, '0')}:00.000Z`,
+        'file'
+      )
     );
 
     await Promise.all([
@@ -239,10 +254,7 @@ describe('createHistoryStore', () => {
 
     expect(state.history).toHaveLength(21);
     expect(state.history.map((entry) => entry.sourcePath)).toEqual(
-      expect.arrayContaining([
-        '/Users/seankim/Movies/Flow.mkv',
-        ...manualEntries.map((entry) => entry.sourcePath)
-      ])
+      expect.arrayContaining(['/Users/seankim/Movies/Flow.mkv', ...manualEntries.map((entry) => entry.sourcePath)])
     );
     expect(state.libraryItems.map((item) => item.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
   });
@@ -262,7 +274,9 @@ describe('createHistoryStore', () => {
       seenKeysByFolder: Record<string, string[]>;
       watchedFolders: unknown[];
     };
-    const preservedFileName = (await readdir(dataDirectory)).find((fileName) => /^movie-log\.invalid\..+\.json$/.test(fileName));
+    const preservedFileName = (await readdir(dataDirectory)).find((fileName) =>
+      /^movie-log\.invalid\..+\.json$/.test(fileName)
+    );
 
     expect(preservedFileName).toBeDefined();
     const preservedEntries = await readFile(join(dataDirectory, preservedFileName ?? ''), 'utf8');
@@ -464,7 +478,12 @@ describe('createHistoryStore', () => {
     await store.addWatchedFolder('/Users/seankim/Movies');
     await store.syncWatchedFolderContents(
       '/Users/seankim/Movies',
-      [scannedItem('/Users/seankim/Movies/Dtf.St.Louis.S01e01.Cornhole.1080P.Amzn.Web-Dl.Ddp5.1.Atmos.H.265.mp4', 'dev:1')],
+      [
+        scannedItem(
+          '/Users/seankim/Movies/Dtf.St.Louis.S01e01.Cornhole.1080P.Amzn.Web-Dl.Ddp5.1.Atmos.H.265.mp4',
+          'dev:1'
+        )
+      ],
       '2026-04-06T15:54:20.342Z'
     );
 
@@ -525,10 +544,7 @@ describe('createHistoryStore', () => {
 
   it('repairs stale watched-folder history from the filesystem when snapshot data is missing', async () => {
     const watchedFolderPath = join(dataDirectory, 'Movies');
-    const filePath = join(
-      watchedFolderPath,
-      'Dtf.St.Louis.S01e01.Cornhole.1080P.Amzn.Web-Dl.Ddp5.1.Atmos.H.265.mp4'
-    );
+    const filePath = join(watchedFolderPath, 'Dtf.St.Louis.S01e01.Cornhole.1080P.Amzn.Web-Dl.Ddp5.1.Atmos.H.265.mp4');
 
     await mkdir(watchedFolderPath, { recursive: true });
     await writeFile(filePath, 'dtf', 'utf8');
@@ -620,8 +636,12 @@ describe('createHistoryStore', () => {
     };
     const note = await readFile(join(dataDirectory, 'movie-log-note.md'), 'utf8');
 
-    expect(state.history.map((entry) => entry.sourcePath)).toEqual(expect.arrayContaining([currentFilePath, absentFilePath]));
-    expect(storedJson.history.map((entry) => entry.sourcePath)).toEqual(expect.arrayContaining([currentFilePath, absentFilePath]));
+    expect(state.history.map((entry) => entry.sourcePath)).toEqual(
+      expect.arrayContaining([currentFilePath, absentFilePath])
+    );
+    expect(storedJson.history.map((entry) => entry.sourcePath)).toEqual(
+      expect.arrayContaining([currentFilePath, absentFilePath])
+    );
     expect(storedJson.history).toHaveLength(2);
     expect(note).toContain(absentFilePath);
   });
@@ -714,7 +734,12 @@ describe('createHistoryStore', () => {
   it('refuses to replace the readable note with fewer history rows', async () => {
     const dataPath = join(dataDirectory, 'movie-log.json');
     const notePath = join(dataDirectory, 'movie-log-note.md');
-    const storedEntry = createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'watch', '2026-03-12T08:00:00.000Z', 'file');
+    const storedEntry = createEntryFromPath(
+      '/Users/seankim/Movies/Flow.mkv',
+      'watch',
+      '2026-03-12T08:00:00.000Z',
+      'file'
+    );
     const missingNoteRow =
       '- 2026-03-11T08:00:00.000Z | Missing.mkv | File | Watched Folder | /Users/seankim/Movies/Missing.mkv';
 
@@ -742,9 +767,7 @@ describe('createHistoryStore', () => {
 
     const store = createHistoryStore(dataDirectory);
 
-    await expect(store.addWatchedFolder('/Users/seankim/Movies')).rejects.toThrow(
-      'Refusing to write Movie Log note'
-    );
+    await expect(store.addWatchedFolder('/Users/seankim/Movies')).rejects.toThrow('Refusing to write Movie Log note');
 
     const storedJson = JSON.parse(await readFile(dataPath, 'utf8')) as { watchedFolders: unknown[] };
     const note = await readFile(notePath, 'utf8');
@@ -921,7 +944,9 @@ describe('createHistoryStore', () => {
 
   it('backfills unmarked stores into append-only history once when stable item keys are missing', async () => {
     const unmarkedState = {
-      history: [createEntryFromPath('/Users/seankim/Movies/Severance', 'watch', '2026-03-12T08:00:00.000Z', 'directory')],
+      history: [
+        createEntryFromPath('/Users/seankim/Movies/Severance', 'watch', '2026-03-12T08:00:00.000Z', 'directory')
+      ],
       knownPathsByFolder: {
         '/Users/seankim/Movies': ['/Users/seankim/Movies/Flow.mkv', '/Users/seankim/Movies/Severance']
       },
@@ -977,7 +1002,9 @@ describe('createHistoryStore', () => {
       '2026-03-13T10:00:00.000Z'
     );
     const state = await store.readState();
-    const storedJson = JSON.parse(await readFile(join(dataDirectory, 'movie-log.json'), 'utf8')) as { historyPolicy?: string };
+    const storedJson = JSON.parse(await readFile(join(dataDirectory, 'movie-log.json'), 'utf8')) as {
+      historyPolicy?: string;
+    };
 
     expect(firstBackfill.map((entry) => entry.sourcePath)).toEqual(['/Users/seankim/Movies/Flow.mkv']);
     expect(secondBackfill).toEqual([]);

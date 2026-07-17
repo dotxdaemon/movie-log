@@ -94,16 +94,119 @@ const state: MovieLogState = {
 };
 
 describe('archive model', () => {
-  it('groups viewing history into one real library item per source path', () => {
+  it('groups viewing history into one film item while retaining its source path', () => {
     const items = buildArchiveItems(state);
 
     expect(items).toHaveLength(2);
     expect(items[0]?.sourcePath).toBe('/Movies/Flow.2024.mkv');
+    expect(items[0]?.sourcePaths).toEqual(['/Movies/Flow.2024.mkv']);
     expect(items[0]?.viewings).toHaveLength(2);
     expect(items[0]?.current).toBe(true);
     expect(items[0]?.year).toBe(2024);
     expect(items[0]?.rating).toBe(4.5);
     expect(items[0]?.tags).toEqual(['Animation', 'Drama']);
+  });
+
+  it('groups multiple files and a catalog-only entry by clean title plus year without rewriting viewings', () => {
+    const groupedState: MovieLogState = {
+      ...state,
+      history: [
+        ...state.history,
+        {
+          id: '2026-07-11T20:00:00.000Z:/Downloads/Flow.2024.mp4',
+          rating: 5,
+          source: 'drop',
+          sourceKind: 'file',
+          sourcePath: '/Downloads/Flow.2024.mp4',
+          title: 'Flow.2024',
+          watchedAt: '2026-07-11T20:00:00.000Z'
+        },
+        {
+          id: '2026-07-12T20:00:00.000Z:film://wikipedia-71441742/Flow (2024)',
+          review: 'Catalog-only viewing.',
+          source: 'drop',
+          sourceKind: 'directory',
+          sourcePath: 'film://wikipedia-71441742/Flow (2024)',
+          title: 'Flow (2024)',
+          watchedAt: '2026-07-12T20:00:00.000Z'
+        }
+      ],
+      libraryItems: [
+        ...state.libraryItems,
+        {
+          firstSeenAt: '2026-07-11T20:00:00.000Z',
+          folderId: 'downloads',
+          folderPath: '/Downloads',
+          id: 'dev:2',
+          lastSeenAt: '2026-07-11T20:00:00.000Z',
+          sourceKind: 'file',
+          sourcePath: '/Downloads/Flow.2024.mp4',
+          title: 'Flow.2024'
+        }
+      ]
+    };
+
+    const items = buildArchiveItems(groupedState);
+    const flow = items.find((item) => item.displayTitle === 'Flow');
+
+    expect(items).toHaveLength(2);
+    expect(flow?.viewings).toHaveLength(4);
+    expect(flow?.sourcePaths).toEqual([
+      'film://wikipedia-71441742/Flow (2024)',
+      '/Downloads/Flow.2024.mp4',
+      '/Movies/Flow.2024.mkv'
+    ]);
+    expect(flow?.localSourcePaths).toEqual(['/Downloads/Flow.2024.mp4', '/Movies/Flow.2024.mkv']);
+    expect(groupedState.history).toHaveLength(5);
+    expect(buildSearchResults(groupedState, 'flow', []).diary).toHaveLength(1);
+  });
+
+  it('keeps same-title films from different years separate and merges missing-year identities together', () => {
+    const identityState: MovieLogState = {
+      films: {},
+      history: [
+        {
+          id: 'heat-1995',
+          source: 'drop',
+          sourceKind: 'file',
+          sourcePath: '/Movies/Heat.1995.mkv',
+          title: 'Heat.1995',
+          watchedAt: '2026-07-01T12:00:00.000Z'
+        },
+        {
+          id: 'heat-1986',
+          source: 'drop',
+          sourceKind: 'file',
+          sourcePath: '/Movies/Heat.1986.mkv',
+          title: 'Heat.1986',
+          watchedAt: '2026-07-02T12:00:00.000Z'
+        },
+        {
+          id: 'home-one',
+          source: 'drop',
+          sourceKind: 'file',
+          sourcePath: '/Movies/Home Video.mkv',
+          title: 'Home Video',
+          watchedAt: '2026-07-03T12:00:00.000Z'
+        },
+        {
+          id: 'home-two',
+          source: 'drop',
+          sourceKind: 'file',
+          sourcePath: '/Downloads/Home.Video.mp4',
+          title: 'Home.Video',
+          watchedAt: '2026-07-04T12:00:00.000Z'
+        }
+      ],
+      libraryItems: [],
+      watchedFolders: []
+    };
+
+    const items = buildArchiveItems(identityState);
+
+    expect(items).toHaveLength(3);
+    expect(items.filter((item) => item.displayTitle === 'Heat')).toHaveLength(2);
+    expect(items.find((item) => item.displayTitle === 'Home Video')?.viewings).toHaveLength(2);
   });
 
   it('attaches film metadata, clean display titles, and review status to archive items', () => {
@@ -243,6 +346,7 @@ describe('archive model', () => {
       failed: 1,
       matched: 1,
       pending: 0,
+      retryScheduled: 0,
       total: 2,
       unmatched: 0
     });

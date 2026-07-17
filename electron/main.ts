@@ -1,200 +1,61 @@
-// ABOUTME: Runs the Electron desktop shell, local JSON store, and watched-folder integrations.
-// ABOUTME: Bridges native dialogs and file watching to the React renderer through a small IPC surface.
-import { Menu, Tray, app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, screen, shell } from 'electron';
-import { stat } from 'node:fs/promises';
+// ABOUTME: Coordinates Movie Log's Electron lifecycle while delegating windows, IPC, folders, and catalog work.
+// ABOUTME: Keeps the executable entrypoint small enough to audit as wiring rather than a second application layer.
+import { BrowserWindow, Menu, Tray, app, nativeImage, screen } from 'electron';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { createFilmCatalog } from './film-catalog.js';
-import { createFilmIndex, type FilmEnrichmentRequest } from './film-index.js';
-import { createFolderMonitor } from './folder-monitor.js';
-import { addWatchedFolderPath, logPathsFromDrop, searchCatalogWithFallback } from './main-actions.js';
+import type { MovieLogState } from '../shared/types.js';
 import { handleMovieLogWindowsClosed, showMovieLog } from './app-lifecycle.js';
-import { prepareAppRuntime } from './runtime.js';
+import { createCaptureController } from './capture.js';
+import { createCatalogOrchestrator } from './catalog-orchestrator.js';
+import { createFilmCatalog } from './film-catalog.js';
+import { createFilmIndex } from './film-index.js';
+import { createFolderMonitor } from './folder-monitor.js';
 import { scanFolderContents } from './folder-scan.js';
+import { registerMovieLogIpcHandlers } from './ipc-handlers.js';
+import { createMovieLogWindow } from './main-window.js';
+import { prepareAppRuntime } from './runtime.js';
 import { createStatusItem } from './status-item.js';
 import { createHistoryStore } from './store.js';
-import { createWatchedFolderSync } from './watched-folder-sync.js';
+import { createWatchedFolderSync, type WatchedFolderSync } from './watched-folder-sync.js';
 import { revealWindow } from './window-visibility.js';
-import { closeMovieLog, handleWindowCloseRequest } from './window-close.js';
-import { buildFilmSourcePath, parseFilmTitle, readFilmKey } from '../shared/film-title.js';
-import { createEntryFromPath } from '../shared/history.js';
-import { isTrackableMediaItem } from '../shared/media-items.js';
-import type {
-  EntryDetails,
-  EntryKind,
-  LogEntryDetails,
-  LogFilmRequest,
-  MovieLogState,
-  WatchEntry
-} from '../shared/types.js';
+import { closeMovieLog } from './window-close.js';
 
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
+const dataDirectory = process.env.MOVIE_LOG_DATA_DIR ?? join(app.getPath('userData'), 'movie-log');
+const historyStore = createHistoryStore(dataDirectory);
+const filmCatalog = createFilmCatalog();
+const filmIndex = createFilmIndex({ catalog: filmCatalog, dataDirectory, deferDetails: true });
+let watchedFolderSync: WatchedFolderSync;
+let mainWindow: BrowserWindow | null = null;
+let backgroundWorkRunning = false;
+let isQuitting = false;
+let statusItem: Tray | null = null;
+
+const folderMonitor = createFolderMonitor({
+  loadKnownPaths: historyStore.readKnownPaths,
+  saveKnownPaths: historyStore.writeKnownPaths,
+  onChange: async (folderPath) => watchedFolderSync.queueRefresh(folderPath)
+});
+const capture = createCaptureController({
+  historyStore,
+  quitApp: () => app.quit(),
+  readState
+});
+const catalogOrchestrator = createCatalogOrchestrator({
+  broadcastState,
+  filmIndex,
+  readSourceState: historyStore.readState
+});
+
 prepareAppRuntime(app, {
   showWindow: () => {
     void showMainWindow();
   }
 });
-const dataDirectory = process.env.MOVIE_LOG_DATA_DIR ?? join(app.getPath('userData'), 'movie-log');
-const historyStore = createHistoryStore(dataDirectory);
-const filmCatalog = createFilmCatalog();
-const filmIndex = createFilmIndex({ catalog: filmCatalog, dataDirectory });
-let filmEnrichmentJob: Promise<void> | null = null;
-let watchedFolderSync: ReturnType<typeof createWatchedFolderSync>;
-const folderMonitor = createFolderMonitor({
-  loadKnownPaths: historyStore.readKnownPaths,
-  saveKnownPaths: historyStore.writeKnownPaths,
-  onChange: async (folderPath) => {
-    await watchedFolderSync.queueRefresh(folderPath);
-  }
-});
-
-let mainWindow: BrowserWindow | null = null;
-let backgroundWorkRunning = false;
-let isQuitting = false;
-let statusItem: Tray | null = null;
-const captureRequested = Boolean(process.env.MOVIE_LOG_CAPTURE_PATH);
-const captureWidth = Number(process.env.MOVIE_LOG_CAPTURE_WIDTH ?? 1180);
-const captureHeight = Number(process.env.MOVIE_LOG_CAPTURE_HEIGHT ?? 788);
-const captureRequestedView = process.env.MOVIE_LOG_CAPTURE_VIEW ?? 'diary';
-const persistenceProof = {
-  castNotes: 'Installed persistence proof cast notes',
-  favorite: true,
-  location: 'Home archive',
-  rating: 4,
-  review: 'Installed persistence proof · 2026-07-16',
-  rewatch: true,
-  tags: ['proof', 'archive'],
-  viewingFormat: 'Digital file'
-} as const;
-const captureViews = new Set([
-  'diary',
-  'diary-ledger',
-  'diary-grid',
-  'library',
-  'library-filtered',
-  'library-empty',
-  'library-selected',
-  'filters',
-  'search',
-  'search-results',
-  'search-long',
-  'catalog',
-  'catalog-outage',
-  'statistics',
-  'statistics-lower',
-  'settings',
-  'detail',
-  'detail-missing',
-  'detail-outage',
-  'log',
-  'log-selected',
-  'log-ambiguity',
-  'log-path-match',
-  'log-multiple-paths',
-  'log-rating-none',
-  'log-rating-numeric',
-  'loading',
-  'load-error',
-  'persistence-save',
-  'persistence-verify'
-]);
-
-if (
-  captureRequested &&
-  (!Number.isInteger(captureWidth) || !Number.isInteger(captureHeight) || captureWidth < 320 || captureHeight < 640)
-) {
-  throw new Error(
-    `Capture dimensions must be whole numbers at least 320x640. Received ${captureWidth}x${captureHeight}.`
-  );
-}
-
-if (captureRequested && !captureViews.has(captureRequestedView)) {
-  throw new Error(`Unknown capture view: ${captureRequestedView}.`);
-}
-
-function entryMatchesPersistenceProof(entry: WatchEntry | undefined): boolean {
-  return Boolean(
-    entry &&
-    entry.castNotes === persistenceProof.castNotes &&
-    entry.favorite === persistenceProof.favorite &&
-    entry.location === persistenceProof.location &&
-    entry.rating === persistenceProof.rating &&
-    entry.review === persistenceProof.review &&
-    entry.rewatch === persistenceProof.rewatch &&
-    JSON.stringify(entry.tags) === JSON.stringify(persistenceProof.tags) &&
-    entry.viewingFormat === persistenceProof.viewingFormat
-  );
-}
-
-async function createEntryForPath(
-  itemPath: string,
-  source: 'drop' | 'watch',
-  details: LogEntryDetails = {}
-): Promise<WatchEntry | null> {
-  const itemStats = await stat(itemPath);
-  const sourceKind: EntryKind = itemStats.isDirectory() ? 'directory' : 'file';
-
-  if (!isTrackableMediaItem(itemPath, sourceKind)) {
-    return null;
-  }
-
-  const { watchedAt = new Date().toISOString(), ...annotations } = details;
-  return {
-    ...createEntryFromPath(itemPath, source, watchedAt, sourceKind),
-    ...annotations,
-    tags: annotations.tags ? [...annotations.tags] : undefined
-  };
-}
 
 async function readState(): Promise<MovieLogState> {
   const [state, films] = await Promise.all([historyStore.readState(), filmIndex.readFilms()]);
   return { ...state, films };
-}
-
-function collectFilmRequests(state: MovieLogState): FilmEnrichmentRequest[] {
-  const requests = new Map<string, FilmEnrichmentRequest>();
-  const titles = [...state.history.map((entry) => entry.title), ...state.libraryItems.map((item) => item.title)];
-
-  for (const stem of titles) {
-    const parsed = parseFilmTitle(stem);
-
-    if (!parsed.title) {
-      continue;
-    }
-
-    const key = readFilmKey(parsed);
-
-    if (!requests.has(key)) {
-      requests.set(key, { key, title: parsed.title, year: parsed.year });
-    }
-  }
-
-  return [...requests.values()];
-}
-
-function enrichFilms(forceRetry = false): Promise<void> {
-  if (filmEnrichmentJob) {
-    return filmEnrichmentJob;
-  }
-
-  const job = (async () => {
-    const state = await historyStore.readState();
-    await filmIndex.enrichFilms(collectFilmRequests({ ...state, films: {} }), {
-      forceRetry,
-      onProgress: broadcastState
-    });
-  })()
-    .catch((error: unknown) => {
-      console.error('Film metadata enrichment stopped unexpectedly.', error);
-    })
-    .finally(() => {
-      if (filmEnrichmentJob === job) {
-        filmEnrichmentJob = null;
-      }
-    });
-  filmEnrichmentJob = job;
-  return job;
 }
 
 async function broadcastState(): Promise<void> {
@@ -206,1188 +67,34 @@ async function broadcastState(): Promise<void> {
 
   const state = await readState();
 
-  if (windowToNotify.isDestroyed() || windowToNotify.webContents.isDestroyed()) {
-    return;
+  if (!windowToNotify.isDestroyed() && !windowToNotify.webContents.isDestroyed()) {
+    windowToNotify.webContents.send('movie-log:state-changed', state);
   }
-
-  windowToNotify.webContents.send('movie-log:state-changed', state);
-}
-
-async function openPath(itemPath: string): Promise<void> {
-  const errorMessage = await shell.openPath(itemPath);
-
-  if (errorMessage) {
-    throw new Error(errorMessage);
-  }
-}
-
-async function selectCaptureView(): Promise<void> {
-  if (!mainWindow) {
-    return;
-  }
-
-  const logActionSelector = captureWidth <= 700 ? '.mobile-log-action' : '.archive-spine .log-action';
-  const initialRawHistoryCount = (await historyStore.readState()).history.length;
-  const navigationSelector = captureWidth <= 700 ? '.mobile-nav-item' : '.nav-item';
-  const selected = (await mainWindow.webContents.executeJavaScript(`
-    (() => {
-      const requestedView = ${JSON.stringify(captureRequestedView)};
-      const logActionSelector = ${JSON.stringify(logActionSelector)};
-      const navigationSelector = ${JSON.stringify(navigationSelector)};
-      const readLabel = (element) => element.textContent?.trim().toLowerCase() ?? '';
-      const navigationItems = [...document.querySelectorAll(navigationSelector)];
-
-      if (
-        requestedView === 'log' ||
-        requestedView === 'log-selected' ||
-        requestedView === 'log-ambiguity' ||
-        requestedView === 'log-path-match' ||
-        requestedView === 'log-multiple-paths' ||
-        requestedView === 'log-rating-none' ||
-        requestedView === 'log-rating-numeric' ||
-        requestedView === 'persistence-save'
-      ) {
-        const action = document.querySelector(logActionSelector);
-        action?.focus();
-        action?.click();
-        return true;
-      }
-
-      if (
-        requestedView === 'catalog' ||
-        requestedView === 'catalog-outage' ||
-        requestedView === 'search-results' ||
-        requestedView === 'search-long'
-      ) {
-        const searchItem = navigationItems.find((item) => readLabel(item).includes('search'));
-        searchItem?.focus();
-        searchItem?.click();
-        return true;
-      }
-
-      if (
-        requestedView === 'detail' ||
-        requestedView === 'detail-missing' ||
-        requestedView === 'detail-outage' ||
-        requestedView === 'filters' ||
-        requestedView.startsWith('library')
-      ) {
-        navigationItems.find((item) => readLabel(item).includes('library'))?.click();
-        return true;
-      }
-
-      if (!requestedView.startsWith('diary')) {
-        const navigationView = requestedView.startsWith('statistics') ? 'statistics' : requestedView;
-        navigationItems.find((item) => readLabel(item).includes(navigationView))?.click();
-      }
-
-      return true;
-    })()
-  `)) as boolean;
-
-  if (!selected) {
-    throw new Error(`Capture view did not render: ${captureRequestedView}.`);
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 180));
-
-  if (captureRequestedView === 'diary-ledger' || captureRequestedView === 'diary-grid') {
-    const requestedMode = captureRequestedView === 'diary-ledger' ? 'ledger' : 'grid';
-    await mainWindow.webContents.executeJavaScript(`
-      [...document.querySelectorAll('.view-switcher [role="tab"]')]
-        .find((tab) => tab.textContent?.trim().toLowerCase() === ${JSON.stringify(requestedMode)})
-        ?.click()
-    `);
-    await waitForCaptureSelector(`#diary-panel-${requestedMode}`);
-  }
-
-  if (captureRequestedView === 'library-filtered' || captureRequestedView === 'library-empty') {
-    const filterSurface = captureWidth <= 700 ? '.filter-sheet' : '.filter-toolbar';
-
-    if (captureWidth <= 700) {
-      await mainWindow.webContents.executeJavaScript(`document.querySelector('.filter-sheet-trigger')?.click()`);
-    }
-
-    await waitForCaptureSelector(filterSurface);
-    const filtered = (await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        const filterSurface = ${JSON.stringify(filterSurface)};
-        const setCaptureSelect = (selector, value) => {
-          const select = document.querySelector(selector);
-          const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
-          setter?.call(select, value);
-          select?.dispatchEvent(new Event('change', { bubbles: true }));
-        };
-
-        if (${JSON.stringify(captureRequestedView)} === 'library-empty') {
-          setCaptureSelect(filterSurface + ' select[name="rating"]', '4.5-plus');
-        } else {
-          const genre = document.querySelector(filterSurface + ' select[name="genre"]');
-          const value = genre?.options[1]?.value ?? '';
-          setCaptureSelect(filterSurface + ' select[name="genre"]', value);
-        }
-
-        if (filterSurface === '.filter-sheet') {
-          document.querySelector('.filter-sheet-actions button:last-child')?.click();
-        }
-        return true;
-      })()
-    `)) as boolean;
-
-    if (!filtered) {
-      throw new Error(`Capture view did not apply filters: ${captureRequestedView}.`);
-    }
-
-    if (captureWidth <= 700) {
-      await waitForCaptureSelector('.filter-sheet', false);
-    }
-
-    if (captureRequestedView === 'library-empty') {
-      await waitForCaptureSelector('.library-film-field .blank-slate');
-    }
-  }
-
-  if (captureRequestedView === 'search-long') {
-    const setLongSearchQuery = `
-      (() => {
-        const input = document.querySelector('.archive-search input');
-        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-        setter?.call(input, 'a');
-        input?.dispatchEvent(new Event('input', { bubbles: true }));
-      })()
-    `;
-    await mainWindow.webContents.executeJavaScript(setLongSearchQuery);
-    await waitForCaptureSelector('.search-result');
-    const moveToLongSearchResult = `
-      (() => {
-        const input = document.querySelector('.archive-search input');
-
-        for (let index = 0; index < 18; index += 1) {
-          input?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowDown' }));
-        }
-
-        const active = document.querySelector('.search-result-active');
-        const bounds = active?.getBoundingClientRect();
-        return Boolean(bounds && bounds.top >= 0 && bounds.bottom <= window.innerHeight);
-      })()
-    `;
-    const activeResultVisible = (await mainWindow.webContents.executeJavaScript(moveToLongSearchResult)) as boolean;
-
-    if (!activeResultVisible) {
-      throw new Error('Long Search keyboard navigation did not keep the active result visible.');
-    }
-
-    await mainWindow.webContents.executeJavaScript(`
-      document.querySelector('.archive-search input')?.dispatchEvent(
-        new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Escape' })
-      )
-    `);
-    await waitForCaptureSelector('.search-view', false);
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    const searchFocusRestored = (await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        const searchItem = [...document.querySelectorAll(${JSON.stringify(navigationSelector)})]
-          .find((item) => item.textContent?.trim().toLowerCase().includes('search'));
-        return Boolean(document.querySelector('.diary-view') && document.activeElement === searchItem);
-      })()
-    `)) as boolean;
-
-    if (!searchFocusRestored) {
-      throw new Error('Search Escape did not return to the previous view and restore focus to its opener.');
-    }
-
-    await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        const searchItem = [...document.querySelectorAll(${JSON.stringify(navigationSelector)})]
-          .find((item) => item.textContent?.trim().toLowerCase().includes('search'));
-        searchItem?.focus();
-        searchItem?.click();
-      })()
-    `);
-    await waitForCaptureSelector('.search-view');
-
-    await mainWindow.webContents.executeJavaScript(setLongSearchQuery);
-    await waitForCaptureSelector('.search-result');
-
-    if (!((await mainWindow.webContents.executeJavaScript(moveToLongSearchResult)) as boolean)) {
-      throw new Error('Long Search keyboard navigation did not remain visible after reopening Search.');
-    }
-  }
-
-  if (captureRequestedView === 'search-results') {
-    await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        const input = document.querySelector('.archive-search input');
-        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-        setter?.call(input, 'ring');
-        input?.dispatchEvent(new Event('input', { bubbles: true }));
-      })()
-    `);
-    await waitForCaptureSelector('.search-result');
-  }
-
-  if (
-    captureRequestedView === 'log' ||
-    captureRequestedView === 'log-selected' ||
-    captureRequestedView === 'log-ambiguity' ||
-    captureRequestedView === 'log-path-match' ||
-    captureRequestedView === 'log-multiple-paths' ||
-    captureRequestedView === 'log-rating-none' ||
-    captureRequestedView === 'log-rating-numeric' ||
-    captureRequestedView === 'persistence-save'
-  ) {
-    await verifyLogDialogKeyboard(logActionSelector);
-  }
-
-  if (captureWidth <= 700 && (captureRequestedView === 'log' || captureRequestedView === 'log-selected')) {
-    await verifyMobileSheetLifecycle({
-      backdropSelector: '.log-backdrop',
-      bodySelector: '.log-sheet-body',
-      inputSelector: '.film-search-block input, .log-sheet input',
-      sheetSelector: '.log-sheet',
-      triggerSelector: logActionSelector
-    });
-    const touchSupported = (await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        if (typeof TouchEvent !== 'function') {
-          return false;
-        }
-        const dispatchSheetTouch = (selector, startY, endY) => {
-          const target = document.querySelector(selector);
-          const dispatch = (type, clientY) => {
-            const event = new TouchEvent(type, { bubbles: true, cancelable: true });
-            Object.defineProperty(event, 'changedTouches', { value: [{ clientY }] });
-            target?.dispatchEvent(event);
-          };
-          dispatch('touchstart', startY);
-          dispatch('touchend', endY);
-        };
-        dispatchSheetTouch('.log-sheet-head', 24, 112);
-        return true;
-      })()
-    `)) as boolean;
-
-    if (!touchSupported) {
-      throw new Error('Mobile capture environment does not expose TouchEvent.');
-    }
-
-    await waitForCaptureSelector('.log-sheet', false);
-    await mainWindow.webContents.executeJavaScript(
-      `document.querySelector(${JSON.stringify(logActionSelector)})?.click()`
-    );
-    await waitForCaptureSelector('.log-sheet');
-  }
-
-  if (captureRequestedView === 'catalog' || captureRequestedView === 'catalog-outage') {
-    await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        const setCaptureInput = (selector, value) => {
-          const input = document.querySelector(selector);
-          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-          setter?.call(input, value);
-          input?.dispatchEvent(new Event('input', { bubbles: true }));
-        };
-        setCaptureInput(
-          '.archive-search input',
-          ${JSON.stringify(captureRequestedView === 'catalog-outage' ? 'Catalog Outage Proof' : 'The Ring')}
-        );
-      })()
-    `);
-
-    if (captureRequestedView === 'catalog-outage') {
-      await waitForCaptureSelector('.catalog-error');
-    } else {
-      await waitForCaptureSelector('.search-group-catalog .poster-art', true, 300);
-    }
-  }
-
-  if (
-    captureRequestedView === 'log-selected' ||
-    captureRequestedView === 'log-ambiguity' ||
-    captureRequestedView === 'log-path-match' ||
-    captureRequestedView === 'persistence-save'
-  ) {
-    await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        const setCaptureInput = (selector, value) => {
-          const input = document.querySelector(selector);
-          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-          setter?.call(input, value);
-          input?.dispatchEvent(new Event('input', { bubbles: true }));
-        };
-        setCaptureInput('.film-search-block input', 'The Ring');
-      })()
-    `);
-    await waitForCaptureSelector('.film-search-results button');
-    await mainWindow.webContents.executeJavaScript(`document.querySelector('.film-search-results button')?.click()`);
-    await waitForCaptureSelector('.selected-film .poster-art');
-  }
-
-  if (captureRequestedView === 'log-ambiguity') {
-    await mainWindow.webContents.executeJavaScript(`document.querySelector('.media-chooser')?.click()`);
-    await waitForCaptureSelector('.log-ambiguity-error');
-    const blocked = (await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        const submit = document.querySelector('.log-sheet .entry-form button[type="submit"]');
-        return document.querySelectorAll('.selected-media p').length > 1 && submit?.disabled === true;
-      })()
-    `)) as boolean;
-
-    if (!blocked) {
-      throw new Error('Ambiguous multi-media logging did not remain visibly blocked without submission.');
-    }
-
-    if ((await historyStore.readState()).history.length !== initialRawHistoryCount) {
-      throw new Error('Ambiguous multi-media logging changed history before the blocked submission was resolved.');
-    }
-  }
-
-  if (captureRequestedView === 'log-path-match' || captureRequestedView === 'log-multiple-paths') {
-    await mainWindow.webContents.executeJavaScript(`document.querySelector('.media-chooser')?.click()`);
-    const expectedPathCount = captureRequestedView === 'log-path-match' ? 1 : 2;
-    await waitForCaptureSelector('.selected-media');
-    const selectedPathCount = (await mainWindow.webContents.executeJavaScript(
-      `document.querySelectorAll('.selected-media p').length`
-    )) as number;
-
-    if (selectedPathCount !== expectedPathCount) {
-      throw new Error(`${captureRequestedView} selected ${selectedPathCount} paths instead of ${expectedPathCount}.`);
-    }
-
-    await mainWindow.webContents.executeJavaScript(`
-      document.querySelector('.log-sheet .entry-form button[type="submit"]')?.click()
-    `);
-    await waitForCaptureSelector('.log-sheet', false);
-    const nextState = await readState();
-
-    if (nextState.history.length !== initialRawHistoryCount + expectedPathCount) {
-      throw new Error(`${captureRequestedView} did not persist exactly ${expectedPathCount} accepted paths.`);
-    }
-
-    if (captureRequestedView === 'log-path-match') {
-      const sourcePath = nextState.libraryItems[0]?.sourcePath;
-      const entry = nextState.history.find(
-        (candidate) => candidate.source === 'drop' && candidate.sourcePath === sourcePath
-      );
-      const film = entry ? nextState.films?.[readFilmKey(parseFilmTitle(entry.title))] : null;
-
-      if (!entry || film?.status !== 'matched' || film.title !== 'The Ring') {
-        throw new Error('The accepted single media path did not receive the selected catalog match.');
-      }
-    }
-  }
-
-  if (captureRequestedView === 'filters') {
-    await mainWindow.webContents.executeJavaScript(`
-      document.querySelector('.filter-sheet-trigger')?.click()
-    `);
-    await waitForCaptureSelector('.filter-sheet');
-    await verifyMobileSheetLifecycle({
-      backdropSelector: '.filter-sheet-backdrop',
-      bodySelector: '.filter-sheet-body',
-      inputSelector: '.filter-sheet select',
-      sheetSelector: '.filter-sheet',
-      triggerSelector: '.filter-sheet-trigger'
-    });
-    const touchSupported = (await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        if (typeof TouchEvent !== 'function') {
-          return false;
-        }
-        const dispatchSheetTouch = (selector, startY, endY) => {
-          const target = document.querySelector(selector);
-          const dispatch = (type, clientY) => {
-            const event = new TouchEvent(type, { bubbles: true, cancelable: true });
-            Object.defineProperty(event, 'changedTouches', { value: [{ clientY }] });
-            target?.dispatchEvent(event);
-          };
-          dispatch('touchstart', startY);
-          dispatch('touchend', endY);
-        };
-        dispatchSheetTouch('.filter-sheet-head', 24, 112);
-        return true;
-      })()
-    `)) as boolean;
-
-    if (!touchSupported) {
-      throw new Error('Mobile capture environment does not expose TouchEvent.');
-    }
-
-    await waitForCaptureSelector('.filter-sheet', false);
-    await mainWindow.webContents.executeJavaScript(`document.querySelector('.filter-sheet-trigger')?.click()`);
-    await waitForCaptureSelector('.filter-sheet');
-  }
-
-  if (captureRequestedView === 'library-selected') {
-    const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        const face = document.querySelector('.movie-card:has(.poster-art) .movie-card-face');
-        face?.click();
-        return Boolean(face);
-      })()
-    `)) as boolean;
-
-    if (!selectedMovie) {
-      throw new Error('Capture view did not render: library-selected has no movie card to select.');
-    }
-
-    await waitForCaptureSelector('.movie-card-selected');
-    await waitForCaptureSelector('.library-inspector');
-  }
-
-  if (
-    captureRequestedView === 'detail' ||
-    captureRequestedView === 'detail-missing' ||
-    captureRequestedView === 'detail-outage'
-  ) {
-    const movieSelector = '.movie-card:has(.poster-art) .movie-card-face';
-    const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        const face =
-          ${JSON.stringify(captureRequestedView)} === 'detail-missing'
-            ? [...document.querySelectorAll('.movie-card:not(:has(.poster-art)) .movie-card-face')]
-                .sort((left, right) => (right.textContent?.length ?? 0) - (left.textContent?.length ?? 0))[0]
-            : document.querySelector(${JSON.stringify(movieSelector)});
-        face?.click();
-        return Boolean(face);
-      })()
-    `)) as boolean;
-
-    if (!selectedMovie) {
-      throw new Error(`Capture view did not render: ${captureRequestedView} has no matching movie card to select.`);
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 180));
-    await mainWindow.webContents.executeJavaScript(`
-      document.querySelector('.movie-card-selected .movie-card-face')?.click()
-    `);
-    await new Promise((resolve) => setTimeout(resolve, 180));
-
-    if (captureRequestedView === 'detail-outage') {
-      await mainWindow.webContents.executeJavaScript(`
-        (() => {
-          const details = document.querySelector('.match-study');
-          if (details) details.open = true;
-          document.querySelector('.match-search')?.requestSubmit();
-        })()
-      `);
-      await waitForCaptureSelector('.dossier-match-error');
-      await mainWindow.webContents.executeJavaScript(`
-        document.querySelector('.dossier-match-error')?.scrollIntoView({ block: 'center' })
-      `);
-    }
-  }
-
-  if (captureRequestedView === 'statistics-lower') {
-    await waitForCaptureSelector('.activity-panel');
-    await mainWindow.webContents.executeJavaScript(`
-      document.querySelector('.activity-panel')?.scrollIntoView({ block: 'start' })
-    `);
-  }
-
-  if (captureRequestedView === 'log-rating-none' || captureRequestedView === 'log-rating-numeric') {
-    await verifyRatingKeyboardFocus(captureRequestedView);
-  }
-
-  if (
-    captureRequestedView === 'log' ||
-    captureRequestedView === 'log-selected' ||
-    captureRequestedView === 'persistence-save'
-  ) {
-    const ratingSelectionVisible = (await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        const input = document.querySelectorAll('.log-sheet .rating-segment input')[7];
-        input?.click();
-        const output = document.querySelector('.log-sheet .rating-current-option[data-rating="4.0"]');
-        return input?.checked === true && output?.textContent?.trim() === 'Current 4.0' && getComputedStyle(output).display !== 'none';
-      })()
-    `)) as boolean;
-
-    if (!ratingSelectionVisible) {
-      throw new Error('Log dialog did not expose the selected 4.0 rating value.');
-    }
-  }
-
-  if (captureRequestedView === 'persistence-save') {
-    const populated = (await mainWindow.webContents.executeJavaScript(`
-      (() => {
-        const proof = ${JSON.stringify(persistenceProof)};
-        const setValue = (selector, value) => {
-          const control = document.querySelector(selector);
-          const prototype = control instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-          const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
-          setter?.call(control, value);
-          control?.dispatchEvent(new Event('input', { bubbles: true }));
-        };
-        setValue('.log-sheet .entry-form textarea[name="review"]', proof.review);
-        setValue('.log-sheet .entry-form textarea[name="castNotes"]', proof.castNotes);
-        setValue('.log-sheet .entry-form input[name="tags"]', proof.tags.join(', '));
-        setValue('.log-sheet .entry-form input[name="viewingFormat"]', proof.viewingFormat);
-        setValue('.log-sheet .entry-form input[name="location"]', proof.location);
-        for (const name of ['favorite', 'rewatch']) {
-          const checkbox = document.querySelector('.log-sheet .entry-form input[name="' + name + '"]');
-          if (checkbox && !checkbox.checked) checkbox.click();
-        }
-        return (
-          document.querySelector('.log-sheet textarea[name="review"]')?.value === proof.review &&
-          document.querySelector('.log-sheet textarea[name="castNotes"]')?.value === proof.castNotes &&
-          document.querySelector('.log-sheet input[name="tags"]')?.value === proof.tags.join(', ') &&
-          document.querySelector('.log-sheet input[name="viewingFormat"]')?.value === proof.viewingFormat &&
-          document.querySelector('.log-sheet input[name="location"]')?.value === proof.location &&
-          document.querySelector('.log-sheet input[name="favorite"]')?.checked === true &&
-          document.querySelector('.log-sheet input[name="rewatch"]')?.checked === true
-        );
-      })()
-    `)) as boolean;
-
-    if (!populated) {
-      throw new Error('The installed Log Film form did not accept every persistence proof value.');
-    }
-    await mainWindow.webContents.executeJavaScript(`
-      document.querySelector('.log-sheet .entry-form button[type="submit"]')?.click()
-    `);
-    await waitForCaptureSelector('.log-sheet', false);
-    await waitForCaptureSelector('.diary-view');
-    const savedEntry = (await historyStore.readState()).history.find(
-      (entry) => entry.review === persistenceProof.review
-    );
-
-    if (!entryMatchesPersistenceProof(savedEntry)) {
-      throw new Error('The installed Log Film flow did not persist every annotation exactly.');
-    }
-
-    if (process.env.MOVIE_LOG_PERSISTENCE_PROOF_PATH) {
-      await writeFile(process.env.MOVIE_LOG_PERSISTENCE_PROOF_PATH, `${JSON.stringify(savedEntry, null, 2)}\n`, 'utf8');
-    }
-  }
-
-  if (captureRequestedView === 'persistence-verify') {
-    const entrySurvivedRelaunch = entryMatchesPersistenceProof(
-      (await historyStore.readState()).history.find((entry) => entry.review === persistenceProof.review)
-    );
-
-    if (!entrySurvivedRelaunch) {
-      throw new Error('The scratch Log Film entry did not survive the installed-app relaunch.');
-    }
-  }
-
-  const viewSelector = {
-    catalog: '.search-view',
-    'catalog-outage': '.catalog-error',
-    detail: '.movie-dossier',
-    'detail-missing': '.movie-dossier',
-    'detail-outage': '.dossier-match-error',
-    diary: '.diary-view',
-    'diary-grid': '#diary-panel-grid',
-    'diary-ledger': '#diary-panel-ledger',
-    filters: '.filter-sheet',
-    library: '.library-view',
-    'library-empty': '.library-film-field .blank-slate',
-    'library-filtered': '.library-view',
-    'library-selected': '.library-inspector',
-    log: '.log-sheet',
-    'log-selected': '.selected-film',
-    'log-ambiguity': '.log-ambiguity-error',
-    'log-path-match': '.diary-view',
-    'log-multiple-paths': '.diary-view',
-    'log-rating-none': '.rating-none:has(input:focus-visible)',
-    'log-rating-numeric': '.rating-segment:has(input:focus-visible)',
-    loading: '.screen-loading',
-    'load-error': '.error-state',
-    'persistence-save': '.diary-view',
-    'persistence-verify': '.diary-view',
-    search: '.search-view',
-    'search-results': '.search-result',
-    'search-long': '.search-result-active',
-    settings: '.settings-view',
-    statistics: '.statistics-view',
-    'statistics-lower': '.activity-panel'
-  }[captureRequestedView];
-  const viewRendered = (await mainWindow.webContents.executeJavaScript(
-    `Boolean(document.querySelector(${JSON.stringify(viewSelector)}))`
-  )) as boolean;
-
-  if (!viewRendered) {
-    throw new Error(`Capture view did not render: ${captureRequestedView}.`);
-  }
-}
-
-async function verifyLogDialogKeyboard(logActionSelector: string): Promise<void> {
-  if (!mainWindow) {
-    return;
-  }
-
-  const initialFocusInside = (await mainWindow.webContents.executeJavaScript(`
-    document.querySelector('.log-sheet')?.contains(document.activeElement) === true
-  `)) as boolean;
-
-  if (!initialFocusInside) {
-    throw new Error('Log dialog did not move focus inside when opened.');
-  }
-
-  await mainWindow.webContents.executeJavaScript(`
-    document.querySelector('.log-sheet button')?.focus()
-  `);
-  mainWindow.webContents.sendInputEvent({
-    keyCode: 'Tab',
-    modifiers: ['shift'],
-    type: 'keyDown'
-  });
-  mainWindow.webContents.sendInputEvent({
-    keyCode: 'Tab',
-    modifiers: ['shift'],
-    type: 'keyUp'
-  });
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  const wrappedToLast = (await mainWindow.webContents.executeJavaScript(`
-    (() => {
-      const focusable = [...document.querySelectorAll('.log-sheet button, .log-sheet input, .log-sheet select, .log-sheet textarea, .log-sheet summary')]
-        .filter((element) => !element.hasAttribute('disabled'));
-      return document.activeElement === focusable.at(-1);
-    })()
-  `)) as boolean;
-
-  if (!wrappedToLast) {
-    throw new Error('Log dialog did not trap backward focus at its final control.');
-  }
-
-  mainWindow.webContents.sendInputEvent({ keyCode: 'Escape', type: 'keyDown' });
-  mainWindow.webContents.sendInputEvent({ keyCode: 'Escape', type: 'keyUp' });
-  await waitForCaptureSelector('.log-sheet', false);
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  const focusRestored = (await mainWindow.webContents.executeJavaScript(`
-    (() => {
-      const logActionSelector = ${JSON.stringify(logActionSelector)};
-      return document.querySelector(logActionSelector) === document.activeElement;
-    })()
-  `)) as boolean;
-
-  if (!focusRestored) {
-    throw new Error('Log dialog did not restore focus to its opening action.');
-  }
-
-  await mainWindow.webContents.executeJavaScript(
-    `document.querySelector(${JSON.stringify(logActionSelector)})?.click()`
-  );
-  await waitForCaptureSelector('.log-sheet');
-}
-
-async function verifyRatingKeyboardFocus(profile: 'log-rating-none' | 'log-rating-numeric'): Promise<void> {
-  if (!mainWindow) {
-    return;
-  }
-
-  const focusSelector =
-    profile === 'log-rating-none' ? '.log-sheet .rating-none input' : '.log-sheet .rating-segment input:first-of-type';
-
-  if (profile === 'log-rating-none') {
-    await mainWindow.webContents.executeJavaScript(`
-      document.querySelectorAll('.log-sheet .rating-segment input')[3]?.focus()
-    `);
-    mainWindow.webContents.sendInputEvent({ keyCode: 'Space', type: 'keyDown' });
-    mainWindow.webContents.sendInputEvent({ keyCode: 'Space', type: 'keyUp' });
-  }
-
-  await mainWindow.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(focusSelector)})?.focus()`);
-  mainWindow.webContents.sendInputEvent({ keyCode: 'Space', type: 'keyDown' });
-  mainWindow.webContents.sendInputEvent({ keyCode: 'Space', type: 'keyUp' });
-
-  if (profile === 'log-rating-numeric') {
-    mainWindow.webContents.sendInputEvent({ keyCode: 'Right', type: 'keyDown' });
-    mainWindow.webContents.sendInputEvent({ keyCode: 'Right', type: 'keyUp' });
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 80));
-  const focusVisible = (await mainWindow.webContents.executeJavaScript(`
-    (() => {
-      const input =
-        ${JSON.stringify(profile)} === 'log-rating-none'
-          ? document.querySelector('.log-sheet .rating-none input')
-          : document.querySelector('.log-sheet .rating-segment input:checked');
-      const control = input?.closest('label');
-      const style = control ? getComputedStyle(control) : null;
-      return Boolean(
-        input?.checked &&
-        document.activeElement === input &&
-        style &&
-        style.outlineStyle !== 'none' &&
-        Number.parseFloat(style.outlineWidth) >= 2
-      );
-    })()
-  `)) as boolean;
-
-  if (!focusVisible) {
-    throw new Error(`${profile} did not preserve a structural focus outline after keyboard selection.`);
-  }
-}
-
-async function verifyMobileSheetLifecycle({
-  backdropSelector,
-  bodySelector,
-  inputSelector,
-  sheetSelector,
-  triggerSelector
-}: {
-  backdropSelector: string;
-  bodySelector: string;
-  inputSelector: string;
-  sheetSelector: string;
-  triggerSelector: string;
-}): Promise<void> {
-  if (!mainWindow) {
-    return;
-  }
-
-  const focusStart = (await mainWindow.webContents.executeJavaScript(`
-    ({ height: window.visualViewport?.height ?? window.innerHeight, width: window.visualViewport?.width ?? window.innerWidth })
-  `)) as { height: number; width: number };
-  await mainWindow.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(inputSelector)})?.focus()`);
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  const sheetMetrics = (await mainWindow.webContents.executeJavaScript(`
-    (() => {
-      const backdrop = document.querySelector(${JSON.stringify(backdropSelector)});
-      const body = document.querySelector(${JSON.stringify(bodySelector)});
-      const input = document.querySelector(${JSON.stringify(inputSelector)});
-      const mobileNavigation = document.querySelector('.mobile-nav');
-      const navigationBounds = mobileNavigation?.getBoundingClientRect();
-      const navigationTarget = navigationBounds
-        ? document.elementFromPoint(navigationBounds.left + navigationBounds.width / 2, navigationBounds.top + navigationBounds.height / 2)
-        : null;
-      const internalScroll = Boolean(body && body.scrollHeight > body.clientHeight);
-
-      if (body) {
-        body.scrollTop = Math.min(48, body.scrollHeight - body.clientHeight);
-      }
-
-      const scrolled = Boolean(body && body.scrollTop > 0);
-
-      if (body) {
-        body.scrollTop = 0;
-      }
-
-      return {
-        focusHeight: window.visualViewport?.height ?? window.innerHeight,
-        focusWidth: window.visualViewport?.width ?? window.innerWidth,
-        inputFontSize: input ? Number.parseFloat(getComputedStyle(input).fontSize) : 0,
-        internalScroll: internalScroll && scrolled,
-        mobileNavigationBlocked:
-          Boolean(backdrop && mobileNavigation && !navigationTarget?.closest('.mobile-nav')) &&
-          Number(getComputedStyle(backdrop).zIndex) > Number(getComputedStyle(mobileNavigation).zIndex)
-      };
-    })()
-  `)) as {
-    focusHeight: number;
-    focusWidth: number;
-    inputFontSize: number;
-    internalScroll: boolean;
-    mobileNavigationBlocked: boolean;
-  };
-  const focusLayoutStable =
-    sheetMetrics.focusHeight === focusStart.height && sheetMetrics.focusWidth === focusStart.width;
-
-  if (!sheetMetrics.internalScroll) {
-    throw new Error(`${sheetSelector} did not preserve internal scrolling.`);
-  }
-
-  if (!sheetMetrics.mobileNavigationBlocked) {
-    throw new Error(`${sheetSelector} did not prevent mobile navigation interference.`);
-  }
-
-  if (!focusLayoutStable || sheetMetrics.inputFontSize < 16) {
-    throw new Error(`${sheetSelector} input focus changed the mobile viewport or exposed zoom-prone text.`);
-  }
-
-  await mainWindow.webContents.executeJavaScript(`
-    (() => {
-      const backdropSelector = ${JSON.stringify(backdropSelector)};
-      document.querySelector(backdropSelector)?.click();
-    })()
-  `);
-  await waitForCaptureSelector(sheetSelector, false);
-  await mainWindow.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(triggerSelector)})?.click()`);
-  await waitForCaptureSelector(sheetSelector);
-}
-
-async function waitForCaptureSelector(selector: string, expected = true, maximumAttempts = 60): Promise<void> {
-  if (!mainWindow) {
-    return;
-  }
-
-  for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
-    const found = (await mainWindow.webContents.executeJavaScript(
-      `Boolean(document.querySelector(${JSON.stringify(selector)}))`
-    )) as boolean;
-
-    if (found === expected) {
-      return;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-
-  const context = (await mainWindow.webContents.executeJavaScript(`
-    (() => ({
-      catalogText: document.querySelector('.search-group-catalog')?.textContent?.trim() ?? '',
-      inputValue: document.querySelector('.archive-search input')?.value ?? '',
-      pendingText: [...document.querySelectorAll('.search-group-empty')].map((element) => element.textContent?.trim()),
-      selector: ${JSON.stringify(selector)}
-    }))()
-  `)) as { catalogText: string; inputValue: string; pendingText: Array<string | undefined>; selector: string };
-
-  throw new Error(`Capture view did not render selector: ${selector}. Context: ${JSON.stringify(context)}`);
-}
-
-async function captureIfRequested(): Promise<void> {
-  if (!mainWindow || !process.env.MOVIE_LOG_CAPTURE_PATH) {
-    return;
-  }
-
-  let isReady = false;
-  let latestReadyState = '';
-  let latestText = '';
-
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    const snapshot = (await mainWindow.webContents.executeJavaScript(`
-      ({
-        bodyText: document.body ? document.body.innerText.toLowerCase() : '',
-        readyState: document.documentElement?.dataset?.movieLogCaptureReady ?? ''
-      })
-    `)) as { bodyText: string; readyState: string };
-    latestText = snapshot.bodyText;
-    latestReadyState = snapshot.readyState;
-    isReady = latestReadyState === 'true';
-
-    if (isReady) {
-      break;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-
-  if (!isReady) {
-    throw new Error(
-      `Renderer content never became ready for capture. Ready state: ${latestReadyState || '[unset]'} Latest body text: ${latestText || '[empty]'}`
-    );
-  }
-
-  await selectCaptureView();
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  mainWindow.webContents.sendInputEvent({ type: 'mouseMove', x: 1, y: 1 });
-  await new Promise((resolve) => setTimeout(resolve, 50));
-  const layout = (await mainWindow.webContents.executeJavaScript(`
-    (() => {
-      const root = document.documentElement;
-      const body = document.body;
-      const archiveSpine = document.querySelector('.archive-spine');
-      const mobileNavigation = document.querySelector('.mobile-nav');
-      return {
-        archiveSpineDisplay: archiveSpine ? getComputedStyle(archiveSpine).display : '',
-        clientWidth: root.clientWidth,
-        mobileNavigationDisplay: mobileNavigation ? getComputedStyle(mobileNavigation).display : '',
-        scrollWidth: Math.max(root.scrollWidth, body ? body.scrollWidth : 0)
-      };
-    })()
-  `)) as {
-    archiveSpineDisplay: string;
-    clientWidth: number;
-    mobileNavigationDisplay: string;
-    scrollWidth: number;
-  };
-
-  if (layout.scrollWidth > layout.clientWidth) {
-    throw new Error(
-      `Capture has horizontal overflow: ${layout.scrollWidth}px content in a ${layout.clientWidth}px viewport.`
-    );
-  }
-
-  if (captureWidth <= 700 && (layout.archiveSpineDisplay !== 'none' || layout.mobileNavigationDisplay === 'none')) {
-    throw new Error('Mobile capture did not replace the desktop spine with the mobile navigation.');
-  }
-
-  if (captureWidth > 700 && (layout.archiveSpineDisplay === 'none' || layout.mobileNavigationDisplay !== 'none')) {
-    throw new Error('Desktop capture did not keep the structural spine visible and mobile navigation hidden.');
-  }
-
-  // The first capture after a tab or focus transition can contain incomplete
-  // compositor layers on macOS. Warm the surface, then retain the settled frame.
-  await mainWindow.webContents.capturePage();
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  const image = await mainWindow.webContents.capturePage();
-  const imageSize = image.getSize();
-
-  if (imageSize.width !== captureWidth || imageSize.height !== captureHeight) {
-    throw new Error(
-      `Capture dimensions ${imageSize.width}x${imageSize.height} did not match ${captureWidth}x${captureHeight}.`
-    );
-  }
-
-  await mkdir(dirname(process.env.MOVIE_LOG_CAPTURE_PATH), { recursive: true });
-  await writeFile(process.env.MOVIE_LOG_CAPTURE_PATH, image.toPNG());
-  app.quit();
 }
 
 async function createWindow(): Promise<void> {
-  mainWindow = new BrowserWindow({
-    width: captureRequested ? captureWidth : 1180,
-    height: captureRequested ? captureHeight : 820,
-    minWidth: 390,
-    minHeight: 640,
-    useContentSize: captureRequested,
-    backgroundColor: '#f5f3f6',
-    title: 'Movie Log',
-    webPreferences: {
-      preload: join(currentDirectory, 'preload.cjs')
-    }
-  });
-
-  if (process.env.MOVIE_LOG_CAPTURE_PATH) {
-    mainWindow.webContents.on('console-message', (_event, _level, message) => {
-      console.error(`renderer: ${message}`);
-    });
-
-    mainWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
-      console.error(`preload-error: ${preloadPath} ${error.message}`);
-    });
-  }
-
-  mainWindow.webContents.once('did-finish-load', () => {
-    void broadcastState();
-    void enrichFilms();
-    void captureIfRequested().catch((error) => {
-      console.error(error);
-      app.exit(1);
-    });
-  });
-
-  if (process.env.VITE_DEV_SERVER_URL) {
-    const rendererUrl = new URL(process.env.VITE_DEV_SERVER_URL);
-
-    if (captureRequested) {
-      rendererUrl.searchParams.set('capture', captureRequestedView);
-    }
-
-    await mainWindow.loadURL(rendererUrl.toString());
-  } else {
-    await mainWindow.loadFile(
-      join(currentDirectory, '../dist/index.html'),
-      captureRequested ? { query: { capture: captureRequestedView } } : undefined
-    );
-  }
-
-  mainWindow.on('close', (event) => {
-    handleWindowCloseRequest({
-      closeWindow: () => {
-        mainWindow?.destroy();
-      },
-      hideWindow: () => {
-        mainWindow?.hide();
-      },
-      isCaptureRun: Boolean(process.env.MOVIE_LOG_CAPTURE_PATH),
-      isQuitting,
-      preventDefault: () => event.preventDefault()
-    });
-  });
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
-}
-
-async function showMainWindow(): Promise<void> {
-  await showMovieLog({
-    createWindow,
-    hasWindow: mainWindow !== null,
-    revealWindow: () => {
-      if (!mainWindow) {
-        return;
-      }
-
-      const activeDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-      revealWindow(mainWindow, activeDisplay.workArea);
+  await createMovieLogWindow({
+    broadcastState,
+    capture,
+    currentDirectory,
+    enrichCatalog: catalogOrchestrator.enrich,
+    exitWithFailure: () => app.exit(1),
+    isQuitting: () => isQuitting,
+    onClosed: () => {
+      mainWindow = null;
     },
-    startBackgroundWork
-  });
-}
-
-function registerIpcHandlers(): void {
-  ipcMain.handle('movie-log:add-watched-folders', async () => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openDirectory', 'multiSelections']
-    });
-
-    if (result.canceled || result.filePaths.length === 0) {
-      return [];
-    }
-
-    const folders = [];
-
-    for (const selectedPath of result.filePaths) {
-      const folder = await addWatchedFolderPath(selectedPath, {
-        queueFolderRefresh: async (folderPath) => {
-          await watchedFolderSync.queueRefresh(folderPath);
-        },
-        removeWatchedFolder: async (folderId) => historyStore.removeWatchedFolder(folderId),
-        saveWatchedFolder: async (folderPath) => historyStore.addWatchedFolder(folderPath),
-        unwatchFolder: async (folderPath) => {
-          await folderMonitor.unwatchFolder(folderPath);
-        },
-        watchFolder: async (folderPath) => {
-          await folderMonitor.watchFolder(folderPath);
-        }
-      });
-      folders.push(folder);
-    }
-
-    await broadcastState();
-    void enrichFilms();
-    return folders;
-  });
-
-  ipcMain.handle('movie-log:copy-path', async (_event, itemPath: string) => {
-    clipboard.writeText(itemPath);
-  });
-
-  ipcMain.handle('movie-log:choose-log-paths', async () => {
-    if (
-      captureRequestedView === 'log-ambiguity' ||
-      captureRequestedView === 'log-path-match' ||
-      captureRequestedView === 'log-multiple-paths'
-    ) {
-      const limit = captureRequestedView === 'log-path-match' ? 1 : 2;
-      return (await historyStore.readState()).libraryItems.slice(0, limit).map((item) => item.sourcePath);
-    }
-
-    const result = await dialog.showOpenDialog({
-      properties: ['openFile', 'openDirectory', 'multiSelections']
-    });
-
-    return result.canceled ? [] : result.filePaths;
-  });
-
-  ipcMain.handle('movie-log:get-data-file-path', async () => historyStore.getDataFilePath());
-
-  ipcMain.handle('movie-log:get-note-file-path', async () => historyStore.getNoteFilePath());
-
-  ipcMain.handle('movie-log:get-state', async () => {
-    if (captureRequestedView === 'loading') {
-      await new Promise((resolve) => setTimeout(resolve, 10_000));
-    }
-
-    if (captureRequestedView === 'load-error') {
-      throw new Error("Error invoking remote method 'movie-log:get-state': ENOENT /private/archive.json");
-    }
-
-    return readState();
-  });
-
-  ipcMain.handle(
-    'movie-log:log-paths',
-    async (_event, paths: string[], details?: LogEntryDetails, selectedFilm?: LogFilmRequest) => {
-      const result = await logPathsFromDrop(
-        paths,
-        {
-          addHistoryEntries: async (entries) => historyStore.addHistoryEntries(entries),
-          broadcastState,
-          createEntryForPath: async (itemPath) => createEntryForPath(itemPath, 'drop', details),
-          matchFilmForEntry: async (entry, film) => {
-            const key = readFilmKey(parseFilmTitle(entry.title));
-            await filmIndex.matchFilm(key, film, film.pageId);
-          }
-        },
-        selectedFilm
-      );
-      void enrichFilms();
-      return result;
-    }
-  );
-
-  ipcMain.handle('movie-log:log-film', async (_event, film: LogFilmRequest, details?: LogEntryDetails) => {
-    const { watchedAt = new Date().toISOString(), ...annotations } = details ?? {};
-    const sourcePath = buildFilmSourcePath({ title: film.title, year: film.year }, film.pageId);
-    const entry: WatchEntry = {
-      ...createEntryFromPath(sourcePath, 'drop', watchedAt, 'directory'),
-      ...annotations,
-      tags: annotations.tags ? [...annotations.tags] : undefined
-    };
-    await historyStore.addHistoryEntry(entry);
-
-    try {
-      await filmIndex.matchFilm(readFilmKey({ title: film.title, year: film.year }), film, film.pageId);
-    } catch {
-      // The diary entry is saved even when the catalog is unreachable; metadata fills in on the next enrichment.
-    }
-
-    await broadcastState();
-  });
-
-  ipcMain.handle('movie-log:search-catalog', async (_event, query: string) => {
-    const captureCatalogOutage = captureRequestedView === 'catalog-outage' || captureRequestedView === 'detail-outage';
-    return searchCatalogWithFallback(query, {
-      searchCachedFilms: captureCatalogOutage ? async () => [] : filmIndex.searchFilms,
-      searchLiveFilms: captureCatalogOutage
-        ? async () => {
-            throw new Error('Catalog connection unavailable.');
-          }
-        : (query, signal) => filmCatalog.searchFilms(query, { signal })
-    });
-  });
-
-  ipcMain.handle(
-    'movie-log:match-film',
-    async (_event, filmKey: string, film: { title: string; year: number | null }, pageId: number | null) => {
-      await filmIndex.matchFilm(filmKey, film, pageId);
-      await broadcastState();
-    }
-  );
-
-  ipcMain.handle('movie-log:update-entry', async (_event, entryId: string, details: EntryDetails) => {
-    const entry = await historyStore.updateHistoryEntry(entryId, details);
-
-    if (entry) {
-      await broadcastState();
-    }
-
-    return entry;
-  });
-
-  ipcMain.handle('movie-log:open-in-finder', async (_event, itemPath: string) => {
-    shell.showItemInFolder(itemPath);
-  });
-
-  ipcMain.handle('movie-log:open-item', async (_event, itemPath: string) => {
-    await openPath(itemPath);
-  });
-
-  ipcMain.handle('movie-log:scan-now', async () => {
-    await watchedFolderSync.refreshWatchedFolders();
-    void enrichFilms();
-  });
-
-  ipcMain.handle('movie-log:remove-watched-folder', async (_event, folderId: string) => {
-    const removedFolder = await historyStore.removeWatchedFolder(folderId);
-
-    if (removedFolder) {
-      watchedFolderSync.forgetFolder(removedFolder.path);
-      await folderMonitor.unwatchFolder(removedFolder.path);
-      await broadcastState();
+    onCreated: (window) => {
+      mainWindow = window;
     }
   });
-
-  ipcMain.handle('movie-log:retry-film-enrichment', async () => {
-    void enrichFilms(true);
-  });
-}
-
-async function startExistingWatchers(): Promise<void> {
-  await watchedFolderSync.catchUpWatchedFolders();
 }
 
 async function startBackgroundWork(): Promise<void> {
-  if (backgroundWorkRunning) {
+  if (backgroundWorkRunning || capture.isRequested) {
     return;
   }
 
-  await startExistingWatchers();
+  await watchedFolderSync.catchUpWatchedFolders();
   backgroundWorkRunning = true;
 }
 
@@ -1397,15 +104,29 @@ async function pauseBackgroundWork(): Promise<void> {
   }
 
   await folderMonitor.dispose();
-  filmIndex.cancelEnrichment();
+  catalogOrchestrator.cancel();
   backgroundWorkRunning = false;
+}
+
+async function showMainWindow(): Promise<void> {
+  await showMovieLog({
+    createWindow,
+    hasWindow: mainWindow !== null,
+    revealWindow: () => {
+      if (mainWindow) {
+        const activeDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+        revealWindow(mainWindow, activeDisplay.workArea);
+      }
+    },
+    startBackgroundWork
+  });
 }
 
 app.whenReady().then(async () => {
   watchedFolderSync = createWatchedFolderSync({
     broadcastState: async () => {
       await broadcastState();
-      void enrichFilms();
+      void catalogOrchestrator.enrich();
     },
     listWatchedFolders: async () => (await readState()).watchedFolders,
     now: () => new Date().toISOString(),
@@ -1413,21 +134,33 @@ app.whenReady().then(async () => {
       await historyStore.syncWatchedFolderContents(folderPath, items, scannedAt);
     },
     scanFolder: scanFolderContents,
-    watchFolder: async (folderPath) => {
-      await folderMonitor.watchFolder(folderPath);
-    }
+    watchFolder: folderMonitor.watchFolder
   });
-  registerIpcHandlers();
+  registerMovieLogIpcHandlers({
+    broadcastState,
+    capture,
+    catalogOrchestrator,
+    filmCatalog,
+    filmIndex,
+    folderMonitor,
+    getWatchedFolderSync: () => watchedFolderSync,
+    historyStore,
+    readState
+  });
   await startBackgroundWork();
-  statusItem = createStatusItem({
-    TrayConstructor: Tray,
-    imageFactory: nativeImage,
-    menu: Menu,
-    quitApp: () => app.quit(),
-    showWindow: () => {
-      void showMainWindow();
-    }
-  });
+
+  if (!capture.isRequested) {
+    statusItem = createStatusItem({
+      TrayConstructor: Tray,
+      imageFactory: nativeImage,
+      menu: Menu,
+      quitApp: () => app.quit(),
+      showWindow: () => {
+        void showMainWindow();
+      }
+    });
+  }
+
   await createWindow();
 });
 
@@ -1437,7 +170,7 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
-  filmIndex.cancelEnrichment();
+  catalogOrchestrator.cancel();
   statusItem?.destroy();
   statusItem = null;
 });
@@ -1446,7 +179,7 @@ app.on('window-all-closed', () => {
   void handleMovieLogWindowsClosed({
     closeMovieLog: () =>
       closeMovieLog({
-        disposeFolderMonitor: () => folderMonitor.dispose(),
+        disposeFolderMonitor: folderMonitor.dispose,
         quitApp: () => app.quit()
       }),
     hasStatusItem: statusItem !== null,

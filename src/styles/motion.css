@@ -1,0 +1,29 @@
+@keyframes dossier-arrive {
+  from {
+    transform: translateX(12px);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-reveal {
+  from {
+    transform: translateX(24px);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sheet-rise {
+  from {
+    transform: translateY(24px);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}

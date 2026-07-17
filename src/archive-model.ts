@@ -1,6 +1,6 @@
 // ABOUTME: Builds the filterable film archive, search lanes, and viewing statistics from persisted state.
 // ABOUTME: Joins diary history and watched-folder contents with cached catalog metadata for every view.
-import { parseFilmTitle, readFilmKey } from '../shared/film-title.js';
+import { isFilmSourcePath, parseFilmTitle, readFilmKey } from '../shared/film-title.js';
 import {
   createLocalCalendarDate,
   readLocalCalendarDateKey,
@@ -30,12 +30,15 @@ export interface ArchiveItem {
   favorite: boolean;
   film: FilmRecord | null;
   filmKey: string;
+  filmRecordKeys: string[];
   latestViewing: WatchEntry;
+  localSourcePaths: string[];
   rating: number | null;
   reviewed: boolean;
   rewatched: boolean;
   sourceKind: WatchEntry['sourceKind'];
   sourcePath: string;
+  sourcePaths: string[];
   tags: string[];
   title: string;
   viewingFormat: string;
@@ -44,6 +47,8 @@ export interface ArchiveItem {
 }
 
 export interface SearchResultItem {
+  catalogId?: string;
+  catalogSource?: 'imdb' | 'wikipedia';
   director: string | null;
   key: string;
   kind: 'diary' | 'library' | 'catalog';
@@ -93,6 +98,7 @@ export interface ArchiveCoverage {
   failed: number;
   matched: number;
   pending: number;
+  retryScheduled: number;
   total: number;
   unmatched: number;
 }
@@ -190,26 +196,63 @@ export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
     ]);
   }
 
-  return [...viewingsByPath.entries()]
-    .map(([sourcePath, entries]) => {
-      const viewings = [...entries].sort((left, right) => right.watchedAt.localeCompare(left.watchedAt));
+  const sources = [...viewingsByPath.entries()].map(([sourcePath, entries]) => {
+    const viewings = [...entries].sort((left, right) => right.watchedAt.localeCompare(left.watchedAt));
+    const latestViewing = viewings[0] as WatchEntry;
+    const parsed = parseFilmTitle(latestViewing.title);
+    const filmRecordKey = readFilmKey(parsed);
+    const film = state.films?.[filmRecordKey] ?? null;
+    const filmKey = film?.status === 'matched' ? readFilmKey({ title: film.title, year: film.year }) : filmRecordKey;
+
+    return {
+      current: currentPaths.has(sourcePath),
+      film,
+      filmKey,
+      filmRecordKey,
+      latestViewing,
+      sourcePath,
+      viewings
+    };
+  });
+  const sourcesByFilm = new Map<string, typeof sources>();
+
+  for (const source of sources) {
+    const groupedSources = sourcesByFilm.get(source.filmKey) ?? [];
+    groupedSources.push(source);
+    sourcesByFilm.set(source.filmKey, groupedSources);
+  }
+
+  return [...sourcesByFilm.entries()]
+    .map(([filmKey, groupedSources]) => {
+      const sortedSources = [...groupedSources].sort((left, right) =>
+        right.latestViewing.watchedAt.localeCompare(left.latestViewing.watchedAt)
+      );
+      const viewings = sortedSources
+        .flatMap((source) => source.viewings)
+        .sort((left, right) => right.watchedAt.localeCompare(left.watchedAt));
       const latestViewing = viewings[0] as WatchEntry;
       const parsed = parseFilmTitle(latestViewing.title);
-      const filmKey = readFilmKey(parsed);
-      const film = state.films?.[filmKey] ?? null;
+      const film =
+        sortedSources.find((source) => source.film?.status === 'matched')?.film ??
+        sortedSources.find((source) => source.film)?.film ??
+        null;
+      const sourcePaths = sortedSources.map((source) => source.sourcePath);
 
       return {
-        current: currentPaths.has(sourcePath),
+        current: sortedSources.some((source) => source.current),
         displayTitle: film?.status === 'matched' ? film.title : parsed.title,
         favorite: readLatestValue(viewings, (entry) => entry.favorite) ?? false,
         film,
         filmKey,
+        filmRecordKeys: [...new Set(sortedSources.map((source) => source.filmRecordKey))],
         latestViewing,
+        localSourcePaths: sourcePaths.filter((sourcePath) => !isFilmSourcePath(sourcePath)),
         rating: readLatestValue(viewings, (entry) => entry.rating) ?? null,
         reviewed: viewings.some((entry) => Boolean(entry.review?.trim())),
         rewatched: viewings.length > 1 || viewings.some((entry) => Boolean(entry.rewatch)),
         sourceKind: latestViewing.sourceKind,
-        sourcePath,
+        sourcePath: latestViewing.sourcePath,
+        sourcePaths,
         tags: readLatestValue(viewings, (entry) => entry.tags) ?? [],
         title: latestViewing.title,
         viewingFormat: readLatestValue(viewings, (entry) => entry.viewingFormat) ?? '',
@@ -248,12 +291,15 @@ export function readArchiveCoverage(state: MovieLogState): ArchiveCoverage {
   const matched = countStatus('matched');
   const unmatched = countStatus('unmatched');
   const failed = countStatus('failed');
+  const retryScheduled = countStatus('retry-scheduled');
+  const pending = countStatus('pending') + items.filter((item) => item.film === null).length;
 
   return {
     annotated,
     failed,
     matched,
-    pending: Math.max(0, items.length - matched - unmatched - failed),
+    pending,
+    retryScheduled,
     total: items.length,
     unmatched
   };
@@ -328,6 +374,8 @@ export function buildSearchResults(
     return haystack.includes(normalizedQuery);
   };
   const toResult = (item: ArchiveItem, kind: 'diary' | 'library'): SearchResultItem => ({
+    catalogId: item.film?.catalogId,
+    catalogSource: item.film?.catalogSource,
     director: item.film?.director[0] ?? null,
     key: `${kind}:${item.sourcePath}`,
     kind,
@@ -351,6 +399,8 @@ export function buildSearchResults(
   const catalog = catalogResults
     .filter((result) => !localKeys.has(readFilmKey({ title: result.title, year: result.year })))
     .map((result): SearchResultItem => ({
+      catalogId: result.catalogId,
+      catalogSource: result.catalogSource,
       director: result.director?.[0] ?? null,
       key: `catalog:${result.pageId}`,
       kind: 'catalog',

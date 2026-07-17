@@ -20,7 +20,11 @@ export function createWatchedFolderSync(options: WatchedFolderSyncOptions) {
     return refreshVersionsByFolder.get(folderPath) ?? 0;
   }
 
-  async function refreshFolder(folderPath: string, allowUntrackedFolder: boolean, refreshVersion: number): Promise<void> {
+  async function refreshFolder(
+    folderPath: string,
+    allowUntrackedFolder: boolean,
+    refreshVersion: number
+  ): Promise<void> {
     const scannedAt = options.now();
     let items: ScannedFolderItem[] = [];
 
@@ -108,3 +112,5 @@ export function createWatchedFolderSync(options: WatchedFolderSyncOptions) {
     watchAndRefreshFolder
   };
 }
+
+export type WatchedFolderSync = ReturnType<typeof createWatchedFolderSync>;

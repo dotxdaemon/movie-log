@@ -1,9 +1,9 @@
 // ABOUTME: Verifies that the renderer styles use the icy paper, graphite, and burgundy dossier palette.
 // ABOUTME: Reads the real stylesheet so the color token contract can regress without a browser.
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { readStyles } from './style-source.js';
 
-const stylesheet = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
+const stylesheet = readStyles();
 
 describe('renderer palette', () => {
   it('keeps the pale lavender and graphite palette without the warm lamp or pill system', () => {

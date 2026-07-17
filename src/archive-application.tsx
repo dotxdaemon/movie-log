@@ -44,6 +44,7 @@ export interface ArchiveApplicationProps {
   logFilmResults: CatalogSearchResult[];
   logPanelOpen: boolean;
   logReview: string;
+  logSaving: boolean;
   logSelectedFilm: CatalogSearchResult | null;
   noteFilePath: string;
   onAddWatchedFolders(): Promise<void>;
@@ -249,6 +250,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
           onSelectFilm={props.onSelectLogFilm}
           pendingLogPaths={props.pendingLogPaths}
           review={props.logReview}
+          saving={props.logSaving}
           selectedFilm={props.logSelectedFilm}
         />
       ) : null}

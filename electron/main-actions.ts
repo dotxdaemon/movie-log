@@ -21,12 +21,20 @@ interface LogPathsFromDropOptions {
   broadcastState(): Promise<void>;
   createEntryForPath(itemPath: string): Promise<WatchEntry | null>;
   matchFilmForEntry?(entry: WatchEntry, film: LogFilmRequest): Promise<void>;
+  reportError?(error: unknown, phase: 'broadcast' | 'metadata' | 'persistence'): void;
 }
 
 interface SearchCatalogOptions {
   liveSearchTimeoutMs?: number;
   searchCachedFilms(query: string): Promise<CatalogSearchResult[]>;
   searchLiveFilms(query: string, signal: AbortSignal): Promise<CatalogSearchResult[]>;
+}
+
+interface LogCatalogFilmOptions {
+  addHistoryEntry(entry: WatchEntry): Promise<WatchEntry>;
+  attachFilm(entry: WatchEntry, film: LogFilmRequest): Promise<void>;
+  broadcastState(): Promise<void>;
+  reportError?(error: unknown, phase: 'broadcast' | 'metadata' | 'persistence'): void;
 }
 
 export async function addWatchedFolderPath(
@@ -57,9 +65,12 @@ export async function logPathsFromDrop(
   selectedFilm?: LogFilmRequest
 ): Promise<LogPathsResult> {
   if (selectedFilm && paths.length !== 1) {
-    throw new Error(
-      'Attach one media item for this catalog film, or clear the selected catalog film before logging multiple items.'
-    );
+    return {
+      addedCount: 0,
+      entryStatus: 'failed',
+      metadataStatus: 'not-requested',
+      skippedPaths: [...paths]
+    };
   }
 
   const entries: WatchEntry[] = [];
@@ -80,24 +91,95 @@ export async function logPathsFromDrop(
   }
 
   if (entries.length > 0) {
-    await options.addHistoryEntries(entries);
+    try {
+      await options.addHistoryEntries(entries);
+    } catch (error) {
+      options.reportError?.(error, 'persistence');
+      return {
+        addedCount: 0,
+        entryStatus: 'failed',
+        metadataStatus: 'not-requested',
+        skippedPaths
+      };
+    }
+
+    let metadataStatus: LogPathsResult['metadataStatus'] = 'not-requested';
 
     if (selectedFilm) {
       const acceptedEntry = entries[0] as WatchEntry;
 
       if (!options.matchFilmForEntry) {
-        throw new Error('The selected film could not be attached to this media item.');
+        metadataStatus = 'pending';
+      } else {
+        try {
+          await options.matchFilmForEntry(acceptedEntry, selectedFilm);
+          metadataStatus = 'attached';
+        } catch (error) {
+          options.reportError?.(error, 'metadata');
+          metadataStatus = 'pending';
+        }
       }
-
-      await options.matchFilmForEntry(acceptedEntry, selectedFilm);
     }
 
-    await options.broadcastState();
+    try {
+      await options.broadcastState();
+    } catch (error) {
+      options.reportError?.(error, 'broadcast');
+    }
+
+    return {
+      addedCount: entries.length,
+      entryStatus: 'saved',
+      metadataStatus,
+      skippedPaths
+    };
   }
 
   return {
-    addedCount: entries.length,
+    addedCount: 0,
+    entryStatus: 'failed',
+    metadataStatus: 'not-requested',
     skippedPaths
+  };
+}
+
+export async function logCatalogFilmEntry(
+  entry: WatchEntry,
+  film: LogFilmRequest,
+  options: LogCatalogFilmOptions
+): Promise<LogPathsResult> {
+  try {
+    await options.addHistoryEntry(entry);
+  } catch (error) {
+    options.reportError?.(error, 'persistence');
+    return {
+      addedCount: 0,
+      entryStatus: 'failed',
+      metadataStatus: 'not-requested',
+      skippedPaths: []
+    };
+  }
+
+  let metadataStatus: LogPathsResult['metadataStatus'] = 'attached';
+
+  try {
+    await options.attachFilm(entry, film);
+  } catch (error) {
+    options.reportError?.(error, 'metadata');
+    metadataStatus = 'pending';
+  }
+
+  try {
+    await options.broadcastState();
+  } catch (error) {
+    options.reportError?.(error, 'broadcast');
+  }
+
+  return {
+    addedCount: 1,
+    entryStatus: 'saved',
+    metadataStatus,
+    skippedPaths: []
   };
 }
 

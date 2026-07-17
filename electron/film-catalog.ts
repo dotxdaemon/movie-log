@@ -6,9 +6,11 @@ import type { CatalogSearchResult, FilmDetails } from '../shared/types.js';
 export interface FilmCatalog {
   fetchFilmDetails(pageId: number, options?: CatalogRequestOptions): Promise<FilmDetails | null>;
   searchFilms(query: string, options?: CatalogRequestOptions): Promise<CatalogSearchResult[]>;
+  searchPosterFallback?(query: string, options?: CatalogRequestOptions): Promise<CatalogSearchResult[]>;
 }
 
 export interface CatalogRequestOptions {
+  includeCredits?: boolean;
   signal?: AbortSignal;
 }
 
@@ -17,7 +19,7 @@ interface SearchPage {
   index?: number;
   pageid: number;
   pageprops?: { wikibase_item?: string };
-  thumbnail?: { source?: string };
+  thumbnail?: { height?: number; source?: string; width?: number };
   title: string;
 }
 
@@ -39,6 +41,7 @@ interface LabelsPayload {
 
 const WIKIPEDIA_API = 'https://en.wikipedia.org/w/api.php';
 const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
+const IMDB_SUGGESTION_API = 'https://v2.sg.media-imdb.com/suggestion/x';
 
 async function fetchJsonFromNetwork(url: string, options: CatalogRequestOptions = {}): Promise<unknown> {
   const response = await fetch(url, {
@@ -58,10 +61,29 @@ function readPages(payload: unknown): SearchPage[] {
   return Object.values(pages);
 }
 
+function readPosterUrl(page: SearchPage): string | null {
+  const source = page.thumbnail?.source;
+  const width = page.thumbnail?.width;
+  const height = page.thumbnail?.height;
+
+  if (!source) {
+    return null;
+  }
+
+  if (typeof width === 'number' && typeof height === 'number' && height < width * 1.1) {
+    return null;
+  }
+
+  return source;
+}
+
 function readTitleYear(page: SearchPage): { title: string; year: number | null } {
-  const disambiguation = page.title.match(/^(.*?)\s*\(((?:19|20)\d{2})?\s?(?:film|miniseries|TV series)\)$/i);
+  const disambiguation = page.title.match(
+    /^(.*?)\s*\(([^)]*(?:film|miniseries|television series|TV series|anime)[^)]*)\)$/i
+  );
   const baseTitle = disambiguation ? (disambiguation[1] as string) : page.title;
-  const disambiguationYear = disambiguation?.[2] ? Number(disambiguation[2]) : null;
+  const disambiguationYearText = disambiguation?.[2]?.match(/\b((?:19|20)\d{2})\b/)?.[1];
+  const disambiguationYear = disambiguationYearText ? Number(disambiguationYearText) : null;
   const descriptionYear = page.description?.match(/\b((?:19|20)\d{2})\b/)?.[1];
 
   return {
@@ -77,23 +99,125 @@ export function readSearchResults(payload: unknown): CatalogSearchResult[] {
       const { title, year } = readTitleYear(page);
 
       return {
+        catalogId: String(page.pageid),
+        catalogSource: 'wikipedia',
         description: page.description ?? '',
         pageId: page.pageid,
-        posterUrl: page.thumbnail?.source ?? null,
+        posterUrl: readPosterUrl(page),
         title,
         year
       };
     });
 }
 
+interface ImdbSuggestion {
+  i?: { height?: number; imageUrl?: string; width?: number };
+  id?: string;
+  l?: string;
+  q?: string;
+  y?: number;
+}
+
+export function readImdbPosterResults(payload: unknown): CatalogSearchResult[] {
+  const suggestions = (payload as { d?: ImdbSuggestion[] }).d ?? [];
+
+  return suggestions.flatMap((suggestion, catalogRank) => {
+    const source = suggestion.i?.imageUrl;
+    const width = suggestion.i?.width;
+    const height = suggestion.i?.height;
+    const identifier = suggestion.id;
+    const title = suggestion.l;
+    const category = (suggestion.q?.toLowerCase() ?? '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const isSeries = category.includes('tv series') || category.includes('tv mini series');
+    const isFilm = category === 'feature' || category.includes('movie');
+
+    if (
+      !identifier?.startsWith('tt') ||
+      !title ||
+      !source ||
+      (!isFilm && !isSeries) ||
+      (typeof width === 'number' && typeof height === 'number' && height < width * 1.1)
+    ) {
+      return [];
+    }
+
+    const numericId = Number(identifier.slice(2));
+
+    return [
+      {
+        catalogId: identifier,
+        catalogRank,
+        catalogSource: 'imdb' as const,
+        description: isSeries ? 'Television series' : 'Feature film',
+        pageId: Number.isSafeInteger(numericId) ? -numericId : -1,
+        posterUrl: source,
+        title,
+        year: typeof suggestion.y === 'number' ? suggestion.y : null
+      }
+    ];
+  });
+}
+
 export function chooseFilmMatch(
   results: CatalogSearchResult[],
-  film: { title: string; year: number | null }
+  film: { mediaType?: 'film' | 'series'; title: string; year: number | null }
 ): CatalogSearchResult | null {
   const wantedKey = readFilmKey({ title: film.title, year: null }).split('::')[0];
-  const titleMatches = results.filter(
-    (result) => readFilmKey({ title: result.title, year: null }).split('::')[0] === wantedKey
-  );
+  const readResultKey = (result: CatalogSearchResult) =>
+    readFilmKey({ title: result.title.replace(/(?::|\s)\s*The Movie$/i, ''), year: null }).split('::')[0] as string;
+  const readDistance = (left: string, right: string): number => {
+    const rows = Array.from({ length: left.length + 1 }, (_value, index) => index);
+
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      let diagonal = rows[0] as number;
+      rows[0] = rightIndex;
+
+      for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+        const above = rows[leftIndex] as number;
+        rows[leftIndex] = Math.min(
+          above + 1,
+          (rows[leftIndex - 1] as number) + 1,
+          diagonal + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1)
+        );
+        diagonal = above;
+      }
+    }
+
+    return rows[left.length] as number;
+  };
+  const wantedMediaType = film.mediaType ?? 'film';
+  const matchesMediaType = (result: CatalogSearchResult) => {
+    const description = result.description.toLowerCase();
+    const series = /\b(?:anime|television|tv|web) (?:series|sitcom|drama|program)\b|\bminiseries\b/.test(description);
+    const movie = /\bfilm\b/.test(description);
+
+    if (wantedMediaType === 'series') {
+      return series && !movie;
+    }
+
+    return movie && !series;
+  };
+  const mediaResults = results.filter(matchesMediaType);
+  let titleMatches = mediaResults.filter((result) => readResultKey(result) === wantedKey);
+
+  if (titleMatches.length === 0 && film.year !== null) {
+    titleMatches = mediaResults.filter(
+      (result) => result.year === film.year && readDistance(readResultKey(result), wantedKey) <= 1
+    );
+  }
+
+  if (titleMatches.length === 0 && wantedMediaType === 'series') {
+    titleMatches = mediaResults.filter((result) => {
+      const resultKey = readResultKey(result);
+      return resultKey.length >= 5 && (wantedKey.startsWith(`${resultKey} `) || resultKey.startsWith(`${wantedKey} `));
+    });
+  }
+
+  if (titleMatches.length === 0 && film.year !== null) {
+    titleMatches = mediaResults.filter(
+      (result) => result.catalogSource === 'imdb' && result.catalogRank === 0 && result.year === film.year
+    );
+  }
 
   if (titleMatches.length === 0) {
     return null;
@@ -104,7 +228,7 @@ export function chooseFilmMatch(
   }
 
   return (
-    titleMatches.find((result) => result.year !== null && Math.abs(result.year - (film.year as number)) <= 1) ??
+    titleMatches.find((result) => result.year === film.year) ??
     titleMatches.find((result) => result.year === null) ??
     null
   );
@@ -140,10 +264,12 @@ function readGenreLabel(label: string): string {
 export function createFilmCatalog(
   options: {
     fetchJson?: (url: string, options?: CatalogRequestOptions) => Promise<unknown>;
+    fetchPosterJson?: (url: string, options?: CatalogRequestOptions) => Promise<unknown>;
     requestTimeoutMs?: number;
   } = {}
 ): FilmCatalog {
   const fetchJson = options.fetchJson ?? fetchJsonFromNetwork;
+  const fetchPosterJson = options.fetchPosterJson ?? fetchJsonFromNetwork;
   const requestTimeoutMs = options.requestTimeoutMs ?? 8000;
 
   async function requestJson(url: string, requestOptions: CatalogRequestOptions = {}): Promise<unknown> {
@@ -196,7 +322,10 @@ export function createFilmCatalog(
 
     const payload = await requestJson(`${WIKIPEDIA_API}?${parameters}`, requestOptions);
     const pages = readPages(payload);
-    const entityIds = pages.map((page) => page.pageprops?.wikibase_item).filter(Boolean) as string[];
+    const entityIds =
+      requestOptions.includeCredits === false
+        ? []
+        : (pages.map((page) => page.pageprops?.wikibase_item).filter(Boolean) as string[]);
     const directorsByEntity = new Map<string, string[]>();
 
     if (entityIds.length > 0) {
@@ -241,6 +370,16 @@ export function createFilmCatalog(
       ...result,
       director: directorsByEntity.get(entityByPageId.get(result.pageId) ?? '') ?? []
     }));
+  }
+
+  async function searchPosterFallback(
+    query: string,
+    requestOptions: CatalogRequestOptions = {}
+  ): Promise<CatalogSearchResult[]> {
+    const normalizedQuery = query.replace(/\s+(?:film|TV series)\s*$/i, '').trim();
+    const slug = encodeURIComponent(normalizedQuery.replace(/\s+/g, '_'));
+    const payload = await fetchPosterJson(`${IMDB_SUGGESTION_API}/${slug}.json`, requestOptions);
+    return readImdbPosterResults(payload);
   }
 
   async function fetchFilmDetails(
@@ -312,12 +451,12 @@ export function createFilmCatalog(
       genres: readLabels(genreIds).map(readGenreLabel),
       language: readLabels(languageIds),
       pageId,
-      posterUrl: page.thumbnail?.source ?? null,
+      posterUrl: readPosterUrl(page),
       runtimeMinutes: runtimeAmount ? Math.round(Number(runtimeAmount.replace('+', ''))) : null,
       wikipediaUrl: page.fullurl ?? null,
       year: publishedTime ? Number(publishedTime.slice(1, 5)) : yearFromTitle
     };
   }
 
-  return { fetchFilmDetails, searchFilms };
+  return { fetchFilmDetails, searchFilms, searchPosterFallback };
 }

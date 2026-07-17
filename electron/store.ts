@@ -3,7 +3,12 @@
 import { access, copyFile, mkdir, open, readFile, rename, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { scanFolderContents, type ScannedFolderItem } from './folder-scan.js';
-import { createEntryFromPath, readTitleFromPath, readVisibleHistory, sortEntriesByWatchedAt } from '../shared/history.js';
+import {
+  createEntryFromPath,
+  readTitleFromPath,
+  readVisibleHistory,
+  sortEntriesByWatchedAt
+} from '../shared/history.js';
 import type { EntryDetails, LibraryItem, MovieLogState, WatchEntry, WatchedFolder } from '../shared/types.js';
 
 const HISTORY_POLICY = 'append-only';
@@ -93,21 +98,18 @@ function restoreDroppedHistoryEntries(storedEntries: WatchEntry[], candidateEntr
 
 function countNoteHistoryRows(note: string): number {
   const historySection = note.split('\n## Watched Folders\n')[0] ?? note;
-  return historySection
-    .split('\n')
-    .filter((line) => line.startsWith('- ') && !line.includes('Nothing logged yet')).length;
+  return historySection.split('\n').filter((line) => line.startsWith('- ') && !line.includes('Nothing logged yet'))
+    .length;
 }
 
 function encodeNoteField(value: string): string {
-  return value
-    .replaceAll('\\', '\\\\')
-    .replaceAll('\r', '\\r')
-    .replaceAll('\n', '\\n')
-    .replaceAll('|', '\\|');
+  return value.replaceAll('\\', '\\\\').replaceAll('\r', '\\r').replaceAll('\n', '\\n').replaceAll('|', '\\|');
 }
 
 function sortLibraryItems(items: LibraryItem[]): LibraryItem[] {
-  return [...items].sort((left, right) => left.title.localeCompare(right.title) || left.sourcePath.localeCompare(right.sourcePath));
+  return [...items].sort(
+    (left, right) => left.title.localeCompare(right.title) || left.sourcePath.localeCompare(right.sourcePath)
+  );
 }
 
 function titleHistoryEntry(entry: WatchEntry): WatchEntry {
@@ -168,7 +170,11 @@ function buildHistoryFromLibraryItems(items: LibraryItem[]): WatchEntry[] {
   );
 }
 
-function readItemFirstSeenAt(existingFirstSeenAt: string | undefined, addedAt: string | undefined, scannedAt: string): string {
+function readItemFirstSeenAt(
+  existingFirstSeenAt: string | undefined,
+  addedAt: string | undefined,
+  scannedAt: string
+): string {
   if (addedAt) {
     return addedAt;
   }
@@ -195,11 +201,7 @@ async function readFolderId(folderPath: string): Promise<string | null> {
   }
 }
 
-function replaceHistoryEntry(
-  history: WatchEntry[],
-  previousItem: LibraryItem,
-  nextItem: LibraryItem
-): WatchEntry[] {
+function replaceHistoryEntry(history: WatchEntry[], previousItem: LibraryItem, nextItem: LibraryItem): WatchEntry[] {
   return sortEntriesByWatchedAt(
     history.map((entry) => {
       if (
@@ -220,7 +222,9 @@ function hasWatchHistoryForFolder(state: PersistedState, folderPath: string): bo
 }
 
 function shouldRepairWatchedFolder(state: PersistedState, folder: WatchedFolder): boolean {
-  const folderItems = state.libraryItems.filter((item) => item.folderId === folder.id || item.folderPath === folder.path);
+  const folderItems = state.libraryItems.filter(
+    (item) => item.folderId === folder.id || item.folderPath === folder.path
+  );
 
   return (
     folderItems.length === 0 &&
@@ -580,7 +584,10 @@ export function createHistoryStore(dataDirectory: string) {
 
   async function runSerialized<T>(work: () => Promise<T>): Promise<T> {
     const nextTask = stateQueue.catch(() => undefined).then(work);
-    stateQueue = nextTask.then(() => undefined, () => undefined);
+    stateQueue = nextTask.then(
+      () => undefined,
+      () => undefined
+    );
     return nextTask;
   }
 
@@ -645,7 +652,11 @@ export function createHistoryStore(dataDirectory: string) {
         repairedWatchedFolders = repairedWatchedFolders || outcome.changed;
       }
 
-      if (repairedWatchedFolders || parsed.historyPolicy !== HISTORY_POLICY || JSON.stringify(parsedState) !== JSON.stringify(state)) {
+      if (
+        repairedWatchedFolders ||
+        parsed.historyPolicy !== HISTORY_POLICY ||
+        JSON.stringify(parsedState) !== JSON.stringify(state)
+      ) {
         return writePersistedState(state);
       }
 
@@ -722,9 +733,10 @@ export function createHistoryStore(dataDirectory: string) {
         const updatedEntry: WatchEntry = {
           ...entry,
           ...details,
-          tags: details.tags ? [...details.tags] : entry.tags
+          tags: details.tags ? [...details.tags] : entry.tags,
+          watchedAt: entry.watchedAt
         };
-        state.history = state.history.map((candidate) => candidate.id === entryId ? updatedEntry : candidate);
+        state.history = state.history.map((candidate) => (candidate.id === entryId ? updatedEntry : candidate));
         await writePersistedState(state);
         return updatedEntry;
       });
@@ -745,11 +757,7 @@ export function createHistoryStore(dataDirectory: string) {
             path: folderPath
           };
 
-          if (
-            existing.id === nextFolder.id &&
-            existing.name === nextFolder.name &&
-            existing.path === nextFolder.path
-          ) {
+          if (existing.id === nextFolder.id && existing.name === nextFolder.name && existing.path === nextFolder.path) {
             return existing;
           }
 
@@ -859,3 +867,5 @@ export function createHistoryStore(dataDirectory: string) {
     }
   };
 }
+
+export type HistoryStore = ReturnType<typeof createHistoryStore>;

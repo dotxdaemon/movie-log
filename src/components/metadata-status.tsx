@@ -15,9 +15,10 @@ export function MetadataStatus({ coverage, onRetry }: { coverage: ArchiveCoverag
       </span>
       {coverage.unmatched > 0 ? <span>{`${coverage.unmatched} need review`}</span> : null}
       <span>{`${coverage.annotated} annotated`}</span>
-      {coverage.failed > 0 ? (
+      {coverage.retryScheduled > 0 ? <span>{`${coverage.retryScheduled} retry scheduled`}</span> : null}
+      {coverage.failed > 0 || coverage.retryScheduled > 0 ? (
         <span className="metadata-failure">
-          Catalog unavailable
+          {coverage.failed > 0 ? `${coverage.failed} temporarily failed` : 'Catalog retry available'}
           <button className="metadata-retry" onClick={() => void onRetry()} type="button">
             Retry
           </button>

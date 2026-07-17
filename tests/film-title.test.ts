@@ -6,13 +6,20 @@ import {
   formatFilmTitle,
   isFilmSourcePath,
   parseFilmTitle,
+  readCatalogMediaType,
   readFilmKey
 } from '../shared/film-title.js';
 
 describe('parseFilmTitle', () => {
   it('reads the title and year out of dotted release stems', () => {
-    expect(parseFilmTitle('The.Plague.2025.1080p.AMZN.WEB-DL.DDP5.1.x265')).toEqual({ title: 'The Plague', year: 2025 });
-    expect(parseFilmTitle('City.of.God.2002.BluRay.1080p.x265.10bit.MNHD-FRDS')).toEqual({ title: 'City of God', year: 2002 });
+    expect(parseFilmTitle('The.Plague.2025.1080p.AMZN.WEB-DL.DDP5.1.x265')).toEqual({
+      title: 'The Plague',
+      year: 2025
+    });
+    expect(parseFilmTitle('City.of.God.2002.BluRay.1080p.x265.10bit.MNHD-FRDS')).toEqual({
+      title: 'City of God',
+      year: 2002
+    });
     expect(parseFilmTitle('Flow.2024')).toEqual({ title: 'Flow', year: 2024 });
     expect(parseFilmTitle('Heat.1995')).toEqual({ title: 'Heat', year: 1995 });
   });
@@ -39,6 +46,29 @@ describe('parseFilmTitle', () => {
     });
   });
 
+  it('decodes release names and removes non-title wrappers before catalog matching', () => {
+    expect(parseFilmTitle('The.Love.Witch.%282016%29.%281080p.BluRay.x265%29')).toEqual({
+      title: 'The Love Witch',
+      year: 2016
+    });
+    expect(parseFilmTitle('[Sub] The Summer Hikaru Died S01E01 Replacement')).toEqual({
+      title: 'The Summer Hikaru Died',
+      year: null
+    });
+    expect(parseFilmTitle('Notebook, The')).toEqual({ title: 'The Notebook', year: null });
+    expect(parseFilmTitle('Alien.3.DC.1992.1080p')).toEqual({ title: 'Alien 3', year: 1992 });
+    expect(parseFilmTitle("Mai-chan's Daily Life AKA Mai-chan no Nichijou.2014")).toEqual({
+      title: "Mai-chan's Daily Life",
+      year: 2014
+    });
+  });
+
+  it('identifies episodic releases so catalog lookup cannot attach a same-name movie poster', () => {
+    expect(readCatalogMediaType('The.Boys.S04E01.Department.of.Dirty.Tricks.1080p')).toBe('series');
+    expect(readCatalogMediaType('PONIES (2026) - S01E01 - Second Hand News')).toBe('series');
+    expect(readCatalogMediaType('The.Ring.2002.1080p')).toBe('film');
+  });
+
   it('passes plain names through unchanged', () => {
     expect(parseFilmTitle('Inception')).toEqual({ title: 'Inception', year: null });
     expect(parseFilmTitle('Media Inbox')).toEqual({ title: 'Media Inbox', year: null });
@@ -55,6 +85,10 @@ describe('film identity helpers', () => {
     expect(readFilmKey({ title: 'The Matrix', year: 1999 })).toBe('the matrix::1999');
     expect(readFilmKey({ title: 'City  of God!', year: null })).toBe('city of god::');
     expect(readFilmKey(parseFilmTitle('The.Matrix.1999.1080p'))).toBe(readFilmKey({ title: 'the MATRIX', year: 1999 }));
+    expect(readFilmKey({ title: 'Amélie', year: 2001 })).toBe(readFilmKey({ title: 'Amelie', year: 2001 }));
+    expect(readFilmKey({ title: 'Dungeons & Dragons', year: 2023 })).toBe(
+      readFilmKey({ title: 'Dungeons and Dragons', year: 2023 })
+    );
   });
 
   it('builds and recognizes catalog source paths that title back to the film name', () => {
@@ -63,5 +97,8 @@ describe('film identity helpers', () => {
     expect(isFilmSourcePath(sourcePath)).toBe(true);
     expect(isFilmSourcePath('/Volumes/blve/movies/Flow.mkv')).toBe(false);
     expect(parseFilmTitle('Inception (2010)')).toEqual({ title: 'Inception', year: 2010 });
+    expect(buildFilmSourcePath({ title: 'Inception', year: 2010 }, -1375666, 'imdb', 'tt1375666')).toBe(
+      'film://imdb-tt1375666/Inception (2010)'
+    );
   });
 });

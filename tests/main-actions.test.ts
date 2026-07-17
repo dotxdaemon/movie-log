@@ -1,7 +1,12 @@
 // ABOUTME: Verifies the main-process orchestration for adding watched folders and logging dropped paths.
 // ABOUTME: Covers rollback and partial-failure behavior without importing the Electron runtime shell.
 import { describe, expect, it } from 'vitest';
-import { addWatchedFolderPath, logPathsFromDrop, searchCatalogWithFallback } from '../electron/main-actions.js';
+import {
+  addWatchedFolderPath,
+  logCatalogFilmEntry,
+  logPathsFromDrop,
+  searchCatalogWithFallback
+} from '../electron/main-actions.js';
 import { createEntryFromPath } from '../shared/history.js';
 import type { WatchedFolder } from '../shared/types.js';
 
@@ -84,6 +89,8 @@ describe('main actions', () => {
 
     expect(result).toEqual({
       addedCount: 1,
+      entryStatus: 'saved',
+      metadataStatus: 'not-requested',
       skippedPaths: ['/Movies/Missing.mkv']
     });
     expect(savedPaths).toEqual(['/Movies/Good.mkv']);
@@ -110,6 +117,8 @@ describe('main actions', () => {
 
     expect(result).toEqual({
       addedCount: 1,
+      entryStatus: 'saved',
+      metadataStatus: 'not-requested',
       skippedPaths: ['/Movies/Poster.jpg']
     });
     expect(savedPaths).toEqual(['/Movies/Good.mkv']);
@@ -138,9 +147,78 @@ describe('main actions', () => {
       film
     );
 
-    expect(result).toEqual({ addedCount: 1, skippedPaths: [] });
+    expect(result).toEqual({
+      addedCount: 1,
+      entryStatus: 'saved',
+      metadataStatus: 'attached',
+      skippedPaths: []
+    });
     expect(savedPaths).toEqual(['/Movies/Known.Film.2024.mkv']);
     expect(matchedPaths).toEqual(['/Movies/Known.Film.2024.mkv']);
+  });
+
+  it('reports a saved entry truthfully when metadata attachment must finish later', async () => {
+    const savedPaths: string[] = [];
+    let broadcastCount = 0;
+
+    const result = await logPathsFromDrop(
+      ['/Movies/Known.Film.2024.mkv'],
+      {
+        addHistoryEntries: async (entries) => {
+          savedPaths.push(...entries.map((entry) => entry.sourcePath));
+          return entries;
+        },
+        broadcastState: async () => {
+          broadcastCount += 1;
+        },
+        createEntryForPath: async (itemPath) =>
+          createEntryFromPath(itemPath, 'drop', '2026-07-16T12:00:00.000Z', 'file'),
+        matchFilmForEntry: async () => {
+          throw new Error('catalog cache unavailable');
+        }
+      },
+      { pageId: 42, posterUrl: 'https://example.test/known-film-poster.jpg', title: 'Known Film', year: 2024 }
+    );
+
+    expect(result).toEqual({
+      addedCount: 1,
+      entryStatus: 'saved',
+      metadataStatus: 'pending',
+      skippedPaths: []
+    });
+    expect(savedPaths).toEqual(['/Movies/Known.Film.2024.mkv']);
+    expect(broadcastCount).toBe(1);
+  });
+
+  it('returns the same truthful structured result for a catalog-only entry', async () => {
+    const entry = createEntryFromPath(
+      'film://wikipedia-42/Known Film (2024)',
+      'drop',
+      '2026-07-16T12:00:00.000Z',
+      'directory'
+    );
+    let broadcastCount = 0;
+    const result = await logCatalogFilmEntry(
+      entry,
+      { pageId: 42, title: 'Known Film', year: 2024 },
+      {
+        addHistoryEntry: async (savedEntry) => savedEntry,
+        attachFilm: async () => {
+          throw new Error('cache write unavailable');
+        },
+        broadcastState: async () => {
+          broadcastCount += 1;
+        }
+      }
+    );
+
+    expect(result).toEqual({
+      addedCount: 1,
+      entryStatus: 'saved',
+      metadataStatus: 'pending',
+      skippedPaths: []
+    });
+    expect(broadcastCount).toBe(1);
   });
 
   it('rejects a selected catalog film with multiple media paths before any partial save', async () => {
@@ -167,7 +245,12 @@ describe('main actions', () => {
         },
         { pageId: 42, title: 'Known Film', year: 2024 }
       )
-    ).rejects.toThrow('Attach one media item');
+    ).resolves.toEqual({
+      addedCount: 0,
+      entryStatus: 'failed',
+      metadataStatus: 'not-requested',
+      skippedPaths: ['/Movies/One.mkv', '/Movies/Two.mkv']
+    });
 
     expect(calls).toEqual([]);
   });
@@ -196,7 +279,12 @@ describe('main actions', () => {
         },
         { pageId: 42, title: 'Known Film', year: 2024 }
       )
-    ).rejects.toThrow('clear the selected catalog film');
+    ).resolves.toEqual({
+      addedCount: 0,
+      entryStatus: 'failed',
+      metadataStatus: 'not-requested',
+      skippedPaths: ['/Movies/Good.mkv', '/Movies/Poster.jpg']
+    });
 
     expect(calls).toEqual([]);
   });
@@ -217,7 +305,12 @@ describe('main actions', () => {
       { pageId: 42, title: 'Known Film', year: 2024 }
     );
 
-    expect(result).toEqual({ addedCount: 0, skippedPaths: ['/Movies/Poster.jpg'] });
+    expect(result).toEqual({
+      addedCount: 0,
+      entryStatus: 'failed',
+      metadataStatus: 'not-requested',
+      skippedPaths: ['/Movies/Poster.jpg']
+    });
     expect(matchCount).toBe(0);
   });
 

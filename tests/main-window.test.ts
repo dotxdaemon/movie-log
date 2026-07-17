@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const mainPath = fileURLToPath(new URL('../electron/main.ts', import.meta.url));
+const mainPath = fileURLToPath(new URL('../electron/main-window.ts', import.meta.url));
 
 describe('main window sizing', () => {
   it('allows the Movie Log window to open at mobile width', async () => {

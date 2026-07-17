@@ -1,19 +1,32 @@
 // ABOUTME: Renders the geometric segmented rating meter and the tactile half-step rating input.
 // ABOUTME: Keeps ratings readable without color alone by pairing marks with monospaced numerals.
-import type { ReactNode } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
 
 const ratingSteps = Array.from({ length: 10 }, (_item, index) => (index + 1) / 2);
 
 export function RatingMeter({ rating, compact = false }: { compact?: boolean; rating: number }) {
   return (
-    <span aria-label={`Rated ${rating.toFixed(1)} out of 5`} className={compact ? 'rating-meter rating-meter-compact' : 'rating-meter'} role="img">
+    <span
+      aria-label={`Rated ${rating.toFixed(1)} out of 5`}
+      className={compact ? 'rating-meter rating-meter-compact' : 'rating-meter'}
+      role="img"
+    >
       <span aria-hidden="true" className="rating-meter-cells">
         {Array.from({ length: 5 }, (_item, index) => {
           const fill = Math.max(0, Math.min(1, rating - index));
-          return <i className={fill === 1 ? 'rating-cell rating-cell-full' : fill > 0 ? 'rating-cell rating-cell-half' : 'rating-cell'} key={index} />;
+          return (
+            <i
+              className={
+                fill === 1 ? 'rating-cell rating-cell-full' : fill > 0 ? 'rating-cell rating-cell-half' : 'rating-cell'
+              }
+              key={index}
+            />
+          );
         })}
       </span>
-      <span aria-hidden="true" className="rating-meter-value">{rating.toFixed(1)}</span>
+      <span aria-hidden="true" className="rating-meter-value">
+        {rating.toFixed(1)}
+      </span>
     </span>
   );
 }
@@ -25,6 +38,16 @@ interface RatingInputProps {
 }
 
 export function RatingInput({ legend = 'Rating', name, value }: RatingInputProps) {
+  const updateCurrentRating = (event: ChangeEvent<HTMLInputElement>) => {
+    const output = event.currentTarget.closest('.rating-input')?.querySelector<HTMLOutputElement>('output');
+
+    if (output) {
+      output.value = event.currentTarget.value
+        ? `Current ${Number(event.currentTarget.value).toFixed(1)}`
+        : 'Current —';
+    }
+  };
+
   return (
     <fieldset className="rating-control">
       <legend>{legend}</legend>
@@ -32,7 +55,13 @@ export function RatingInput({ legend = 'Rating', name, value }: RatingInputProps
         <div className="rating-segments">
           {ratingSteps.map((step) => (
             <label className="rating-segment" key={step}>
-              <input defaultChecked={value === step} name={name} type="radio" value={step} />
+              <input
+                defaultChecked={value === step}
+                name={name}
+                onChange={updateCurrentRating}
+                type="radio"
+                value={step}
+              />
               <span className="rating-segment-mark" />
               <span className="rating-segment-readout">{step.toFixed(1)}</span>
               <span className="visually-hidden">{`${step} out of 5`}</span>
@@ -40,16 +69,11 @@ export function RatingInput({ legend = 'Rating', name, value }: RatingInputProps
           ))}
         </div>
         <label className="rating-none">
-          <input defaultChecked={value === null} name={name} type="radio" value="" />
+          <input defaultChecked={value === null} name={name} onChange={updateCurrentRating} type="radio" value="" />
           <span>None</span>
         </label>
         <output aria-live="polite" className="rating-current-value">
-          <span className="rating-current-none">Current —</span>
-          {ratingSteps.map((step) => (
-            <span className="rating-current-option" data-rating={step.toFixed(1)} key={step}>
-              {`Current ${step.toFixed(1)}`}
-            </span>
-          ))}
+          {value === null ? 'Current —' : `Current ${value.toFixed(1)}`}
         </output>
       </div>
     </fieldset>

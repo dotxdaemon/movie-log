@@ -38,7 +38,7 @@ describe('shared archive components', () => {
       createElement(PageHeader, {
         activeView: 'library',
         archiveCount: 22,
-        coverage: { annotated: 0, failed: 0, matched: 12, pending: 2, total: 22, unmatched: 8 },
+        coverage: { annotated: 0, failed: 0, matched: 12, pending: 2, retryScheduled: 0, total: 22, unmatched: 8 },
         diaryCount: 98,
         onOpenLogPanel: noop,
         onRetryMetadata: async () => {},

@@ -57,7 +57,8 @@ export interface LibraryItem extends FolderContentsItem {
   lastSeenAt: string;
 }
 
-export type FilmStatus = 'failed' | 'matched' | 'pending' | 'unmatched';
+export type FilmStatus = 'failed' | 'matched' | 'pending' | 'retry-scheduled' | 'unmatched';
+export type CatalogSource = 'imdb' | 'wikipedia';
 
 export interface FilmDetails {
   cast: string[];
@@ -75,12 +76,18 @@ export interface FilmDetails {
 export interface FilmRecord {
   attempts?: number;
   cast: string[];
+  catalogId?: string;
+  catalogSource?: CatalogSource;
   country: string[];
+  detailsComplete?: boolean;
   director: string[];
+  failureCount?: number;
   fetchedAt: string;
   failureReason?: 'temporary';
   genres: string[];
   key: string;
+  matchVersion?: number;
+  mediaType?: 'film' | 'series';
   language: string[];
   pageId: number | null;
   nextRetryAt?: string;
@@ -93,6 +100,9 @@ export interface FilmRecord {
 }
 
 export interface CatalogSearchResult {
+  catalogId?: string;
+  catalogSource?: CatalogSource;
+  catalogRank?: number;
   description: string;
   director?: string[];
   pageId: number;
@@ -110,11 +120,17 @@ export interface MovieLogState {
 
 export interface LogPathsResult {
   addedCount: number;
+  entryStatus: 'failed' | 'saved';
+  metadataStatus: 'attached' | 'not-requested' | 'pending';
   skippedPaths: string[];
 }
 
 export interface LogFilmRequest {
+  catalogId?: string;
+  catalogSource?: CatalogSource;
+  director?: string[];
   pageId: number;
+  posterUrl?: string | null;
   title: string;
   year: number | null;
 }
@@ -124,7 +140,7 @@ export interface MovieLogApi {
   getState(): Promise<MovieLogState>;
   getDataFilePath(): Promise<string>;
   getNoteFilePath(): Promise<string>;
-  logFilm(film: LogFilmRequest, details?: LogEntryDetails): Promise<void>;
+  logFilm(film: LogFilmRequest, details?: LogEntryDetails): Promise<LogPathsResult>;
   logPaths(paths: string[], details?: LogEntryDetails, film?: LogFilmRequest): Promise<LogPathsResult>;
   matchFilm(filmKey: string, film: { title: string; year: number | null }, pageId: number | null): Promise<void>;
   searchCatalog(query: string): Promise<CatalogSearchResult[]>;

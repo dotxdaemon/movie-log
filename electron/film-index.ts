@@ -1,30 +1,37 @@
-// ABOUTME: Caches film catalog metadata in a standalone JSON file beside the guarded history store.
-// ABOUTME: Persists bounded enrichment progress as matched, unmatched, pending, or temporarily failed records.
-import { mkdir, readFile, rename } from 'node:fs/promises';
-import { open } from 'node:fs/promises';
+// ABOUTME: Caches bounded film catalog work beside the guarded append-only history store.
+// ABOUTME: Persists identity-safe matches, durable retry scheduling, and batched enrichment progress across launches.
+import { mkdir, open, readFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chooseFilmMatch, type FilmCatalog } from './film-catalog.js';
 import type { CatalogSearchResult, FilmDetails, FilmRecord } from '../shared/types.js';
 
 export interface FilmEnrichmentRequest {
   key: string;
+  mediaType?: 'film' | 'series';
   title: string;
   year: number | null;
 }
 
 interface FilmIndexOptions {
+  backoffDelaysMs?: number[];
   catalog: FilmCatalog;
   concurrency?: number;
   dataDirectory: string;
+  deferDetails?: boolean;
   maxAttempts?: number;
+  maxFailureCount?: number;
+  maxWorkPerRun?: number;
   now?: () => string;
+  persistBatchDelayMs?: number;
+  persistBatchSize?: number;
   requestTimeoutMs?: number;
   retryDelaysMs?: number[];
   sleep?: (milliseconds: number) => Promise<void>;
 }
 
-interface EnrichFilmOptions {
+export interface EnrichFilmOptions {
   forceRetry?: boolean;
+  maxWork?: number;
   onProgress?: (films: Record<string, FilmRecord>) => Promise<void> | void;
 }
 
@@ -38,28 +45,35 @@ class EnrichmentCancelledError extends Error {
   }
 }
 
+const automaticMatchVersion = 3;
+
 function emptyRecord(
   request: FilmEnrichmentRequest,
   fetchedAt: string,
   status: FilmRecord['status'],
-  attempts = 0
+  previous?: FilmRecord
 ): FilmRecord {
   return {
-    attempts,
-    cast: [],
-    country: [],
-    director: [],
+    attempts: previous?.attempts ?? 0,
+    cast: previous?.cast ?? [],
+    catalogId: previous?.catalogId,
+    catalogSource: previous?.catalogSource,
+    country: previous?.country ?? [],
+    detailsComplete: false,
+    director: previous?.director ?? [],
     fetchedAt,
-    genres: [],
+    genres: previous?.genres ?? [],
     key: request.key,
-    language: [],
-    pageId: null,
-    posterUrl: null,
-    runtimeMinutes: null,
+    language: previous?.language ?? [],
+    matchVersion: previous?.matchVersion,
+    mediaType: request.mediaType ?? previous?.mediaType,
+    pageId: previous?.pageId ?? null,
+    posterUrl: previous?.posterUrl ?? null,
+    runtimeMinutes: previous?.runtimeMinutes ?? null,
     status,
-    title: request.title,
-    wikipediaUrl: null,
-    year: request.year
+    title: previous?.title ?? request.title,
+    wikipediaUrl: previous?.wikipediaUrl ?? null,
+    year: previous?.year ?? request.year
   };
 }
 
@@ -68,17 +82,23 @@ function buildRecord(
   film: { title: string; year: number | null },
   details: FilmDetails | null,
   fetchedAt: string,
-  attempts = 0
+  attempts = 0,
+  mediaType?: FilmEnrichmentRequest['mediaType']
 ): FilmRecord {
   return {
     attempts,
     cast: details?.cast ?? [],
+    catalogId: details ? String(details.pageId) : undefined,
+    catalogSource: 'wikipedia',
     country: details?.country ?? [],
+    detailsComplete: details !== null,
     director: details?.director ?? [],
     fetchedAt,
     genres: details?.genres ?? [],
     key,
     language: details?.language ?? [],
+    matchVersion: automaticMatchVersion,
+    mediaType,
     pageId: details?.pageId ?? null,
     posterUrl: details?.posterUrl ?? null,
     runtimeMinutes: details?.runtimeMinutes ?? null,
@@ -89,23 +109,60 @@ function buildRecord(
   };
 }
 
+function buildAttachedRecord(key: string, film: CatalogSearchResult, fetchedAt: string): FilmRecord {
+  return {
+    attempts: 0,
+    cast: [],
+    catalogId: film.catalogId,
+    catalogSource: film.catalogSource ?? 'wikipedia',
+    country: [],
+    detailsComplete: film.catalogSource === 'imdb',
+    director: [...(film.director ?? [])],
+    fetchedAt,
+    genres: [],
+    key,
+    language: [],
+    matchVersion: automaticMatchVersion,
+    pageId: film.pageId,
+    posterUrl: film.posterUrl,
+    runtimeMinutes: null,
+    status: 'matched',
+    title: film.title,
+    wikipediaUrl: null,
+    year: film.year
+  };
+}
+
 function addMilliseconds(timestamp: string, milliseconds: number): string {
   return new Date(Date.parse(timestamp) + milliseconds).toISOString();
 }
 
 export function createFilmIndex({
+  backoffDelaysMs = [
+    15 * 60_000,
+    60 * 60_000,
+    6 * 60 * 60_000,
+    24 * 60 * 60_000,
+    3 * 24 * 60 * 60_000,
+    7 * 24 * 60 * 60_000
+  ],
   catalog,
   concurrency = 2,
   dataDirectory,
+  deferDetails = false,
   maxAttempts = 2,
+  maxFailureCount = 8,
+  maxWorkPerRun = 12,
   now = () => new Date().toISOString(),
+  persistBatchDelayMs = 50,
+  persistBatchSize = 4,
   requestTimeoutMs = 8000,
-  retryDelaysMs = [250],
+  retryDelaysMs = [500],
   sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 }: FilmIndexOptions) {
   const filmsFilePath = join(dataDirectory, 'movie-log-films.json');
   let queue = Promise.resolve();
-  let activeJob: { controller: AbortController; promise: Promise<boolean> } | null = null;
+  let activeJob: { controller: AbortController; forceRetry: boolean; promise: Promise<boolean> } | null = null;
 
   function runSerialized<T>(work: () => Promise<T>): Promise<T> {
     const task = queue.catch(() => undefined).then(work);
@@ -148,6 +205,10 @@ export function createFilmIndex({
     records: FilmRecord[],
     onProgress?: EnrichFilmOptions['onProgress']
   ): Promise<Record<string, FilmRecord>> {
+    if (records.length === 0) {
+      return runSerialized(readPersistedFilms);
+    }
+
     const films = await runSerialized(async () => {
       const current = await readPersistedFilms();
 
@@ -199,52 +260,197 @@ export function createFilmIndex({
 
   async function fetchRecord(
     request: FilmEnrichmentRequest,
+    previous: FilmRecord | undefined,
     attempt: number,
     signal: AbortSignal
   ): Promise<FilmRecord> {
-    const results = await withBoundaryTimeout(signal, (requestSignal) =>
-      catalog.searchFilms(`${request.title}${request.year ? ` ${request.year}` : ''} film`, {
-        signal: requestSignal
-      })
-    );
-    const match = chooseFilmMatch(results, request);
+    const totalAttempts = (previous?.attempts ?? 0) + attempt;
+
+    if (previous?.status === 'matched' && previous.posterUrl === null && catalog.searchPosterFallback) {
+      const mediaQualifier = request.mediaType === 'series' ? 'TV series' : 'film';
+      const query = `${request.title}${request.year ? ` ${request.year}` : ''} ${mediaQualifier}`;
+      const fallbackResults = await withBoundaryTimeout(
+        signal,
+        (requestSignal) => catalog.searchPosterFallback?.(query, { signal: requestSignal }) ?? Promise.resolve([])
+      );
+      const fallbackMatch = chooseFilmMatch(fallbackResults, request);
+
+      if (fallbackMatch?.posterUrl) {
+        return {
+          ...buildAttachedRecord(request.key, fallbackMatch, now()),
+          attempts: totalAttempts,
+          detailsComplete: true,
+          mediaType: request.mediaType
+        };
+      }
+    }
+
+    if (
+      previous?.status === 'matched' &&
+      previous.detailsComplete === false &&
+      previous.pageId !== null &&
+      previous.matchVersion === automaticMatchVersion &&
+      (previous.mediaType === undefined || previous.mediaType === request.mediaType)
+    ) {
+      const details = await withBoundaryTimeout(signal, (requestSignal) =>
+        catalog.fetchFilmDetails(previous.pageId as number, { signal: requestSignal })
+      );
+
+      if (!details) {
+        throw new Error('Catalog details are temporarily unavailable.');
+      }
+
+      return buildRecord(request.key, previous, details, now(), totalAttempts, request.mediaType);
+    }
+
+    const mediaQualifier = request.mediaType === 'series' ? 'TV series' : 'film';
+    const query = `${request.title}${request.year ? ` ${request.year}` : ''} ${mediaQualifier}`;
+    let results: CatalogSearchResult[] = [];
+    let primaryFailed = false;
+
+    try {
+      results = await withBoundaryTimeout(signal, (requestSignal) =>
+        catalog.searchFilms(query, { includeCredits: false, signal: requestSignal })
+      );
+    } catch (error) {
+      if (!catalog.searchPosterFallback) {
+        throw error;
+      }
+
+      primaryFailed = true;
+    }
+
+    let match = chooseFilmMatch(results, request);
+
+    if ((!match || !match.posterUrl) && catalog.searchPosterFallback) {
+      const fallbackResults = await withBoundaryTimeout(
+        signal,
+        (requestSignal) => catalog.searchPosterFallback?.(query, { signal: requestSignal }) ?? Promise.resolve([])
+      );
+      const fallbackMatch = chooseFilmMatch(fallbackResults, request);
+
+      if (fallbackMatch?.posterUrl) {
+        match = fallbackMatch;
+      }
+    }
 
     if (!match) {
-      return buildRecord(request.key, request, null, now(), attempt);
+      return buildRecord(request.key, request, null, now(), totalAttempts, request.mediaType);
+    }
+
+    if (match.catalogSource === 'imdb') {
+      return {
+        ...buildAttachedRecord(request.key, match, now()),
+        attempts: totalAttempts,
+        detailsComplete: true,
+        mediaType: request.mediaType
+      };
+    }
+
+    if (deferDetails || primaryFailed) {
+      return {
+        ...buildAttachedRecord(request.key, match, now()),
+        attempts: totalAttempts,
+        mediaType: request.mediaType
+      };
     }
 
     const details = await withBoundaryTimeout(signal, (requestSignal) =>
       catalog.fetchFilmDetails(match.pageId, { signal: requestSignal })
     );
-    return buildRecord(request.key, request, details, now(), attempt);
+
+    if (!details) {
+      throw new Error('Catalog details are temporarily unavailable.');
+    }
+
+    return buildRecord(request.key, request, details, now(), totalAttempts, request.mediaType);
   }
 
-  async function fetchWithRetry(request: FilmEnrichmentRequest, signal: AbortSignal): Promise<FilmRecord> {
-    let latestError: unknown = null;
+  function buildFailureRecord(
+    request: FilmEnrichmentRequest,
+    previous: FilmRecord | undefined,
+    attemptsThisRun: number
+  ): FilmRecord {
+    const failedAt = now();
+    const failureCount = (previous?.failureCount ?? 0) + 1;
+    const attempts = (previous?.attempts ?? 0) + attemptsThisRun;
+    const delay = backoffDelaysMs[Math.min(failureCount - 1, backoffDelaysMs.length - 1)] ?? 7 * 24 * 60 * 60_000;
+    const preserveMatch = previous?.status === 'matched' && previous.pageId !== null;
+    const status: FilmRecord['status'] = preserveMatch
+      ? 'matched'
+      : failureCount >= maxFailureCount
+        ? 'failed'
+        : 'retry-scheduled';
 
-    for (let attempt = 1; attempt <= Math.max(1, maxAttempts); attempt += 1) {
+    return {
+      ...emptyRecord(request, failedAt, status, previous),
+      attempts,
+      detailsComplete: preserveMatch ? false : undefined,
+      failureCount,
+      failureReason: 'temporary',
+      nextRetryAt: failureCount >= maxFailureCount && !preserveMatch ? undefined : addMilliseconds(failedAt, delay)
+    };
+  }
+
+  async function fetchWithRetry(
+    request: FilmEnrichmentRequest,
+    previous: FilmRecord | undefined,
+    signal: AbortSignal
+  ): Promise<FilmRecord> {
+    const attemptsThisRun = Math.max(1, maxAttempts);
+
+    for (let attempt = 1; attempt <= attemptsThisRun; attempt += 1) {
       try {
-        return await fetchRecord(request, attempt, signal);
+        return await fetchRecord(request, previous, attempt, signal);
       } catch (error) {
         if (error instanceof EnrichmentCancelledError || signal.aborted) {
           throw new EnrichmentCancelledError();
         }
 
-        latestError = error;
-
-        if (attempt < Math.max(1, maxAttempts)) {
+        if (attempt < attemptsThisRun) {
           await sleep(retryDelaysMs[Math.min(attempt - 1, retryDelaysMs.length - 1)] ?? 0);
         }
       }
     }
 
-    void latestError;
-    const failedAt = now();
-    return {
-      ...emptyRecord(request, failedAt, 'failed', Math.max(1, maxAttempts)),
-      failureReason: 'temporary',
-      nextRetryAt: addMilliseconds(failedAt, retryDelaysMs.at(-1) ?? 1000)
-    };
+    return buildFailureRecord(request, previous, attemptsThisRun);
+  }
+
+  function shouldProcessRecord(record: FilmRecord | undefined, forceRetry: boolean, currentTime: number): boolean {
+    if (!record || record.status === 'pending') {
+      return true;
+    }
+
+    if (record.status === 'unmatched' && record.matchVersion === automaticMatchVersion && !forceRetry) {
+      return false;
+    }
+
+    if (record.status === 'failed') {
+      return forceRetry;
+    }
+
+    const staleAutomaticMatch =
+      (record.status === 'matched' || record.status === 'unmatched') && record.matchVersion !== automaticMatchVersion;
+    const incompleteMatch = record.status === 'matched' && record.detailsComplete === false;
+    const missingPoster = record.status === 'matched' && record.posterUrl === null;
+    const forcedUnmatched = record.status === 'unmatched' && forceRetry;
+
+    if (
+      record.status !== 'retry-scheduled' &&
+      !incompleteMatch &&
+      !missingPoster &&
+      !forcedUnmatched &&
+      !staleAutomaticMatch
+    ) {
+      return false;
+    }
+
+    return (
+      forceRetry ||
+      !record.nextRetryAt ||
+      Number.isNaN(Date.parse(record.nextRetryAt)) ||
+      Date.parse(record.nextRetryAt) <= currentTime
+    );
   }
 
   async function runEnrichment(
@@ -257,38 +463,87 @@ export function createFilmIndex({
       (request, index) => requests.findIndex((candidate) => candidate.key === request.key) === index
     );
     const currentTime = Date.parse(now());
-    const pending = uniqueRequests.filter((request) => {
-      const record = known[request.key];
-
-      if (!record || record.status === 'pending') {
-        return true;
+    const readPriority = (record: FilmRecord | undefined): number => {
+      if (
+        !record ||
+        record.status === 'pending' ||
+        ((record.status === 'matched' || record.status === 'unmatched') &&
+          record.matchVersion !== automaticMatchVersion)
+      ) {
+        return 0;
       }
 
-      if (record.status !== 'failed') {
-        return false;
+      if (record.status === 'matched' && record.detailsComplete === false) {
+        return 1;
       }
 
-      return (
-        options.forceRetry === true ||
-        !record.nextRetryAt ||
-        Number.isNaN(Date.parse(record.nextRetryAt)) ||
-        Date.parse(record.nextRetryAt) <= currentTime
-      );
-    });
+      return record.status === 'retry-scheduled' ? 2 : 3;
+    };
+    const pending = uniqueRequests
+      .map((request, index) => ({ index, priority: readPriority(known[request.key]), request }))
+      .filter(({ request }) => shouldProcessRecord(known[request.key], options.forceRetry === true, currentTime))
+      .sort((left, right) => left.priority - right.priority || left.index - right.index)
+      .slice(0, Math.max(1, options.maxWork ?? maxWorkPerRun));
+    const pendingRequests = pending.map(({ request }) => request);
 
-    if (pending.length === 0) {
+    if (pendingRequests.length === 0) {
       return false;
     }
 
-    await persistRecords(
-      pending.map((request) => emptyRecord(request, now(), 'pending', known[request.key]?.attempts ?? 0)),
-      options.onProgress
-    );
+    const previousByKey = new Map(pendingRequests.map((request) => [request.key, known[request.key]]));
+    const pendingRecords = pendingRequests.map((request) => {
+      const previous = known[request.key];
+
+      if (previous?.status === 'matched') {
+        return { ...previous, fetchedAt: now(), nextRetryAt: undefined };
+      }
+
+      return emptyRecord(request, now(), 'pending', previous);
+    });
+    await persistRecords(pendingRecords, options.onProgress);
 
     let nextIndex = 0;
-    const workers = Array.from({ length: Math.max(1, Math.min(concurrency, pending.length)) }, async () => {
+    const resultBuffer: FilmRecord[] = [];
+    let flushTimer: ReturnType<typeof setTimeout> | undefined;
+    let flushChain = Promise.resolve();
+
+    const flushResults = (): Promise<void> => {
+      clearTimeout(flushTimer);
+      flushTimer = undefined;
+      const batch = resultBuffer.splice(0, Math.max(1, persistBatchSize));
+
+      if (batch.length === 0) {
+        return flushChain;
+      }
+
+      flushChain = flushChain.then(async () => {
+        await persistRecords(batch, options.onProgress);
+      });
+      return flushChain;
+    };
+
+    const queueResult = (record: FilmRecord): Promise<void> => {
+      resultBuffer.push(record);
+
+      if (resultBuffer.length >= Math.max(1, persistBatchSize)) {
+        return flushResults();
+      }
+
+      if (!flushTimer) {
+        flushTimer = setTimeout(
+          () => {
+            void flushResults();
+          },
+          Math.max(0, persistBatchDelayMs)
+        );
+      }
+
+      return Promise.resolve();
+    };
+
+    const workers = Array.from({ length: Math.max(1, Math.min(concurrency, pendingRequests.length)) }, async () => {
       while (!signal.aborted) {
-        const request = pending[nextIndex];
+        const request = pendingRequests[nextIndex];
         nextIndex += 1;
 
         if (!request) {
@@ -296,8 +551,8 @@ export function createFilmIndex({
         }
 
         try {
-          const record = await fetchWithRetry(request, signal);
-          await persistRecords([record], options.onProgress);
+          const record = await fetchWithRetry(request, previousByKey.get(request.key), signal);
+          await queueResult(record);
         } catch (error) {
           if (error instanceof EnrichmentCancelledError) {
             return;
@@ -309,10 +564,29 @@ export function createFilmIndex({
     });
 
     await Promise.all(workers);
+    await flushResults();
+    await flushChain;
     return true;
   }
 
+  function startEnrichment(requests: FilmEnrichmentRequest[], options: EnrichFilmOptions): Promise<boolean> {
+    const controller = new AbortController();
+    const promise = runEnrichment(requests, options, controller.signal).finally(() => {
+      if (activeJob?.promise === promise) {
+        activeJob = null;
+      }
+    });
+    activeJob = { controller, forceRetry: options.forceRetry === true, promise };
+    return promise;
+  }
+
   return {
+    async attachFilm(key: string, film: CatalogSearchResult): Promise<FilmRecord> {
+      const record = buildAttachedRecord(key, film, now());
+      await persistRecords([record]);
+      return record;
+    },
+
     cancelEnrichment(): void {
       activeJob?.controller.abort();
     },
@@ -323,7 +597,7 @@ export function createFilmIndex({
 
     async searchFilms(query: string): Promise<CatalogSearchResult[]> {
       const normalizedQuery = query
-        .replace(/\s+film\s*$/i, '')
+        .replace(/\s+(?:film|TV series)\s*$/i, '')
         .trim()
         .toLowerCase();
       const films = Object.values(await runSerialized(readPersistedFilms));
@@ -338,6 +612,8 @@ export function createFilmIndex({
         .map((film) => ({
           description: 'Cached catalog match',
           director: [...film.director],
+          catalogId: film.catalogId,
+          catalogSource: film.catalogSource,
           pageId: film.pageId as number,
           posterUrl: film.posterUrl,
           title: film.title,
@@ -346,18 +622,17 @@ export function createFilmIndex({
     },
 
     enrichFilms(requests: FilmEnrichmentRequest[], options: EnrichFilmOptions = {}): Promise<boolean> {
-      if (activeJob) {
+      if (!activeJob) {
+        return startEnrichment(requests, options);
+      }
+
+      if (!options.forceRetry || activeJob.forceRetry) {
         return activeJob.promise;
       }
 
-      const controller = new AbortController();
-      const promise = runEnrichment(requests, options, controller.signal).finally(() => {
-        if (activeJob?.promise === promise) {
-          activeJob = null;
-        }
-      });
-      activeJob = { controller, promise };
-      return promise;
+      const currentJob = activeJob;
+      currentJob.controller.abort();
+      return currentJob.promise.then(() => startEnrichment(requests, options));
     },
 
     async matchFilm(
@@ -370,7 +645,7 @@ export function createFilmIndex({
         pageId === null
           ? null
           : (Object.values(await runSerialized(readPersistedFilms)).find(
-              (record) => record.status === 'matched' && record.pageId === pageId
+              (record) => record.status === 'matched' && record.pageId === pageId && record.detailsComplete !== false
             ) ?? null);
       const details = cachedPage
         ? {
@@ -390,6 +665,11 @@ export function createFilmIndex({
           : await withBoundaryTimeout(controller.signal, (requestSignal) =>
               catalog.fetchFilmDetails(pageId, { signal: requestSignal })
             );
+
+      if (pageId !== null && !details) {
+        throw new Error('Catalog details are temporarily unavailable.');
+      }
+
       const record = buildRecord(key, film, details, now());
       await persistRecords([record]);
       return record;

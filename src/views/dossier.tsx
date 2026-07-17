@@ -7,7 +7,6 @@ import { MetaList } from '../components/meta.js';
 import { RatingMeter } from '../components/rating.js';
 import { EmptyState } from '../components/states.js';
 import { buildArchiveItems, formatRuntime, type ArchiveItem } from '../archive-model.js';
-import { isFilmSourcePath } from '../../shared/film-title.js';
 import type { CatalogSearchResult, EntryDetails, MovieLogState } from '../../shared/types.js';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
@@ -39,7 +38,9 @@ export function DossierView({
   selectedPath,
   state
 }: DossierViewProps) {
-  const item = buildArchiveItems(state).find((candidate) => candidate.sourcePath === selectedPath);
+  const item = buildArchiveItems(state).find((candidate) =>
+    selectedPath === null ? false : candidate.sourcePaths.includes(selectedPath)
+  );
 
   if (!item) {
     return (
@@ -54,7 +55,7 @@ export function DossierView({
   const film = item.film;
   const posterUrl = film?.posterUrl ?? null;
   const latestReview = item.viewings.find((entry) => entry.review?.trim())?.review?.trim() ?? '';
-  const fileBacked = !isFilmSourcePath(item.sourcePath);
+  const fileBacked = item.localSourcePaths.length > 0;
 
   function submitMatchSearch(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -111,17 +112,20 @@ export function DossierView({
 
           <div className="dossier-actions">
             {fileBacked ? (
-              <>
-                <button onClick={() => void onOpenItem(item.sourcePath)} type="button">
-                  Open
-                </button>
-                <button onClick={() => void onOpenInFinder(item.sourcePath)} type="button">
-                  Show in Finder
-                </button>
-                <button onClick={() => void onCopyPath(item.sourcePath)} type="button">
-                  Copy path
-                </button>
-              </>
+              item.localSourcePaths.map((sourcePath) => (
+                <div className="dossier-source-actions" key={sourcePath}>
+                  <span title={sourcePath}>{sourcePath.split('/').at(-1) ?? sourcePath}</span>
+                  <button onClick={() => void onOpenItem(sourcePath)} type="button">
+                    Open
+                  </button>
+                  <button onClick={() => void onOpenInFinder(sourcePath)} type="button">
+                    Show in Finder
+                  </button>
+                  <button onClick={() => void onCopyPath(sourcePath)} type="button">
+                    Copy path
+                  </button>
+                </div>
+              ))
             ) : (
               <span className="dossier-source-note">Logged from the film catalog</span>
             )}

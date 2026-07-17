@@ -49,6 +49,7 @@ function NavigationButton({
 }) {
   return (
     <button
+      aria-label={item.label}
       aria-current={activeView === item.view ? 'page' : undefined}
       className={mobile ? 'mobile-nav-item' : 'nav-item'}
       onClick={() => onViewChange(item.view)}

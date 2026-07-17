@@ -1,7 +1,12 @@
 // ABOUTME: Verifies catalog search mapping, confident match selection, and full film detail assembly.
 // ABOUTME: Uses recorded Wikipedia and Wikidata payload fixtures so mapping logic tests real response shapes.
 import { describe, expect, it } from 'vitest';
-import { chooseFilmMatch, createFilmCatalog } from '../electron/film-catalog.js';
+import {
+  chooseFilmMatch,
+  createFilmCatalog,
+  readImdbPosterResults,
+  readSearchResults
+} from '../electron/film-catalog.js';
 
 const searchPayload = {
   query: {
@@ -148,6 +153,8 @@ describe('searchFilms', () => {
 
     expect(results).toHaveLength(3);
     expect(results[0]).toEqual({
+      catalogId: '79985226',
+      catalogSource: 'wikipedia',
       description: 'Psychological drama thriller film',
       director: ['Charlie Polinger'],
       pageId: 79985226,
@@ -212,6 +219,70 @@ describe('chooseFilmMatch', () => {
 
     expect(chooseFilmMatch(results, { title: 'The Plague', year: 1992 })).toBeNull();
   });
+
+  it('keeps movie and series identities separate even when their titles are identical', () => {
+    const results = [
+      {
+        description: '2024 American drama film',
+        pageId: 1,
+        posterUrl: 'https://example.test/the-boys-film.jpg',
+        title: 'The Boys',
+        year: 2024
+      },
+      {
+        description: 'American superhero television series',
+        pageId: 2,
+        posterUrl: 'https://example.test/the-boys-series.jpg',
+        title: 'The Boys',
+        year: 2019
+      }
+    ];
+
+    expect(chooseFilmMatch(results, { mediaType: 'series', title: 'The Boys', year: null })?.pageId).toBe(2);
+    expect(chooseFilmMatch(results, { mediaType: 'film', title: 'The Boys', year: 2024 })?.pageId).toBe(1);
+  });
+
+  it('normalizes descriptive series disambiguators and conservative season subtitles', () => {
+    const results = readSearchResults({
+      query: {
+        pages: {
+          one: {
+            description: 'American teen drama television series',
+            pageid: 1,
+            title: 'Euphoria (American TV series)'
+          },
+          two: {
+            description: 'American television sitcom',
+            pageid: 2,
+            title: 'Malcolm in the Middle'
+          }
+        }
+      }
+    });
+
+    expect(results[0]?.title).toBe('Euphoria');
+    expect(chooseFilmMatch(results, { mediaType: 'series', title: 'Euphoria', year: null })?.pageId).toBe(1);
+    expect(
+      chooseFilmMatch(results, {
+        mediaType: 'series',
+        title: "Malcolm in the Middle Life's Still Unfair",
+        year: null
+      })?.pageId
+    ).toBe(2);
+  });
+
+  it('accepts a one-character title correction only when the release year and media type agree', () => {
+    const result = {
+      description: '2001 Taiwanese drama film',
+      pageId: 3,
+      posterUrl: 'https://example.test/millennium-mambo-poster.jpg',
+      title: 'Millennium Mambo',
+      year: 2001
+    };
+
+    expect(chooseFilmMatch([result], { title: 'Millenium Mambo', year: 2001 })?.pageId).toBe(3);
+    expect(chooseFilmMatch([result], { title: 'Millenium Mambo', year: 2002 })).toBeNull();
+  });
 });
 
 describe('fetchFilmDetails', () => {
@@ -231,5 +302,57 @@ describe('fetchFilmDetails', () => {
       wikipediaUrl: 'https://en.wikipedia.org/wiki/Inception',
       year: 2010
     });
+  });
+});
+
+describe('IMDb poster fallback', () => {
+  it('maps only portrait movie and series artwork into source-aware candidates', () => {
+    const results = readImdbPosterResults({
+      d: [
+        {
+          i: { height: 1200, imageUrl: 'https://m.media-amazon.com/inception.jpg', width: 800 },
+          id: 'tt1375666',
+          l: 'Inception',
+          q: 'feature',
+          y: 2010
+        },
+        {
+          i: { height: 1200, imageUrl: 'https://m.media-amazon.com/the-boys.jpg', width: 800 },
+          id: 'tt1190634',
+          l: 'The Boys',
+          q: 'TV series',
+          y: 2019
+        },
+        {
+          i: { height: 500, imageUrl: 'https://m.media-amazon.com/person.jpg', width: 500 },
+          id: 'nm0000001',
+          l: 'A Person',
+          q: 'actor'
+        }
+      ]
+    });
+
+    expect(results).toEqual([
+      {
+        catalogId: 'tt1375666',
+        catalogRank: 0,
+        catalogSource: 'imdb',
+        description: 'Feature film',
+        pageId: -1375666,
+        posterUrl: 'https://m.media-amazon.com/inception.jpg',
+        title: 'Inception',
+        year: 2010
+      },
+      {
+        catalogId: 'tt1190634',
+        catalogRank: 1,
+        catalogSource: 'imdb',
+        description: 'Television series',
+        pageId: -1190634,
+        posterUrl: 'https://m.media-amazon.com/the-boys.jpg',
+        title: 'The Boys',
+        year: 2019
+      }
+    ]);
   });
 });

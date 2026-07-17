@@ -21,6 +21,7 @@ interface LogPanelProps {
   onSelectFilm(film: CatalogSearchResult | null): void;
   pendingLogPaths: string[];
   review: string;
+  saving: boolean;
   selectedFilm: CatalogSearchResult | null;
 }
 
@@ -38,6 +39,7 @@ export function LogPanel({
   onSelectFilm,
   pendingLogPaths,
   review,
+  saving,
   selectedFilm
 }: LogPanelProps) {
   const ambiguousSelection = selectedFilm !== null && pendingLogPaths.length > 1;
@@ -171,8 +173,8 @@ export function LogPanel({
           onSubmit={(details) => void onCreateLog(details)}
           review={review}
           showDate
-          submitDisabled={!canSubmit}
-          submitLabel="Create diary entry"
+          submitDisabled={!canSubmit || saving}
+          submitLabel={saving ? 'Saving diary entry…' : 'Create diary entry'}
         />
       </div>
     </SheetDialog>

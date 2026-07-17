@@ -26,7 +26,8 @@ function sameValues(left: string[], right: string[]): boolean {
 export function createFolderMonitor(options: FolderMonitorOptions) {
   const reportError = options.onError ?? ((error: unknown) => console.error(error));
   const settleMs = options.settleMs ?? 400;
-  const watchDirectory = options.watchDirectory ?? ((directoryPath, onDirectoryEvent) => watch(directoryPath, onDirectoryEvent));
+  const watchDirectory =
+    options.watchDirectory ?? ((directoryPath, onDirectoryEvent) => watch(directoryPath, onDirectoryEvent));
   const watchers = new Map<string, FolderWatcher>();
   const missingFolderWatchers = new Map<string, FolderWatcher>();
   const scheduledSyncs = new Map<string, NodeJS.Timeout>();
@@ -355,3 +356,5 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
     }
   };
 }
+
+export type FolderMonitor = ReturnType<typeof createFolderMonitor>;

@@ -99,6 +99,7 @@ const baseProps: ArchiveApplicationProps = {
   logFilmResults: [],
   logPanelOpen: false,
   logReview: '',
+  logSaving: false,
   logSelectedFilm: null,
   noteFilePath: '/Data/movie-log-note.md',
   onAddWatchedFolders: asyncNoop,
@@ -359,7 +360,7 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'metadata-status')).toHaveLength(1);
     expect(findByClass(tree, 'metadata-retry')).toHaveLength(1);
     expect(readText(tree)).toContain('1 of 2 enriched');
-    expect(readText(tree)).toContain('Catalog unavailable');
+    expect(readText(tree)).toContain('temporarily failed');
   });
 
   it('marks the keyboard-active search result', () => {

@@ -29,8 +29,8 @@ describe('Movie Log public API', () => {
     expect(preloadSource).toContain(
       "logPaths: (paths, details, film) => ipcRenderer.invoke('movie-log:log-paths', paths, details, film)"
     );
-    expect(appSource).toContain('loggedPaths.addedCount');
-    expect(appSource).toContain('loggedPaths.skippedPaths');
+    expect(appSource).toContain('outcome.addedCount');
+    expect(appSource).toContain('outcome.skippedPaths');
   });
 
   it('exposes native media selection and persistent entry annotation actions', async () => {
