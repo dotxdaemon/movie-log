@@ -18,7 +18,7 @@ import {
   type WorkspaceFeedback
 } from './feedback.js';
 import { readCatalogFailureMessage } from './catalog-search.js';
-import { focusSearchReturnTarget } from './search-focus.js';
+import { focusDossierReturnTarget, focusSearchReturnTarget } from './search-focus.js';
 import { readActionFailureMessage, type ActionFailureContext } from './action-error.js';
 import { updateArchiveState, useArchiveData } from './use-archive-data.js';
 import { useCatalogSearch } from './use-catalog-search.js';
@@ -34,6 +34,7 @@ export default function App() {
   const [dropActive, setDropActive] = useState(false);
   const [feedback, setFeedback] = useState<WorkspaceFeedback | null>(null);
   const [filters, setFilters] = useState(defaultArchiveFilters);
+  const [filterDraft, setFilterDraft] = useState(defaultArchiveFilters);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [logFilmQuery, setLogFilmQuery] = useState('');
   const [logPanelOpen, setLogPanelOpen] = useState(false);
@@ -49,6 +50,8 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLibraryPath, setSelectedLibraryPath] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const dossierReturnFocus = useRef<HTMLElement | null>(null);
+  const dossierReturnView = useRef<Exclude<ArchiveView, 'detail'>>('library');
   const searchReturnFocus = useRef<HTMLElement | null>(null);
   const searchReturnView = useRef<Exclude<ArchiveView, 'detail' | 'search'>>('diary');
   const rememberDialogOpener = useDialogSurface({
@@ -88,6 +91,7 @@ export default function App() {
 
   const handleFilterSheetOpenChange = (open: boolean) => {
     if (open) {
+      setFilterDraft(filters);
       rememberDialogOpener();
     }
 
@@ -301,10 +305,22 @@ export default function App() {
   };
 
   const handleSelectPath = (path: string) => {
+    if (activeView !== 'detail') {
+      dossierReturnView.current = activeView;
+      dossierReturnFocus.current = document.activeElement as HTMLElement | null;
+    }
     setSelectedPath(path);
     setSelectedLibraryPath(null);
     setDossierMatchResults([]);
     setActiveView('detail');
+  };
+
+  const handleDossierBack = () => {
+    const returnTarget = dossierReturnFocus.current;
+    const returnPath = selectedPath;
+    setActiveView(dossierReturnView.current);
+    setSelectedPath(null);
+    window.setTimeout(() => focusDossierReturnTarget(returnTarget, returnPath), 0);
   };
 
   const handleOpenSearchResult = (result: SearchResultItem) => {
@@ -405,9 +421,15 @@ export default function App() {
       dossierMatchError={dossierMatchError}
       dossierMatchPending={dossierMatchPending}
       dossierMatchResults={dossierMatchResults}
+      dossierOriginLabel={
+        dossierReturnView.current === 'statistics'
+          ? 'Statistics'
+          : `${dossierReturnView.current[0]?.toUpperCase()}${dossierReturnView.current.slice(1)}`
+      }
       dropActive={dropActive}
       feedback={feedback}
       filterSheetOpen={filterSheetOpen}
+      filterDraft={filterDraft}
       filters={filters}
       loadError={loadError}
       loading={loading}
@@ -427,10 +449,13 @@ export default function App() {
       onCopyPath={handleCopyPathFor}
       onCreateLog={handleCreateLog}
       onDiaryModeChange={setDiaryMode}
+      onDossierBack={handleDossierBack}
       onDrop={handleDrop}
       onDropActiveChange={setDropActive}
       onFeedbackDismiss={() => setFeedback(null)}
       onFilterChange={setFilters}
+      onApplyFilterDraft={setFilters}
+      onFilterDraftChange={setFilterDraft}
       onFilterSheetOpenChange={handleFilterSheetOpenChange}
       onLogFilmQueryChange={setLogFilmQuery}
       onLogReviewChange={setLogReview}

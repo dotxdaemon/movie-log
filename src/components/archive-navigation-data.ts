@@ -25,7 +25,7 @@ export function readNavigationView(view: ArchiveView): NavigationView {
 
 export function readViewTitle(view: ArchiveView): string {
   if (view === 'detail') {
-    return 'Film dossier';
+    return 'Dossier';
   }
 
   return navigationItems.find((item) => item.view === view)?.label ?? 'Movie Log';

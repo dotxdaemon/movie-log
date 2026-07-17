@@ -109,7 +109,7 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain('verifyLogDialogKeyboard');
     expect(captureProcess).toContain("keyCode: 'Tab'");
     expect(captureProcess).toContain("keyCode: 'Escape'");
-    expect(captureProcess).toContain("captureWidth <= 700 ? '.mobile-log-action' : '.archive-spine .log-action'");
+    expect(captureProcess).toContain("captureWidth <= 700 ? '.header-log-action' : '.archive-spine .log-action'");
     expect(captureProcess).toContain('document.querySelector(logActionSelector) === document.activeElement');
     expect(captureProcess).toContain("const input = document.querySelectorAll('.log-sheet .rating-segment input')[7]");
     expect(captureProcess).toContain('input?.click()');
@@ -140,6 +140,7 @@ describe('capture pipeline', () => {
       'load-error',
       'persistence-edit',
       'persistence-edit-verify',
+      'performance',
       'retry-backoff-verify',
       'statistics-lower'
     ];
@@ -171,5 +172,12 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain("captureRequestedView === 'loading'");
     expect(captureProcess).toContain("captureRequestedView === 'load-error'");
     expect(captureProcess).toContain("document.querySelector('.activity-panel')?.scrollIntoView");
+  });
+
+  it('measures installed navigation and local Search against explicit budgets', () => {
+    expect(captureProcess).toContain("captureRequestedView === 'performance'");
+    expect(captureProcess).toContain('maxNavigationMilliseconds >= 100');
+    expect(captureProcess).toContain('measurements.localSearchMilliseconds >= 100');
+    expect(captureProcess).toContain('installed performance:');
   });
 });

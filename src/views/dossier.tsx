@@ -6,7 +6,7 @@ import { FilmPoster } from '../components/film-poster.js';
 import { MetaList } from '../components/meta.js';
 import { RatingMeter } from '../components/rating.js';
 import { EmptyState } from '../components/states.js';
-import { buildArchiveItems, formatRuntime, type ArchiveItem } from '../archive-model.js';
+import { buildArchiveItems, formatRuntime, readMediaTypeLabel, type ArchiveItem } from '../archive-model.js';
 import type { CatalogSearchResult, EntryDetails, MovieLogState } from '../../shared/types.js';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
@@ -15,12 +15,14 @@ interface DossierViewProps {
   matchError: string | null;
   matchPending: boolean;
   matchResults: CatalogSearchResult[];
+  onBack(): void;
   onCopyPath(path: string): Promise<void>;
   onMatchFilm(item: ArchiveItem, pageId: number | null): void;
   onOpenInFinder(path: string): Promise<void>;
   onOpenItem(path: string): Promise<void>;
   onSearchMatch(query: string): void;
   onUpdateEntry(entryId: string, details: EntryDetails): Promise<void>;
+  originLabel: string;
   selectedPath: string | null;
   state: MovieLogState;
 }
@@ -29,12 +31,14 @@ export function DossierView({
   matchError,
   matchPending,
   matchResults,
+  onBack,
   onCopyPath,
   onMatchFilm,
   onOpenInFinder,
   onOpenItem,
   onSearchMatch,
   onUpdateEntry,
+  originLabel,
   selectedPath,
   state
 }: DossierViewProps) {
@@ -67,7 +71,11 @@ export function DossierView({
   }
 
   return (
-    <section className="movie-dossier">
+    <section className={`movie-dossier dossier-from-${originLabel.toLowerCase()}`}>
+      <button className="dossier-back-action" onClick={onBack} type="button">
+        <span aria-hidden="true">←</span>
+        {`Back to ${originLabel}`}
+      </button>
       <div className="dossier-identity">
         {posterUrl ? (
           <span aria-hidden="true" className="dossier-backdrop" style={{ backgroundImage: `url(${posterUrl})` }} />
@@ -85,7 +93,8 @@ export function DossierView({
           <p className="eyebrow">Archive dossier</p>
           <h2>{item.displayTitle}</h2>
           <p className="dossier-standfirst">
-            {item.year ?? 'Year unknown'} · {item.current ? 'Currently indexed' : 'Diary record'}
+            {readMediaTypeLabel(item)} · {item.year ?? 'Year unknown'} ·{' '}
+            {item.current ? 'Currently indexed' : 'Diary record'}
             {film?.runtimeMinutes ? ` · ${formatRuntime(film.runtimeMinutes)}` : ''}
           </p>
 
@@ -127,7 +136,7 @@ export function DossierView({
                 </div>
               ))
             ) : (
-              <span className="dossier-source-note">Logged from the film catalog</span>
+              <span className="dossier-source-note">Logged from the catalog</span>
             )}
           </div>
 
@@ -136,7 +145,7 @@ export function DossierView({
             <div className="match-study-body">
               <form className="match-search" onSubmit={submitMatchSearch}>
                 <label className="visually-hidden" htmlFor="dossier-match-input">
-                  Search the film catalog
+                  Search the catalog
                 </label>
                 <input defaultValue={item.displayTitle} id="dossier-match-input" name="matchQuery" type="search" />
                 <button className="command-block" type="submit">

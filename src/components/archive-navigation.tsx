@@ -93,25 +93,12 @@ export function ArchiveNavigation({ activeView, onOpenLogPanel, onViewChange }: 
   );
 }
 
-export function MobileArchiveNavigation({ activeView, onOpenLogPanel, onViewChange }: ArchiveNavigationProps) {
+export function MobileArchiveNavigation({ activeView, onViewChange }: ArchiveNavigationProps) {
   const activeNavigationView = readNavigationView(activeView);
 
   return (
     <>
-      {navigationItems.slice(0, 2).map((item) => (
-        <NavigationButton
-          activeView={activeNavigationView}
-          item={item}
-          key={item.view}
-          mobile
-          onViewChange={onViewChange}
-        />
-      ))}
-      <button aria-label="Log a Film" className="log-action mobile-log-action" onClick={onOpenLogPanel} type="button">
-        <span aria-hidden="true">+</span>
-        <span className="mobile-log-label">Log</span>
-      </button>
-      {navigationItems.slice(2).map((item) => (
+      {navigationItems.map((item) => (
         <NavigationButton
           activeView={activeNavigationView}
           item={item}

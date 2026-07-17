@@ -13,6 +13,7 @@ function makeResult(index: number): SearchResultItem {
     director: `Director ${index}`,
     key: `diary:/Movies/Film-${index}.mkv`,
     kind: 'diary',
+    mediaType: 'film',
     pageId: index,
     posterUrl: null,
     sourcePath: `/Movies/Film-${index}.mkv`,

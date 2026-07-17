@@ -79,9 +79,21 @@ describe('styles.css', () => {
 
     expect(styles).toMatch(/\.entry-body h3 button\s*\{[^}]*max-width:\s*100%[^}]*overflow-wrap:\s*anywhere/s);
     expect(styles).toMatch(
-      /\.current-contents-list button > span\s*\{[^}]*overflow:\s*hidden[^}]*text-overflow:\s*ellipsis/s
+      /\.current-contents-list button > span\s*\{[^}]*overflow:\s*hidden[^}]*overflow-wrap:\s*anywhere[^}]*-webkit-line-clamp:\s*2/s
+    );
+    expect(styles).toMatch(/\.movie-card-title\s*\{[^}]*overflow-wrap:\s*anywhere[^}]*-webkit-line-clamp:\s*2/s);
+    expect(styles).toMatch(
+      /\.current-contents-list button:focus-visible small,[^{]*\{[^}]*overflow-wrap:\s*anywhere[^}]*white-space:\s*normal/s
     );
     expect(styles).toMatch(/\.dossier-identity h2\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+  });
+
+  it('clips root horizontal overflow while keeping wide activity inside its own scroller', async () => {
+    const styles = await readCompleteStyles();
+
+    expect(styles).toMatch(/html\s*\{[^}]*overflow-x:\s*clip/s);
+    expect(styles).toMatch(/body,\s*#root\s*\{[^}]*overflow-x:\s*clip/s);
+    expect(styles).toMatch(/\.activity-calendar\s*\{[^}]*overflow-x:\s*auto/s);
   });
 
   it('keeps the phone search input at a non-zooming size above the safe mobile action bar', async () => {
@@ -139,9 +151,26 @@ describe('styles.css', () => {
 
     expect(tabletStyles).toMatch(/\.archive-spine \.log-action\s*\{/);
     expect(tabletStyles).not.toMatch(/\n\s*\.log-action\s*\{/);
-    expect(phoneStyles).toMatch(/\.header-log-action\s*\{[^}]*display:\s*none/s);
-    expect(phoneStyles).toMatch(/\.mobile-nav\s*\{[^}]*grid-template-columns:\s*repeat\(6,\s*1fr\)/s);
-    expect(phoneStyles).toMatch(/\.mobile-nav \.mobile-log-action\s*\{[^}]*position:\s*relative/s);
+    expect(phoneStyles).toMatch(/\.header-log-action\s*\{[^}]*display:\s*flex/s);
+    expect(phoneStyles).toMatch(/\.mobile-nav\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s);
+    expect(phoneStyles).not.toMatch(/\.mobile-nav \.mobile-log-action\s*\{/s);
+  });
+
+  it('shows the persistent Library inspector at normal desktop widths', async () => {
+    const styles = await readCompleteStyles();
+
+    expect(styles).toContain('@media (min-width: 1180px)');
+    expect(styles).toMatch(
+      /@media \(min-width:\s*1180px\)\s*\{[\s\S]*?\.library-workspace-selected\s*\{[^}]*grid-template-columns:[^}]*238px/s
+    );
+  });
+
+  it('keeps Statistics contained and the phone dossier identity inside the first viewport', async () => {
+    const styles = await readCompleteStyles();
+    const phoneStyles = styles.slice(styles.lastIndexOf('@media (max-width: 700px)'));
+
+    expect(phoneStyles).toMatch(/\.statistics-view,[^{]*\{[^}]*min-width:\s*0[^}]*max-width:\s*100%/s);
+    expect(phoneStyles).toMatch(/\.dossier-identity > \.dossier-poster-col\s*\{[^}]*width:\s*min\(34vw,\s*130px\)/s);
   });
 
   it('lets the detached diary study contract inside the 820px tablet content width', async () => {
@@ -264,7 +293,7 @@ describe('styles.css', () => {
     expect(composition).toMatch(
       /\.activity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(53,[^}]*grid-template-rows:\s*repeat\(7,/s
     );
-    expect(composition).toMatch(/@media \(min-width:\s*1500px\)\s*\{[^}]*\.library-workspace-selected/s);
+    expect(composition).toMatch(/@media \(min-width:\s*1180px\)\s*\{[^}]*\.library-workspace-selected/s);
   });
 
   it('keeps the phone dossier informative and motion functional', async () => {
@@ -274,7 +303,7 @@ describe('styles.css', () => {
     const reducedMotion = composition.split('@media (prefers-reduced-motion: reduce)')[1] ?? '';
 
     expect(phoneStyles).toMatch(
-      /\.dossier-identity\s*>\s*\.dossier-poster-col\s*\{[^}]*width:\s*min\(46vw,\s*180px\)/s
+      /\.dossier-identity\s*>\s*\.dossier-poster-col\s*\{[^}]*width:\s*min\(34vw,\s*130px\)/s
     );
     expect(composition).toContain('@keyframes sheet-reveal');
     expect(composition).toContain('@keyframes dossier-arrive');

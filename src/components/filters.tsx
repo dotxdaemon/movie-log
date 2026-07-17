@@ -19,6 +19,7 @@ const filterLabels: Record<keyof ArchiveFilters, string> = {
   decade: 'Decade',
   favorite: 'Favorite',
   genre: 'Genre',
+  mediaType: 'Type',
   rating: 'Rating',
   rewatch: 'Rewatch',
   sort: 'Sort',
@@ -47,6 +48,19 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
           {options.genres.map((genre) => (
             <option key={genre}>{genre}</option>
           ))}
+        </select>
+      </label>
+      <label className="filter-field">
+        <span>{filterLabels.mediaType}</span>
+        <select
+          name="mediaType"
+          onChange={(event) => change('mediaType', event.target.value)}
+          value={filters.mediaType}
+        >
+          <option value="all">All</option>
+          <option value="film">Films</option>
+          <option value="series">Series</option>
+          <option value="unknown">Unknown</option>
         </select>
       </label>
       <label className="filter-field">
@@ -106,6 +120,9 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
 }
 
 interface FilterPanelProps extends FilterControlsProps {
+  draftFilters: ArchiveFilters;
+  onApplyDraft(filters: ArchiveFilters): void;
+  onDraftFilterChange(filters: ArchiveFilters): void;
   onSheetOpenChange(open: boolean): void;
   resultCount: number;
   sheetOpen: boolean;
@@ -118,7 +135,10 @@ function countActiveFilters(filters: ArchiveFilters): number {
 }
 
 export function FilterPanel({
+  draftFilters,
   filters,
+  onApplyDraft,
+  onDraftFilterChange,
   onFilterChange,
   onSheetOpenChange,
   options,
@@ -151,19 +171,18 @@ export function FilterPanel({
           title="Filters"
         >
           <div className="filter-sheet-body">
-            <FilterControls filters={filters} onFilterChange={onFilterChange} options={options} />
+            <FilterControls filters={draftFilters} onFilterChange={onDraftFilterChange} options={options} />
           </div>
           <footer className="filter-sheet-actions">
-            <button
-              className="command-block"
-              onClick={() => onFilterChange({ ...defaultArchiveFilters, sort: filters.sort })}
-              type="button"
-            >
+            <button className="command-block" onClick={() => onDraftFilterChange(defaultArchiveFilters)} type="button">
               Reset
             </button>
             <button
               className="command-block command-block-primary"
-              onClick={() => onSheetOpenChange(false)}
+              onClick={() => {
+                onApplyDraft(draftFilters);
+                onSheetOpenChange(false);
+              }}
               type="button"
             >
               {`Show ${resultCount} ${resultCount === 1 ? 'title' : 'titles'}`}

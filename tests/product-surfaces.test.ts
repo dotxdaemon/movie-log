@@ -3,7 +3,12 @@
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { ArchiveApplication, type ArchiveApplicationProps } from '../src/archive-application.js';
-import { buildSearchResults, defaultArchiveFilters, type ArchiveView } from '../src/archive-model.js';
+import {
+  buildSearchResults,
+  defaultArchiveFilters,
+  type ArchiveFilters,
+  type ArchiveView
+} from '../src/archive-model.js';
 import type { FilmRecord, MovieLogState } from '../shared/types.js';
 import { findByClass, renderTree, readText } from './render-tree.js';
 
@@ -87,9 +92,11 @@ const baseProps: ArchiveApplicationProps = {
   dossierMatchPending: false,
   dossierMatchError: null,
   dossierMatchResults: [],
+  dossierOriginLabel: 'Library',
   dropActive: false,
   feedback: null,
   filterSheetOpen: false,
+  filterDraft: defaultArchiveFilters,
   filters: defaultArchiveFilters,
   loadError: null,
   loading: false,
@@ -109,10 +116,13 @@ const baseProps: ArchiveApplicationProps = {
   onCopyPath: asyncNoop,
   onCreateLog: asyncNoop,
   onDiaryModeChange: noop,
+  onDossierBack: noop,
   onDrop: noop,
   onDropActiveChange: noop,
   onFeedbackDismiss: noop,
   onFilterChange: noop,
+  onApplyFilterDraft: noop,
+  onFilterDraftChange: noop,
   onFilterSheetOpenChange: noop,
   onLogFilmQueryChange: noop,
   onLogReviewChange: noop,
@@ -165,7 +175,7 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'nav-icon').length).toBeGreaterThanOrEqual(10);
     expect(findByClass(tree, 'nav-item-label')).toHaveLength(5);
     expect(findByClass(tree, 'mobile-nav-item')).toHaveLength(5);
-    expect(findByClass(tree, 'mobile-log-label')).toHaveLength(1);
+    expect(findByClass(tree, 'mobile-log-label')).toHaveLength(0);
     expect(findByClass(tree, 'log-action')).not.toHaveLength(0);
     expect(readText(tree)).toContain('Diary');
     expect(readText(tree)).toContain('Library');
@@ -272,6 +282,65 @@ describe('ArchiveApplication', () => {
     expect(readText(tree)).toContain('Show 2 titles');
   });
 
+  it('keeps mobile filter changes in draft state until Apply', () => {
+    const committed: ArchiveFilters[] = [];
+    const drafts: ArchiveFilters[] = [];
+    let closeCount = 0;
+    const tree = renderSurface('library', {
+      filterDraft: { ...defaultArchiveFilters, mediaType: 'unknown' },
+      filterSheetOpen: true,
+      onApplyFilterDraft: (filters) => committed.push(filters),
+      onFilterDraftChange: (filters) => drafts.push(filters),
+      onFilterSheetOpenChange: () => {
+        closeCount += 1;
+      }
+    });
+    const actions = findByClass(tree, 'filter-sheet-actions')[0];
+    const reset = actions?.children.find((node) => node.type === 'button' && node.text === 'Reset');
+    const apply = actions?.children.find((node) => node.type === 'button' && node.text.includes('Show'));
+
+    expect(readText(tree)).toContain('Show 1 title');
+    (reset?.props.onClick as () => void)();
+    expect(drafts).toEqual([defaultArchiveFilters]);
+    expect(committed).toEqual([]);
+    (apply?.props.onClick as () => void)();
+    expect(committed).toEqual([{ ...defaultArchiveFilters, mediaType: 'unknown' }]);
+    expect(closeCount).toBe(1);
+  });
+
+  it('discards draft filters on close, backdrop, and swipe dismissal', () => {
+    let applyCount = 0;
+    let closeCount = 0;
+    const tree = renderSurface('library', {
+      filterDraft: { ...defaultArchiveFilters, mediaType: 'series' },
+      filterSheetOpen: true,
+      onApplyFilterDraft: () => {
+        applyCount += 1;
+      },
+      onFilterSheetOpenChange: () => {
+        closeCount += 1;
+      }
+    });
+    const close = findByClass(tree, 'sheet-close')[0];
+    const backdrop = findByClass(tree, 'filter-sheet-backdrop')[0];
+    const head = findByClass(tree, 'filter-sheet-head')[0];
+    const currentTarget = { dataset: {} as Record<string, string> };
+
+    (close?.props.onClick as () => void)();
+    (backdrop?.props.onClick as () => void)();
+    (head?.props.onTouchStart as (event: unknown) => void)({
+      changedTouches: [{ clientY: 10 }],
+      currentTarget
+    });
+    (head?.props.onTouchEnd as (event: unknown) => void)({
+      changedTouches: [{ clientY: 90 }],
+      currentTarget
+    });
+
+    expect(closeCount).toBe(3);
+    expect(applyCount).toBe(0);
+  });
+
   it('renders graded rating options and a real genre filter from catalog metadata', () => {
     const tree = renderSurface('library');
     const text = readText(tree);
@@ -319,7 +388,7 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'search-initial')).toHaveLength(1);
     expect(findByClass(tree, 'search-groups')).toHaveLength(0);
     expect(findByClass(tree, 'search-result')).toHaveLength(0);
-    expect(readText(tree)).toContain('Search by title, tag, or catalog film');
+    expect(readText(tree)).toContain('Search by title, tag, or catalog entry');
   });
 
   it('renders catalog failures as designed errors instead of empty results', () => {
@@ -487,6 +556,18 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'entry-form')).toHaveLength(1);
     expect(findByClass(tree, 'rating-segment')).toHaveLength(10);
     expect(findByClass(tree, 'dossier-backdrop')).toHaveLength(1);
+  });
+
+  it('renders an explicit origin-aware Back action and media identity in the dossier', () => {
+    const tree = renderSurface('detail', {
+      dossierOriginLabel: 'Search',
+      selectedPath: '/Movies/Flow.2024.mkv'
+    });
+
+    expect(findByClass(tree, 'dossier-back-action')).toHaveLength(1);
+    expect(findByClass(tree, 'dossier-from-search')).toHaveLength(1);
+    expect(readText(tree)).toContain('Back to Search');
+    expect(readText(tree)).toContain('Film');
   });
 
   it('renders sanitized dossier catalog-match failures inside the match study', () => {
@@ -668,7 +749,7 @@ describe('ArchiveApplication', () => {
     });
     const text = readText(tree);
 
-    expect(text).toContain('Logged from the film catalog');
+    expect(text).toContain('Logged from the catalog');
     expect(text).not.toContain('Show in Finder');
     expect(text).toContain('Inception');
   });

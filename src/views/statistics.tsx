@@ -43,7 +43,7 @@ export function StatisticsView({ now, state }: StatisticsViewProps) {
     return (
       <EmptyState
         fragment="seam"
-        hint="Statistics assemble themselves from your diary as you log films."
+        hint="Statistics assemble themselves from your diary as you log viewings."
         title="Nothing to measure yet."
       />
     );
@@ -64,6 +64,20 @@ export function StatisticsView({ now, state }: StatisticsViewProps) {
           <dt>Viewings</dt>
           <dd>{stats.totalViewings}</dd>
         </div>
+        <div>
+          <dt>Films</dt>
+          <dd>{stats.filmViewings}</dd>
+        </div>
+        <div>
+          <dt>Series episodes</dt>
+          <dd>{stats.seriesEpisodes}</dd>
+        </div>
+        {stats.unknownViewings > 0 ? (
+          <div>
+            <dt>Unknown media</dt>
+            <dd>{stats.unknownViewings}</dd>
+          </div>
+        ) : null}
         <div>
           <dt>Average rating</dt>
           <dd>{stats.averageRating?.toFixed(2) ?? '—'}</dd>

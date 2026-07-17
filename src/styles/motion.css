@@ -1,9 +1,13 @@
 @keyframes dossier-arrive {
   from {
-    transform: translateX(12px);
+    opacity: 0.96;
+    clip-path: inset(0 0 0 4px);
+    transform: translateX(var(--dossier-entry-x, 4px));
   }
 
   to {
+    opacity: 1;
+    clip-path: inset(0);
     transform: translateX(0);
   }
 }

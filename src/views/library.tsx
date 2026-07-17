@@ -9,14 +9,18 @@ import {
   defaultArchiveFilters,
   filterArchiveItems,
   formatRuntime,
+  readMediaTypeLabel,
   type ArchiveFilters
 } from '../archive-model.js';
 import type { MovieLogState } from '../../shared/types.js';
 
 interface LibraryViewProps {
   filters: ArchiveFilters;
+  filterDraft: ArchiveFilters;
   filterSheetOpen: boolean;
   onFilterChange(filters: ArchiveFilters): void;
+  onApplyFilterDraft(filters: ArchiveFilters): void;
+  onFilterDraftChange(filters: ArchiveFilters): void;
   onFilterSheetOpenChange(open: boolean): void;
   onOpenPath(path: string): void;
   onSelectLibraryPath(path: string | null): void;
@@ -26,6 +30,9 @@ interface LibraryViewProps {
 
 export function LibraryView({
   filters,
+  filterDraft,
+  onApplyFilterDraft,
+  onFilterDraftChange,
   filterSheetOpen,
   onFilterChange,
   onFilterSheetOpenChange,
@@ -56,11 +63,14 @@ export function LibraryView({
   return (
     <section className="library-view">
       <FilterPanel
+        draftFilters={filterDraft}
         filters={filters}
+        onApplyDraft={onApplyFilterDraft}
+        onDraftFilterChange={onFilterDraftChange}
         onFilterChange={onFilterChange}
         onSheetOpenChange={onFilterSheetOpenChange}
         options={{ decades, genres, tags }}
-        resultCount={visibleItems.length}
+        resultCount={filterArchiveItems(items, filterDraft).length}
         sheetOpen={filterSheetOpen}
       />
       <ActiveFilterChips filters={filters} onFilterChange={onFilterChange} />
@@ -106,7 +116,7 @@ export function LibraryView({
           )}
         </div>
         {selectedItem ? (
-          <aside aria-label={`Selected film: ${selectedItem.displayTitle}`} className="library-inspector">
+          <aside aria-label={`Selected title: ${selectedItem.displayTitle}`} className="library-inspector">
             <p className="eyebrow">Selected dossier</p>
             <div className="library-inspector-poster">
               <FilmPoster
@@ -117,6 +127,7 @@ export function LibraryView({
               />
             </div>
             <h2>{selectedItem.displayTitle}</h2>
+            <p className="media-type-label">{readMediaTypeLabel(selectedItem)}</p>
             <p className="library-inspector-line">
               {selectedItem.year ?? 'Year unknown'}
               {selectedItem.film?.runtimeMinutes ? ` · ${formatRuntime(selectedItem.film.runtimeMinutes)}` : ''}
@@ -125,6 +136,10 @@ export function LibraryView({
               {selectedItem.film?.director.join(', ') || 'Director not recorded'}
             </p>
             <p className="library-inspector-line">{selectedItem.film?.genres.join(' · ') || 'Genre not recorded'}</p>
+            <p className="library-inspector-line">
+              {selectedItem.rating === null ? 'Not rated' : `${selectedItem.rating.toFixed(1)} rating`} ·{' '}
+              {selectedItem.current ? 'Currently indexed' : 'Diary only'}
+            </p>
             <button
               className="command-block command-block-primary"
               onClick={() => onOpenPath(selectedItem.sourcePath)}

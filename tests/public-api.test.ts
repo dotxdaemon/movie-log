@@ -50,4 +50,19 @@ describe('Movie Log public API', () => {
     );
     expect(preloadSource).toContain("retryFilmEnrichment: () => ipcRenderer.invoke('movie-log:retry-film-enrichment')");
   });
+
+  it('refreshes the transactional filter draft only when the filter sheet opens', async () => {
+    const appSource = await readFile(join(rootDirectory, 'src', 'App.tsx'), 'utf8');
+    const logHandler = appSource.slice(
+      appSource.indexOf('const handleLogPanelOpenChange'),
+      appSource.indexOf('const handleFilterSheetOpenChange')
+    );
+    const filterHandler = appSource.slice(
+      appSource.indexOf('const handleFilterSheetOpenChange'),
+      appSource.indexOf('const handleAddWatchedFolders')
+    );
+
+    expect(logHandler).not.toContain('setFilterDraft(filters)');
+    expect(filterHandler).toContain('setFilterDraft(filters)');
+  });
 });

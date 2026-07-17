@@ -42,7 +42,12 @@ export function PageHeader({
         <p className="header-count-line">
           {diaryCount} diary entries · {archiveCount} titles
         </p>
-        <MetadataStatus coverage={coverage} onRetry={onRetryMetadata} />
+        <MetadataStatus
+          coverage={coverage}
+          diaryCount={diaryCount}
+          onRetry={onRetryMetadata}
+          titleCount={archiveCount}
+        />
         <span aria-hidden="true" className="header-rule" />
       </div>
       <div className="header-actions">

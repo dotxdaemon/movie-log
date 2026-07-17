@@ -46,6 +46,7 @@ function SearchLane({
         <button
           aria-selected={activeKey === result.key}
           className={activeKey === result.key ? 'search-result search-result-active' : 'search-result'}
+          data-path={result.sourcePath ?? undefined}
           id={`search-option-${startIndex + offset}`}
           key={result.key}
           onClick={() => onOpenResult(result)}
@@ -144,7 +145,7 @@ export function SearchView({
           autoFocus
           onChange={(event) => onSearchQueryChange(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Title, tag, or catalog film"
+          placeholder="Title, tag, or catalog entry"
           role="combobox"
           type="search"
           value={searchQuery}
@@ -155,9 +156,9 @@ export function SearchView({
           <span className="study-index">00</span>
           <div>
             <p className="eyebrow">Archive index</p>
-            <h2>Search by title, tag, or catalog film</h2>
+            <h2>Search by title, tag, or catalog entry</h2>
             <p>
-              Diary and current Library matches appear first. Catalog films stay separate and never duplicate local
+              Diary and current Library matches appear first. Catalog entries stay separate and never duplicate local
               results.
             </p>
           </div>
@@ -206,6 +207,7 @@ export function SearchView({
               <button
                 aria-selected={activeKey === result.key}
                 className={activeKey === result.key ? 'search-result search-result-active' : 'search-result'}
+                data-path={result.sourcePath ?? undefined}
                 id={`search-option-${groups.diary.length + groups.library.length + offset}`}
                 key={result.key}
                 onClick={() => onOpenResult(result)}

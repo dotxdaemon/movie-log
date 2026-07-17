@@ -1,4 +1,4 @@
-@media (min-width: 1500px) {
+@media (min-width: 1180px) {
   .library-workspace-selected {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 238px;
@@ -222,6 +222,14 @@
     margin-top: 36px;
   }
 
+  .statistics-view,
+  .statistics-view > *,
+  .activity-panel,
+  .activity-calendar {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .movie-dossier {
     display: flex;
     flex-direction: column;
@@ -263,7 +271,7 @@
     place-items: center;
     align-content: center;
     gap: 3px;
-    min-width: 0;
+    min-width: 44px;
     min-height: 64px;
     color: rgba(245, 243, 246, 0.62);
     font-family: var(--heading);
@@ -290,10 +298,6 @@
     content: '';
   }
 
-  .mobile-nav .mobile-log-action span {
-    font-size: inherit;
-  }
-
   .blank-slate {
     min-height: 330px;
     padding: 36px 24px;
@@ -309,17 +313,11 @@
   }
 
   .header-search {
-    grid-column: 1 / -1;
+    grid-column: 1;
   }
 
   .header-search input {
     font-size: 1rem;
-  }
-
-  .mobile-nav .mobile-log-label {
-    font-family: var(--mono);
-    font-size: 0.75rem;
-    text-transform: uppercase;
   }
 
   .film-poster-entry {
@@ -506,7 +504,7 @@
   .archive-header {
     gap: 8px;
     grid-template-columns: 1fr;
-    min-height: 116px;
+    min-height: 104px;
     padding: 18px 18px var(--space-4);
   }
 
@@ -514,9 +512,34 @@
     font-size: 2.15rem;
   }
 
+  .header-count-line {
+    display: none;
+  }
+
+  .metadata-status {
+    margin-top: var(--space-1);
+  }
+
+  .metadata-status summary {
+    min-height: 32px;
+  }
+
+  .metadata-status-details {
+    padding: var(--space-2);
+    background: var(--surface-lavender);
+  }
+
+  .search-view .archive-search {
+    padding-top: var(--space-3);
+  }
+
+  .dossier-back-action {
+    order: -1;
+  }
+
   .archive-content {
     padding: 0 18px 40px;
-    min-height: calc(100dvh - 116px - var(--mobile-nav-height));
+    min-height: calc(100dvh - 104px - var(--mobile-nav-height));
   }
 
   .month-summary {
@@ -552,7 +575,9 @@
   }
 
   .header-log-action {
-    display: none;
+    display: flex;
+    min-height: 44px;
+    margin: 0;
   }
 
   .mobile-nav {
@@ -567,27 +592,7 @@
     border-top: 1px solid rgba(245, 243, 246, 0.17);
     color: var(--paper);
     background: var(--structural);
-    grid-template-columns: repeat(6, 1fr);
-  }
-
-  .mobile-nav .mobile-log-action {
-    border-left: 4px solid var(--active);
-    right: auto;
-    bottom: auto;
-    display: grid;
-    width: auto;
-    min-height: 64px;
-    margin: 0;
-    padding: 0;
-    place-items: center;
-    align-content: center;
-    gap: 3px;
-    border: 0;
-    border-top: 3px solid var(--active-red);
-    background: var(--structural-raised);
-    box-shadow: none;
-    font-size: 1.05rem;
-    position: relative;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .search-group {
@@ -631,7 +636,7 @@
 
   .dossier-identity > .dossier-poster-col {
     order: 0;
-    width: min(46vw, 180px);
+    width: min(34vw, 130px);
     margin: 0 auto;
     align-self: center;
   }
@@ -673,6 +678,24 @@
 
   .screen-loading .movie-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  .movie-dossier {
+    gap: var(--space-4);
+  }
+
+  .dossier-identity > .dossier-poster-col {
+    width: 90px;
+  }
+
+  .dossier-identity > .dossier-copy {
+    padding-top: var(--space-2);
+  }
+
+  .dossier-copy h2 {
+    font-size: 2rem;
   }
 }
 

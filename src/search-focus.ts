@@ -7,3 +7,19 @@ export function focusSearchReturnTarget(opener: HTMLElement | null, documentRef:
 
   target?.focus();
 }
+
+export function focusDossierReturnTarget(
+  opener: HTMLElement | null,
+  sourcePath: string | null,
+  documentRef: Document = document
+): void {
+  if (opener?.isConnected) {
+    opener.focus();
+    return;
+  }
+
+  const remounted = Array.from(documentRef.querySelectorAll<HTMLElement>('[data-path]')).find(
+    (element) => element.dataset.path === sourcePath
+  );
+  (remounted?.matches('button') ? remounted : remounted?.querySelector<HTMLElement>('button'))?.focus();
+}

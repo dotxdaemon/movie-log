@@ -1,7 +1,7 @@
 // ABOUTME: Verifies Search dismissal restores focus to the control that opened the surface.
 // ABOUTME: Covers both a remounted header input and a persistent navigation control.
 import { describe, expect, it, vi } from 'vitest';
-import { focusSearchReturnTarget } from '../src/search-focus.js';
+import { focusDossierReturnTarget, focusSearchReturnTarget } from '../src/search-focus.js';
 
 describe('Search focus restoration', () => {
   it('focuses the remounted header search input when the original input was replaced', () => {
@@ -25,5 +25,24 @@ describe('Search focus restoration', () => {
 
     expect(querySelector).not.toHaveBeenCalled();
     expect(focus).toHaveBeenCalledOnce();
+  });
+});
+
+describe('Dossier focus restoration', () => {
+  it('focuses the remounted path trigger when the original card was unmounted', () => {
+    const focus = vi.fn();
+    const button = { focus } as unknown as HTMLElement;
+    const replacement = {
+      dataset: { path: '/Movies/Flow.2024.mkv' },
+      matches: () => false,
+      querySelector: () => button
+    } as unknown as HTMLElement;
+    const opener = { focus: vi.fn(), isConnected: false } as unknown as HTMLElement;
+    const querySelectorAll = vi.fn(() => [replacement]);
+
+    focusDossierReturnTarget(opener, '/Movies/Flow.2024.mkv', { querySelectorAll } as unknown as Document);
+
+    expect(focus).toHaveBeenCalledOnce();
+    expect(opener.focus).not.toHaveBeenCalled();
   });
 });

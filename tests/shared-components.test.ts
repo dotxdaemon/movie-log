@@ -28,7 +28,8 @@ describe('shared archive components', () => {
 
     expect(findByClass(desktop, 'nav-item')).toHaveLength(5);
     expect(findByClass(mobile, 'mobile-nav-item')).toHaveLength(5);
-    expect(findByClass(mobile, 'mobile-log-label')).toHaveLength(1);
+    expect(findByClass(mobile, 'mobile-log-label')).toHaveLength(0);
+    expect(readText(mobile)).not.toContain('Log');
     expect(readText(mobile)).toContain('Stats');
     expect(readText(mobile)).not.toContain('Statistics');
   });

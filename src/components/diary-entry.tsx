@@ -11,19 +11,32 @@ interface DiaryEntryRowProps {
   displayTitle: string;
   entry: WatchEntry;
   film: FilmRecord | null;
+  mediaLabel: string;
   onOpen(path: string): void;
   onUpdateEntry(entryId: string, details: EntryDetails): Promise<void>;
   sequence: number;
   year: number | null;
 }
 
-export function DiaryEntryRow({ displayTitle, entry, film, onOpen, onUpdateEntry, sequence, year }: DiaryEntryRowProps) {
+export function DiaryEntryRow({
+  displayTitle,
+  entry,
+  film,
+  mediaLabel,
+  onOpen,
+  onUpdateEntry,
+  sequence,
+  year
+}: DiaryEntryRowProps) {
   const watchedDate = new Date(entry.watchedAt);
   const review = entry.review?.trim() ?? '';
   const method = [entry.viewingFormat, entry.location].filter(Boolean).join(' · ');
 
   return (
-    <article className={entry.favorite ? 'diary-entry diary-entry-favorite' : 'diary-entry'}>
+    <article
+      className={entry.favorite ? 'diary-entry diary-entry-favorite' : 'diary-entry'}
+      data-path={entry.sourcePath}
+    >
       <button className="entry-date" onClick={() => onOpen(entry.sourcePath)} type="button">
         <span className="entry-date-day">{String(watchedDate.getDate()).padStart(2, '0')}</span>
         <small>{dateFormatter.format(watchedDate)}</small>
@@ -39,7 +52,7 @@ export function DiaryEntryRow({ displayTitle, entry, film, onOpen, onUpdateEntry
             </button>
           </h3>
           <p className="entry-source">
-            {entry.source === 'watch' ? 'Watched folder' : 'Logged'}
+            {mediaLabel} · {entry.source === 'watch' ? 'Watched folder' : 'Logged'}
             {method ? ` · ${method}` : ''}
           </p>
           <div className="entry-marks">

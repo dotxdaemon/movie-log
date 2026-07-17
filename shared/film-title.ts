@@ -124,6 +124,16 @@ export function readCatalogMediaType(stem: string): 'film' | 'series' {
   return /\bS\d{1,2}\s?E\d{1,3}\b/i.test(decodeReleaseName(stem)) ? 'series' : 'film';
 }
 
+export function readEpisodeCode(stem: string): string | null {
+  const match = decodeReleaseName(stem).match(/\bS(\d{1,2})\s?E(\d{1,3})\b/i);
+
+  if (!match) {
+    return null;
+  }
+
+  return `S${match[1]!.padStart(2, '0')}E${match[2]!.padStart(2, '0')}`;
+}
+
 export function parseFilmTitle(stem: string): ParsedFilmTitle {
   const decodedStem = decodeReleaseName(stem);
   const spaced = decodedStem.replace(/[._]+/g, ' ');

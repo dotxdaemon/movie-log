@@ -1,6 +1,6 @@
 // ABOUTME: Builds the filterable film archive, search lanes, and viewing statistics from persisted state.
 // ABOUTME: Joins diary history and watched-folder contents with cached catalog metadata for every view.
-import { isFilmSourcePath, parseFilmTitle, readFilmKey } from '../shared/film-title.js';
+import { isFilmSourcePath, parseFilmTitle, readEpisodeCode, readFilmKey } from '../shared/film-title.js';
 import {
   createLocalCalendarDate,
   readLocalCalendarDateKey,
@@ -17,6 +17,7 @@ export interface ArchiveFilters {
   decade: string;
   favorite: string;
   genre: string;
+  mediaType: string;
   rating: string;
   rewatch: string;
   sort: string;
@@ -27,12 +28,14 @@ export interface ArchiveFilters {
 export interface ArchiveItem {
   current: boolean;
   displayTitle: string;
+  episodeCode: string | null;
   favorite: boolean;
   film: FilmRecord | null;
   filmKey: string;
   filmRecordKeys: string[];
   latestViewing: WatchEntry;
   localSourcePaths: string[];
+  mediaType: MediaType;
   rating: number | null;
   reviewed: boolean;
   rewatched: boolean;
@@ -52,6 +55,7 @@ export interface SearchResultItem {
   director: string | null;
   key: string;
   kind: 'diary' | 'library' | 'catalog';
+  mediaType: MediaType;
   pageId: number | null;
   posterUrl: string | null;
   sourcePath: string | null;
@@ -82,16 +86,21 @@ export interface ArchiveStats {
   }>;
   directors: Array<{ count: number; name: string }>;
   favorites: number;
+  filmViewings: number;
   genres: Array<{ count: number; name: string }>;
   months: Array<{ count: number; key: string; label: string }>;
   ratings: Array<{ count: number; value: number }>;
   rewatches: number;
+  seriesEpisodes: number;
   runtimeKnownCount: number;
   tags: Array<{ count: number; name: string }>;
   totalRuntimeMinutes: number;
   totalViewings: number;
+  unknownViewings: number;
   years: Array<{ count: number; year: number }>;
 }
+
+export type MediaType = 'film' | 'series' | 'unknown';
 
 export interface ArchiveCoverage {
   annotated: number;
@@ -107,12 +116,39 @@ export const defaultArchiveFilters: ArchiveFilters = {
   decade: 'all',
   favorite: 'all',
   genre: 'all',
+  mediaType: 'all',
   rating: 'all',
   rewatch: 'all',
   sort: 'recent',
   status: 'all',
   tag: 'all'
 };
+
+export function readEntryMediaType(entry: WatchEntry, films: MovieLogState['films']): MediaType {
+  if (readEpisodeCode(entry.title)) {
+    return 'series';
+  }
+
+  const film = readEntryFilm(entry, films);
+
+  if (film?.mediaType) {
+    return film.mediaType;
+  }
+
+  if (film?.status === 'matched' || isFilmSourcePath(entry.sourcePath)) {
+    return 'film';
+  }
+
+  return 'unknown';
+}
+
+export function readMediaTypeLabel(item: Pick<ArchiveItem, 'episodeCode' | 'mediaType'>): string {
+  if (item.mediaType === 'series') {
+    return item.episodeCode ? `Series · ${item.episodeCode}` : 'Series';
+  }
+
+  return item.mediaType === 'film' ? 'Film' : 'Unknown media';
+}
 
 export const ratingFilterOptions = [
   { label: 'Any rating', value: 'all' },
@@ -202,7 +238,10 @@ export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
     const parsed = parseFilmTitle(latestViewing.title);
     const filmRecordKey = readFilmKey(parsed);
     const film = state.films?.[filmRecordKey] ?? null;
-    const filmKey = film?.status === 'matched' ? readFilmKey({ title: film.title, year: film.year }) : filmRecordKey;
+    const baseFilmKey =
+      film?.status === 'matched' ? readFilmKey({ title: film.title, year: film.year }) : filmRecordKey;
+    const episodeCode = readEpisodeCode(latestViewing.title);
+    const filmKey = episodeCode ? `${baseFilmKey}::${episodeCode.toLowerCase()}` : baseFilmKey;
 
     return {
       current: currentPaths.has(sourcePath),
@@ -237,16 +276,25 @@ export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
         sortedSources.find((source) => source.film)?.film ??
         null;
       const sourcePaths = sortedSources.map((source) => source.sourcePath);
+      const episodeCode = viewings.map((entry) => readEpisodeCode(entry.title)).find(Boolean) ?? null;
+      const mediaTypes = viewings.map((entry) => readEntryMediaType(entry, state.films));
+      const mediaType: MediaType = mediaTypes.includes('series')
+        ? 'series'
+        : mediaTypes.includes('film')
+          ? 'film'
+          : 'unknown';
 
       return {
         current: sortedSources.some((source) => source.current),
         displayTitle: film?.status === 'matched' ? film.title : parsed.title,
+        episodeCode,
         favorite: readLatestValue(viewings, (entry) => entry.favorite) ?? false,
         film,
         filmKey,
         filmRecordKeys: [...new Set(sortedSources.map((source) => source.filmRecordKey))],
         latestViewing,
         localSourcePaths: sourcePaths.filter((sourcePath) => !isFilmSourcePath(sourcePath)),
+        mediaType,
         rating: readLatestValue(viewings, (entry) => entry.rating) ?? null,
         reviewed: viewings.some((entry) => Boolean(entry.review?.trim())),
         rewatched: viewings.length > 1 || viewings.some((entry) => Boolean(entry.rewatch)),
@@ -326,6 +374,7 @@ export function filterArchiveItems(items: ArchiveItem[], filters: ArchiveFilters
       (filters.decade === 'all' || decade === filters.decade) &&
       (filters.favorite === 'all' || (filters.favorite === 'favorite') === item.favorite) &&
       (filters.genre === 'all' || (item.film?.genres ?? []).includes(filters.genre)) &&
+      (filters.mediaType === 'all' || item.mediaType === filters.mediaType) &&
       matchesRatingFilter(item.rating, filters.rating) &&
       (filters.rewatch === 'all' || (filters.rewatch === 'rewatched') === item.rewatched) &&
       (filters.status === 'all' || (filters.status === 'current') === item.current) &&
@@ -384,11 +433,12 @@ export function buildSearchResults(
     sourcePath: item.sourcePath,
     status:
       kind === 'diary'
-        ? `Watched ${watchedDateFormatter.format(new Date(item.latestViewing.watchedAt))}`
+        ? `${readMediaTypeLabel(item)} · Watched ${watchedDateFormatter.format(new Date(item.latestViewing.watchedAt))}`
         : item.current
-          ? 'Indexed'
-          : 'Archived',
+          ? `${readMediaTypeLabel(item)} · Indexed`
+          : `${readMediaTypeLabel(item)} · Archived`,
     title: item.displayTitle,
+    mediaType: item.mediaType,
     year: item.year
   });
 
@@ -404,10 +454,11 @@ export function buildSearchResults(
       director: result.director?.[0] ?? null,
       key: `catalog:${result.pageId}`,
       kind: 'catalog',
+      mediaType: /\b(?:series|episode|television|tv)\b/i.test(result.description) ? 'series' : 'film',
       pageId: result.pageId,
       posterUrl: result.posterUrl,
       sourcePath: null,
-      status: result.description || 'Catalog match',
+      status: `${/\b(?:series|episode|television|tv)\b/i.test(result.description) ? 'Series' : 'Film'} · ${result.description || 'Catalog match'}`,
       title: result.title,
       year: result.year
     }));
@@ -434,6 +485,13 @@ export function readArchiveStats(state: MovieLogState, now = new Date()): Archiv
   const decadeCounts = new Map<string, { count: number; ratingTotal: number; ratedCount: number }>();
   const ratedEntries = state.history.filter((entry) => typeof entry.rating === 'number');
   const runtime = sumRuntime(state.history, state.films);
+  const mediaCounts = state.history.reduce(
+    (counts, entry) => {
+      counts[readEntryMediaType(entry, state.films)] += 1;
+      return counts;
+    },
+    { film: 0, series: 0, unknown: 0 } as Record<MediaType, number>
+  );
 
   for (const entry of state.history) {
     const month = readLocalCalendarMonthKey(entry.watchedAt);
@@ -519,6 +577,7 @@ export function readArchiveStats(state: MovieLogState, now = new Date()): Archiv
       ),
     directors: sortByCount([...directors.entries()].map(([name, count]) => ({ count, name }))),
     favorites: state.history.filter((entry) => entry.favorite).length,
+    filmViewings: mediaCounts.film,
     genres: sortByCount([...genres.entries()].map(([name, count]) => ({ count, name }))),
     months: [...months.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
@@ -532,10 +591,12 @@ export function readArchiveStats(state: MovieLogState, now = new Date()): Archiv
       })),
     ratings: [...ratings.entries()].sort(([left], [right]) => left - right).map(([value, count]) => ({ count, value })),
     rewatches: state.history.filter((entry) => entry.rewatch).length,
+    seriesEpisodes: mediaCounts.series,
     runtimeKnownCount: runtime.knownCount,
     tags: sortByCount([...tags.entries()].map(([name, count]) => ({ count, name }))),
     totalRuntimeMinutes: runtime.minutes,
     totalViewings: state.history.length,
+    unknownViewings: mediaCounts.unknown,
     years: [...years.entries()].sort(([left], [right]) => left - right).map(([year, count]) => ({ count, year }))
   };
 }

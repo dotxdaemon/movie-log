@@ -101,6 +101,6 @@ describe('local calendar', () => {
     );
 
     expect(readText(findByClass(tree, 'month-summary-title'))).toContain('December 2026');
-    expect(readText(findByClass(tree, 'month-metrics'))).toContain('Films watched2');
+    expect(readText(findByClass(tree, 'month-metrics'))).toContain('Viewings2');
   });
 });

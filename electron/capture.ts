@@ -106,6 +106,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
     'persistence-verify',
     'persistence-edit',
     'persistence-edit-verify',
+    'performance',
     'retry-backoff-verify'
   ]);
 
@@ -155,7 +156,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
       return;
     }
 
-    const logActionSelector = captureWidth <= 700 ? '.mobile-log-action' : '.archive-spine .log-action';
+    const logActionSelector = captureWidth <= 700 ? '.header-log-action' : '.archive-spine .log-action';
     const initialRawHistoryCount = (await historyStore.readState()).history.length;
     const navigationSelector = captureWidth <= 700 ? '.mobile-nav-item' : '.nav-item';
     const selected = (await mainWindow.webContents.executeJavaScript(`
@@ -166,6 +167,10 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
         const readLabel = (element) =>
           (element.getAttribute('aria-label') || element.textContent || '').trim().toLowerCase();
         const navigationItems = [...document.querySelectorAll(navigationSelector)];
+
+        if (requestedView === 'performance') {
+          return true;
+        }
 
         if (
           requestedView === 'log' ||
@@ -221,6 +226,56 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
     }
 
     await new Promise((resolve) => setTimeout(resolve, 180));
+
+    if (captureRequestedView === 'performance') {
+      const measurements = (await mainWindow.webContents.executeJavaScript(`
+        (async () => {
+          const readLabel = (element) =>
+            (element.getAttribute('aria-label') || element.textContent || '').trim().toLowerCase();
+          const navigationItems = [...document.querySelectorAll(${JSON.stringify(navigationSelector)})];
+          const settlePaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const timings = [];
+
+          for (const label of ['library', 'search', 'statistics', 'settings', 'diary']) {
+            const target = navigationItems.find((item) => readLabel(item).includes(label));
+            const startedAt = performance.now();
+            target?.click();
+            await settlePaint();
+            timings.push({ label, milliseconds: performance.now() - startedAt });
+          }
+
+          navigationItems.find((item) => readLabel(item).includes('search'))?.click();
+          await settlePaint();
+          const input = document.querySelector('.archive-search input');
+          const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+          const searchStartedAt = performance.now();
+          valueSetter?.call(input, 'S01');
+          input?.dispatchEvent(new Event('input', { bubbles: true }));
+          await settlePaint();
+
+          return {
+            localResultCount: document.querySelectorAll('.search-result').length,
+            localSearchMilliseconds: performance.now() - searchStartedAt,
+            timings
+          };
+        })()
+      `)) as {
+        localResultCount: number;
+        localSearchMilliseconds: number;
+        timings: Array<{ label: string; milliseconds: number }>;
+      };
+      const maxNavigationMilliseconds = Math.max(...measurements.timings.map((timing) => timing.milliseconds));
+
+      if (maxNavigationMilliseconds >= 100 || measurements.localSearchMilliseconds >= 100) {
+        throw new Error(`Installed performance budget failed: ${JSON.stringify(measurements)}`);
+      }
+
+      if (measurements.localResultCount === 0) {
+        throw new Error('Installed local Search did not render results inside the performance budget.');
+      }
+
+      process.stdout.write(`installed performance: ${JSON.stringify(measurements)}\n`);
+    }
 
     if (captureRequestedView === 'diary-ledger' || captureRequestedView === 'diary-grid') {
       const requestedMode = captureRequestedView === 'diary-ledger' ? 'ledger' : 'grid';
@@ -1013,6 +1068,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
       'persistence-verify': '.diary-view',
       'persistence-edit': '.diary-view',
       'persistence-edit-verify': '.diary-view',
+      performance: '.search-result',
       'retry-backoff-verify': '.metadata-retry',
       search: '.search-view',
       'search-results': '.search-result',

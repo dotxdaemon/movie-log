@@ -50,13 +50,18 @@
 html {
   min-width: 320px;
   min-height: 100%;
+  max-width: 100%;
+  overflow-x: clip;
   background: var(--canvas);
 }
 
 body,
 #root {
+  width: 100%;
+  max-width: 100%;
   min-height: 100dvh;
   margin: 0;
+  overflow-x: clip;
 }
 
 button,
@@ -710,8 +715,11 @@ h3 {
   font-size: 1rem;
   font-weight: 650;
   line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  min-height: 2.3em;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .search-group > header,
@@ -952,8 +960,16 @@ h3 {
 .current-contents-list button > span {
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.current-contents-list button:focus-visible small,
+.current-contents-list button:hover small {
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .dossier-identity > .poster-plate {

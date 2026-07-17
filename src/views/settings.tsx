@@ -44,10 +44,16 @@ export function SettingsView(props: SettingsViewProps) {
                   <h3>{folder.name}</h3>
                   <p title={folder.path}>{folder.path}</p>
                   <small>
-                    {folder.lastScannedAt ? `Scanned ${dateFormatter.format(new Date(folder.lastScannedAt))}` : 'Not scanned yet'}
+                    {folder.lastScannedAt
+                      ? `Scanned ${dateFormatter.format(new Date(folder.lastScannedAt))}`
+                      : 'Not scanned yet'}
                   </small>
                 </div>
-                <button className="folder-remove" onClick={() => void props.onRemoveWatchedFolder(folder.id)} type="button">
+                <button
+                  className="folder-remove"
+                  onClick={() => void props.onRemoveWatchedFolder(folder.id)}
+                  type="button"
+                >
                   Remove
                 </button>
               </article>
@@ -78,7 +84,7 @@ export function SettingsView(props: SettingsViewProps) {
           ) : (
             props.state.libraryItems.map((item) => (
               <button key={item.id} onClick={() => void props.onOpenItem(item.sourcePath)} type="button">
-                <span>{item.title}</span>
+                <span title={item.title}>{item.title}</span>
                 <small title={item.sourcePath}>{item.sourcePath}</small>
               </button>
             ))

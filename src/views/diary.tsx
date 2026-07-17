@@ -4,7 +4,15 @@ import type { KeyboardEvent } from 'react';
 import { DiaryEntryRow } from '../components/diary-entry.js';
 import { FilmPoster } from '../components/film-poster.js';
 import { EmptyState } from '../components/states.js';
-import { formatRuntime, readEntryFilm, sumRuntime, type DiaryMode } from '../archive-model.js';
+import {
+  formatRuntime,
+  readEntryFilm,
+  readEntryMediaType,
+  readMediaTypeLabel,
+  sumRuntime,
+  type DiaryMode
+} from '../archive-model.js';
+import { readEpisodeCode } from '../../shared/film-title.js';
 import { parseFilmTitle } from '../../shared/film-title.js';
 import { readLocalCalendarMonthKey } from '../../shared/local-calendar.js';
 import type { EntryDetails, MovieLogState } from '../../shared/types.js';
@@ -96,7 +104,7 @@ export function DiaryView({
         </div>
         <dl className="month-metrics">
           <div>
-            <dt>Films watched</dt>
+            <dt>Viewings</dt>
             <dd>{monthEntries.length}</dd>
           </div>
           <div>
@@ -153,10 +161,13 @@ export function DiaryView({
             {history.map((entry) => {
               const parsed = parseFilmTitle(entry.title);
               const film = readEntryFilm(entry, state.films);
+              const mediaType = readEntryMediaType(entry, state.films);
+              const mediaLabel = readMediaTypeLabel({ episodeCode: readEpisodeCode(entry.title), mediaType });
 
               return (
                 <button
                   className="diary-grid-card"
+                  data-path={entry.sourcePath}
                   key={entry.id}
                   onClick={() => onSelectPath(entry.sourcePath)}
                   type="button"
@@ -169,6 +180,7 @@ export function DiaryView({
                   />
                   <span className="diary-grid-caption">
                     <span className="diary-grid-title">{film?.status === 'matched' ? film.title : parsed.title}</span>
+                    <span className="media-type-label">{mediaLabel}</span>
                     <span className="diary-grid-date">{shortDateFormatter.format(new Date(entry.watchedAt))}</span>
                   </span>
                 </button>
@@ -180,12 +192,16 @@ export function DiaryView({
             {history.map((entry) => {
               const parsed = parseFilmTitle(entry.title);
               const film = readEntryFilm(entry, state.films);
+              const mediaType = readEntryMediaType(entry, state.films);
 
               return (
                 <li className="diary-entry diary-ledger-row" key={entry.id}>
-                  <button onClick={() => onSelectPath(entry.sourcePath)} type="button">
+                  <button data-path={entry.sourcePath} onClick={() => onSelectPath(entry.sourcePath)} type="button">
                     <span className="ledger-date">{shortDateFormatter.format(new Date(entry.watchedAt))}</span>
                     <span className="ledger-title">{film?.status === 'matched' ? film.title : parsed.title}</span>
+                    <span className="visually-hidden">
+                      {readMediaTypeLabel({ episodeCode: readEpisodeCode(entry.title), mediaType })}
+                    </span>
                     <span className="ledger-year">{film?.year ?? parsed.year ?? '—'}</span>
                     <span className="ledger-rating">
                       {typeof entry.rating === 'number' ? entry.rating.toFixed(1) : 'NR'}
@@ -204,6 +220,7 @@ export function DiaryView({
             {history.map((entry, index) => {
               const parsed = parseFilmTitle(entry.title);
               const film = readEntryFilm(entry, state.films);
+              const mediaType = readEntryMediaType(entry, state.films);
 
               return (
                 <DiaryEntryRow
@@ -211,6 +228,7 @@ export function DiaryView({
                   entry={entry}
                   film={film}
                   key={entry.id}
+                  mediaLabel={readMediaTypeLabel({ episodeCode: readEpisodeCode(entry.title), mediaType })}
                   onOpen={onSelectPath}
                   onUpdateEntry={onUpdateEntry}
                   sequence={history.length - index}

@@ -8,6 +8,7 @@ import {
   filterArchiveItems,
   readArchiveCoverage,
   readArchiveStats,
+  readMediaTypeLabel,
   readEntryFilm,
   sumRuntime
 } from '../src/archive-model.js';
@@ -243,6 +244,79 @@ describe('archive model', () => {
         rating: 'unrated'
       }).map((item) => item.displayTitle)
     ).toEqual(['Heat']);
+  });
+
+  it('models films, series episodes, and unknown media without rewriting stored titles', () => {
+    const mediaState: MovieLogState = {
+      films: { 'flow::2024': { ...flowFilm, mediaType: 'film' } },
+      history: [
+        state.history[0]!,
+        {
+          id: 'episode',
+          source: 'watch',
+          sourceKind: 'file',
+          sourcePath: '/Shows/Severance.S01E04.1080p.mkv',
+          title: 'Severance.S01E04.1080p',
+          watchedAt: '2026-07-12T20:00:00.000Z'
+        },
+        {
+          id: 'unknown',
+          source: 'watch',
+          sourceKind: 'directory',
+          sourcePath: '/Archive/Hl25',
+          title: 'Hl25',
+          watchedAt: '2026-07-13T20:00:00.000Z'
+        }
+      ],
+      libraryItems: [],
+      watchedFolders: []
+    };
+    const items = buildArchiveItems(mediaState);
+    const episode = items.find((item) => item.title === 'Severance.S01E04.1080p');
+
+    expect(episode?.displayTitle).toBe('Severance');
+    expect(episode?.episodeCode).toBe('S01E04');
+    expect(readMediaTypeLabel(episode!)).toBe('Series · S01E04');
+    expect(filterArchiveItems(items, { ...defaultArchiveFilters, mediaType: 'series' })).toEqual([episode]);
+    expect(
+      filterArchiveItems(items, { ...defaultArchiveFilters, mediaType: 'unknown' }).map((item) => item.title)
+    ).toEqual(['Hl25']);
+    expect(mediaState.history[1]?.title).toBe('Severance.S01E04.1080p');
+
+    const stats = readArchiveStats(mediaState);
+    expect({ films: stats.filmViewings, series: stats.seriesEpisodes, unknown: stats.unknownViewings }).toEqual({
+      films: 1,
+      series: 1,
+      unknown: 1
+    });
+  });
+
+  it('keeps distinct episodes as distinct Library items while sharing series metadata', () => {
+    const episodeState: MovieLogState = {
+      films: {},
+      history: [
+        {
+          id: 'episode-4',
+          source: 'watch',
+          sourceKind: 'file',
+          sourcePath: '/Shows/Severance.S01E04.mkv',
+          title: 'Severance.S01E04',
+          watchedAt: '2026-07-12T20:00:00.000Z'
+        },
+        {
+          id: 'episode-5',
+          source: 'watch',
+          sourceKind: 'file',
+          sourcePath: '/Shows/Severance.S01E05.mkv',
+          title: 'Severance.S01E05',
+          watchedAt: '2026-07-13T20:00:00.000Z'
+        }
+      ],
+      libraryItems: [],
+      watchedFolders: []
+    };
+
+    expect(buildArchiveItems(episodeState).map((item) => item.episodeCode)).toEqual(['S01E05', 'S01E04']);
   });
 
   it('reads films for entries and sums known runtimes', () => {

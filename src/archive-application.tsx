@@ -32,9 +32,11 @@ export interface ArchiveApplicationProps {
   dossierMatchPending: boolean;
   dossierMatchError: string | null;
   dossierMatchResults: CatalogSearchResult[];
+  dossierOriginLabel: string;
   dropActive: boolean;
   feedback: WorkspaceFeedback | null;
   filterSheetOpen: boolean;
+  filterDraft: ArchiveFilters;
   filters: ArchiveFilters;
   loadError: string | null;
   loading: boolean;
@@ -54,10 +56,13 @@ export interface ArchiveApplicationProps {
   onCopyPath(path: string): Promise<void>;
   onCreateLog(details: LogEntryDetails): Promise<void>;
   onDiaryModeChange(mode: DiaryMode): void;
+  onDossierBack(): void;
   onDrop(event: DragEvent<HTMLElement>): Promise<void> | void;
   onDropActiveChange(active: boolean): void;
   onFeedbackDismiss(): void;
   onFilterChange(filters: ArchiveFilters): void;
+  onApplyFilterDraft(filters: ArchiveFilters): void;
+  onFilterDraftChange(filters: ArchiveFilters): void;
   onFilterSheetOpenChange(open: boolean): void;
   onLogFilmQueryChange(value: string): void;
   onLogReviewChange(value: string): void;
@@ -133,7 +138,10 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
     view = (
       <LibraryView
         filterSheetOpen={props.filterSheetOpen}
+        filterDraft={props.filterDraft}
         filters={props.filters}
+        onApplyFilterDraft={props.onApplyFilterDraft}
+        onFilterDraftChange={props.onFilterDraftChange}
         onFilterChange={props.onFilterChange}
         onFilterSheetOpenChange={props.onFilterSheetOpenChange}
         onOpenPath={props.onSelectPath}
@@ -177,7 +185,9 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
         matchPending={props.dossierMatchPending}
         matchError={props.dossierMatchError}
         matchResults={props.dossierMatchResults}
+        originLabel={props.dossierOriginLabel}
         onCopyPath={props.onCopyPath}
+        onBack={props.onDossierBack}
         onMatchFilm={props.onMatchFilm}
         onOpenInFinder={props.onOpenInFinder}
         onOpenItem={props.onOpenItem}
