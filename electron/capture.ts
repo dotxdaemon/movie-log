@@ -321,7 +321,10 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
           };
 
           if (${JSON.stringify(captureRequestedView)} === 'library-empty') {
-            setCaptureSelect(filterSurface + ' select[name="rating"]', '4.5-plus');
+            const genre = document.querySelector(filterSurface + ' select[name="genre"]');
+            const value = genre?.options[1]?.value ?? '';
+            setCaptureSelect(filterSurface + ' select[name="genre"]', value);
+            setCaptureSelect(filterSurface + ' select[name="mediaType"]', 'unknown');
           } else {
             const genre = document.querySelector(filterSurface + ' select[name="genre"]');
             const value = genre?.options[1]?.value ?? '';

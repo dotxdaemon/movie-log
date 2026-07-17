@@ -153,8 +153,8 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain("document.querySelector('#diary-tab-timeline')?.focus()");
     expect(captureProcess).toContain("keyCode: 'Right'");
     expect(captureProcess).toContain("document.querySelector('.filter-sheet-trigger')?.click()");
-    expect(captureProcess).toContain('filterSurface + \' select[name="rating"]\'');
     expect(captureProcess).toContain('filterSurface + \' select[name="genre"]\'');
+    expect(captureProcess).toContain('filterSurface + \' select[name="mediaType"]\'');
     expect(captureProcess).toContain("key: 'ArrowDown'");
     expect(captureProcess).toContain("keyCode: 'Enter'");
     expect(captureProcess).toContain('activeResultVisible');
