@@ -1,8 +1,23 @@
 # Workspace Reference
 
-This document defines the Movie Log dossier workspace governed by Sean's supplied character design sheet at `/Users/seankim/Desktop/Screenshot 2026-07-12 at 4.37.01 PM.png`.
+This document defines the Movie Log dossier workspace governed by Sean's supplied character design sheet, preserved in the repository at `docs/reference/movie-log-character-sheet.png`. Its original source was `/Users/seankim/Desktop/Screenshot 2026-07-12 at 4.37.01 PM.png`.
 
 The interface is original and uses only the sheet's visual language. It does not copy the character, clothing, pose, or illustration.
+
+## Reference Evidence
+
+- Source dimensions: 388×527 PNG
+- SHA-256: `527248ec84e9dc7baf4d3495138adf2e7b4da2bc5a6ce37496f83c6d47b4e422`
+- Canonical repository asset: `docs/reference/movie-log-character-sheet.png`
+- Pale field: roughly four-fifths of the sheet remains open white around the figure studies.
+- Lavender subject mass: hair, jacket, and several inset studies use a cool blue-lavender rather than a warm neutral.
+- Graphite structure: the central harness, shorts, thigh plates, gloves, and boots form the strongest dark vertical system.
+- Burgundy placement: narrow neck and shoe details provide the only warm attention cuts.
+- Asymmetry: one full frontal figure, one turned figure, two head studies, and detached hand/boot studies carry unequal visual weight.
+- Narrow silhouette: long legs, boots, and the central harness create a tall disciplined body rather than a broad block.
+- Modular anatomy: detached hand and footwear details behave like annotations attached to the larger character study.
+
+Movie Log translates those exact traits into a predominantly pale working field, lavender grouping surfaces, a narrow graphite navigation/action structure, burgundy active seams, unequal workspace/inspector regions, vertically disciplined controls, and detached metadata annotations. It does not reproduce the depicted character or costume.
 
 ## Required Markers
 

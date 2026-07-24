@@ -193,10 +193,12 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'header-rule')).toHaveLength(1);
   });
 
-  it('does not duplicate Library filters in the page header', () => {
+  it('places the single Library filter surface in the page header', () => {
     const tree = renderSurface('library');
+    const header = findByClass(tree, 'archive-header')[0];
 
-    expect(findByClass(tree, 'header-filters')).toHaveLength(0);
+    expect(findByClass(header?.children ?? [], 'header-library-tools')).toHaveLength(1);
+    expect(findByClass(header?.children ?? [], 'filter-toolbar')).toHaveLength(1);
     expect(findByClass(tree, 'filter-toolbar')).toHaveLength(1);
     expect(findByClass(tree, 'filter-sheet-trigger')).toHaveLength(1);
   });

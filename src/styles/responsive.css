@@ -187,16 +187,6 @@
     font-size: 0.92rem;
   }
 
-  .filter-toolbar label,
-  .filter-toolbar label:nth-child(3) {
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .filter-toolbar label:nth-child(2n) {
-    border-right: 0;
-  }
-
   .movie-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 28px 14px;
@@ -506,6 +496,11 @@
     grid-template-columns: 1fr;
     min-height: 104px;
     padding: 18px 18px var(--space-4);
+  }
+
+  .archive-header > .header-library-tools {
+    padding-bottom: 0;
+    border-bottom: 0;
   }
 
   .archive-header h1 {

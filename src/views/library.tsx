@@ -1,6 +1,6 @@
 // ABOUTME: Renders the filterable poster library with structural selection and marker-annotated cards.
 // ABOUTME: Filters live in a compact desktop toolbar and a full-height sheet on narrow screens.
-import { ActiveFilterChips, FilterPanel } from '../components/filters.js';
+import { ActiveFilterChips } from '../components/filters.js';
 import { FilmPoster } from '../components/film-poster.js';
 import { MovieCard } from '../components/movie-card.js';
 import { EmptyState } from '../components/states.js';
@@ -16,12 +16,7 @@ import type { MovieLogState } from '../../shared/types.js';
 
 interface LibraryViewProps {
   filters: ArchiveFilters;
-  filterDraft: ArchiveFilters;
-  filterSheetOpen: boolean;
   onFilterChange(filters: ArchiveFilters): void;
-  onApplyFilterDraft(filters: ArchiveFilters): void;
-  onFilterDraftChange(filters: ArchiveFilters): void;
-  onFilterSheetOpenChange(open: boolean): void;
   onOpenPath(path: string): void;
   onSelectLibraryPath(path: string | null): void;
   selectedLibraryPath: string | null;
@@ -30,12 +25,7 @@ interface LibraryViewProps {
 
 export function LibraryView({
   filters,
-  filterDraft,
-  onApplyFilterDraft,
-  onFilterDraftChange,
-  filterSheetOpen,
   onFilterChange,
-  onFilterSheetOpenChange,
   onOpenPath,
   onSelectLibraryPath,
   selectedLibraryPath,
@@ -44,12 +34,6 @@ export function LibraryView({
   const items = buildArchiveItems(state);
   const visibleItems = filterArchiveItems(items, filters);
   const selectedItem = visibleItems.find((item) => item.sourcePath === selectedLibraryPath) ?? null;
-  const decades = [
-    ...new Set(items.map((item) => (item.year === null ? null : `${Math.floor(item.year / 10) * 10}s`)).filter(Boolean))
-  ].sort() as string[];
-  const genres = [...new Set(items.flatMap((item) => item.film?.genres ?? []))].sort();
-  const tags = [...new Set(items.flatMap((item) => item.tags))].sort();
-
   if (items.length === 0) {
     return (
       <EmptyState
@@ -62,17 +46,6 @@ export function LibraryView({
 
   return (
     <section className="library-view">
-      <FilterPanel
-        draftFilters={filterDraft}
-        filters={filters}
-        onApplyDraft={onApplyFilterDraft}
-        onDraftFilterChange={onFilterDraftChange}
-        onFilterChange={onFilterChange}
-        onSheetOpenChange={onFilterSheetOpenChange}
-        options={{ decades, genres, tags }}
-        resultCount={filterArchiveItems(items, filterDraft).length}
-        sheetOpen={filterSheetOpen}
-      />
       <ActiveFilterChips filters={filters} onFilterChange={onFilterChange} />
       <div className={selectedItem ? 'library-workspace library-workspace-selected' : 'library-workspace'}>
         <div className="library-film-field">

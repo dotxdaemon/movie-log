@@ -185,16 +185,17 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
     return result;
   });
 
-  ipcMain.handle('movie-log:search-catalog', async (_event, query: string) =>
-    searchCatalogWithFallback(query, {
+  ipcMain.handle('movie-log:search-catalog', async (_event, query: string) => {
+    await capture.beforeCatalogSearch();
+    return searchCatalogWithFallback(query, {
       searchCachedFilms: capture.forceCatalogOutage ? async () => [] : filmIndex.searchFilms,
       searchLiveFilms: capture.forceCatalogOutage
         ? async () => {
             throw new Error('Catalog connection unavailable.');
           }
         : (searchQuery, signal) => filmCatalog.searchFilms(searchQuery, { signal })
-    })
-  );
+    });
+  });
 
   ipcMain.handle(
     'movie-log:match-film',

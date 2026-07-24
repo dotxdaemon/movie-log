@@ -141,8 +141,12 @@ describe('capture pipeline', () => {
       'load-error',
       'persistence-edit',
       'persistence-edit-verify',
+      'accessibility-audit',
+      'performance-large',
       'performance',
+      'poster-performance',
       'retry-backoff-verify',
+      'slow-catalog',
       'statistics-lower'
     ];
 
@@ -180,5 +184,17 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain('maxNavigationMilliseconds >= 100');
     expect(captureProcess).toContain('measurements.localSearchMilliseconds >= 100');
     expect(captureProcess).toContain('installed performance:');
+    expect(captureProcess).toContain('installed slow catalog:');
+    expect(captureProcess).toContain('installed large library:');
+    expect(captureProcess).toContain('installed poster performance:');
+  });
+
+  it('audits installed accessibility names, alternatives, focus visibility, and mobile target sizes', () => {
+    expect(captureProcess).toContain("captureRequestedView === 'accessibility-audit'");
+    expect(captureProcess).toContain('imagesMissingAlternatives');
+    expect(captureProcess).toContain('missingNames');
+    expect(captureProcess).toContain('contrastFailures');
+    expect(captureProcess).toContain('undersizedMajorTargets');
+    expect(captureProcess).toContain('installed accessibility:');
   });
 });

@@ -93,7 +93,9 @@
   max-width: 1180px;
   border-top: 0;
   border-bottom: 1px solid var(--border);
-  grid-template-columns: repeat(9, minmax(76px, 1fr));
+  grid-template-columns:
+    minmax(86px, 1.1fr) repeat(3, minmax(76px, 1fr)) minmax(104px, 1.18fr)
+    repeat(4, minmax(76px, 1fr));
   display: grid;
 }
 
@@ -114,6 +116,7 @@
 }
 
 .filter-toolbar .filter-field select {
+  padding-right: 18px;
   border: 0;
   border-top: 1px solid var(--border);
   background: transparent;

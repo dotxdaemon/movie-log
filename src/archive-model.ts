@@ -151,7 +151,7 @@ export function readMediaTypeLabel(item: Pick<ArchiveItem, 'episodeCode' | 'medi
 }
 
 export const ratingFilterOptions = [
-  { label: 'Any rating', value: 'all' },
+  { label: 'Any', value: 'all' },
   { label: '4.5+', value: '4.5-plus' },
   { label: '4.0+', value: '4-plus' },
   { label: '3.0+', value: '3-plus' },

@@ -107,8 +107,12 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
     'persistence-verify',
     'persistence-edit',
     'persistence-edit-verify',
+    'accessibility-audit',
+    'performance-large',
     'performance',
-    'retry-backoff-verify'
+    'poster-performance',
+    'retry-backoff-verify',
+    'slow-catalog'
   ]);
 
   if (
@@ -169,7 +173,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
           (element.getAttribute('aria-label') || element.textContent || '').trim().toLowerCase();
         const navigationItems = [...document.querySelectorAll(navigationSelector)];
 
-        if (requestedView === 'performance') {
+        if (requestedView === 'performance' || requestedView === 'accessibility-audit') {
           return true;
         }
 
@@ -192,6 +196,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
         if (
           requestedView === 'catalog' ||
           requestedView === 'catalog-outage' ||
+          requestedView === 'slow-catalog' ||
           requestedView === 'search-results' ||
           requestedView === 'search-long'
         ) {
@@ -207,6 +212,8 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
           requestedView === 'detail-outage' ||
           requestedView === 'filters' ||
           requestedView.startsWith('library') ||
+          requestedView === 'performance-large' ||
+          requestedView === 'poster-performance' ||
           requestedView === 'aggregation-verify'
         ) {
           navigationItems.find((item) => readLabel(item).includes('library'))?.click();
@@ -276,6 +283,353 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
       }
 
       process.stdout.write(`installed performance: ${JSON.stringify(measurements)}\n`);
+    }
+
+    if (captureRequestedView === 'slow-catalog') {
+      const measurements = (await mainWindow.webContents.executeJavaScript(`
+        (async () => {
+          const settlePaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const input = document.querySelector('.archive-search input');
+          const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+          const startedAt = performance.now();
+          valueSetter?.call(input, 'ring');
+          input?.dispatchEvent(new Event('input', { bubbles: true }));
+          await settlePaint();
+          const localResultCount = document.querySelectorAll('.search-result').length;
+          const localSearchMilliseconds = performance.now() - startedAt;
+          await new Promise((resolve) => setTimeout(resolve, 360));
+          return {
+            localResultCount,
+            localSearchMilliseconds,
+            pending:
+              document.querySelector('.search-group-catalog .search-group-empty')?.textContent?.includes(
+                'Searching the catalog'
+              ) === true
+          };
+        })()
+      `)) as { localResultCount: number; localSearchMilliseconds: number; pending: boolean };
+
+      if (measurements.localResultCount === 0 || measurements.localSearchMilliseconds >= 100 || !measurements.pending) {
+        throw new Error(`Installed slow-catalog behavior failed: ${JSON.stringify(measurements)}`);
+      }
+
+      process.stdout.write(`installed slow catalog: ${JSON.stringify(measurements)}\n`);
+    }
+
+    if (captureRequestedView === 'performance-large') {
+      const measurements = (await mainWindow.webContents.executeJavaScript(`
+        (async () => {
+          const settlePaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          document.documentElement.style.scrollBehavior = 'auto';
+          const cardCount = document.querySelectorAll('.movie-card').length;
+          const startedAt = performance.now();
+          const frameDurations = [];
+          let previousFrame = performance.now();
+
+          for (let step = 1; step <= 12; step += 1) {
+            window.scrollTo(0, (document.documentElement.scrollHeight - window.innerHeight) * (step / 12));
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+            const now = performance.now();
+            frameDurations.push(now - previousFrame);
+            previousFrame = now;
+          }
+
+          await settlePaint();
+          const totalMilliseconds = performance.now() - startedAt;
+          const maxFrameMilliseconds = Math.max(...frameDurations);
+          window.scrollTo(0, 0);
+          await settlePaint();
+          return { cardCount, maxFrameMilliseconds, totalMilliseconds };
+        })()
+      `)) as { cardCount: number; maxFrameMilliseconds: number; totalMilliseconds: number };
+
+      if (
+        measurements.cardCount < 1_000 ||
+        measurements.maxFrameMilliseconds >= 100 ||
+        measurements.totalMilliseconds >= 2_000
+      ) {
+        throw new Error(`Installed large-library budget failed: ${JSON.stringify(measurements)}`);
+      }
+
+      process.stdout.write(`installed large library: ${JSON.stringify(measurements)}\n`);
+    }
+
+    if (captureRequestedView === 'poster-performance') {
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
+      const measurements = (await mainWindow.webContents.executeJavaScript(`
+        (async () => {
+          const settlePaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const startedAt = performance.now();
+          const images = [...document.querySelectorAll('img.poster-art')];
+          await Promise.all(images.map(async (image) => {
+            if (!image.complete) {
+              await new Promise((resolve) => {
+                image.addEventListener('load', resolve, { once: true });
+                image.addEventListener('error', resolve, { once: true });
+                setTimeout(resolve, 3_000);
+              });
+            }
+            if (image.complete && image.naturalWidth > 0 && image.style.display !== 'none') {
+              await image.decode().catch(() => undefined);
+            }
+          }));
+
+          const density = Math.min(Math.max(window.devicePixelRatio, 1), 2);
+          const visibleImages = images.filter((image) => image.style.display !== 'none' && image.naturalWidth > 0);
+          const resolutionRatios = visibleImages.map((image) => {
+            const renderedWidth = image.getBoundingClientRect().width;
+            const available = image.srcset ? image.naturalWidth : image.naturalWidth / density;
+            return renderedWidth > 0 ? available / renderedWidth : 1;
+          });
+          const posters = [...document.querySelectorAll('.film-poster')];
+          const aspectRatios = posters
+            .map((poster) => poster.getBoundingClientRect())
+            .filter((rect) => rect.width > 0)
+            .map((rect) => rect.width / rect.height);
+
+          let fallbackLayoutShift = 0;
+          const sample = visibleImages[0];
+          if (sample) {
+            const poster = sample.closest('.film-poster');
+            const before = poster?.getBoundingClientRect();
+            sample.dispatchEvent(new Event('error'));
+            await settlePaint();
+            const after = poster?.getBoundingClientRect();
+            if (before && after) {
+              fallbackLayoutShift = Math.max(
+                Math.abs(before.width - after.width),
+                Math.abs(before.height - after.height),
+                Math.abs(before.left - after.left),
+                Math.abs(before.top - after.top)
+              );
+            }
+          }
+
+          const remoteResources = performance
+            .getEntriesByType('resource')
+            .filter((entry) => /m\\.media-amazon\\.com|upload\\.wikimedia\\.org/.test(entry.name));
+
+          return {
+            aspectRatioDeviation: Math.max(0, ...aspectRatios.map((ratio) => Math.abs(ratio - 2 / 3))),
+            decodeMilliseconds: performance.now() - startedAt,
+            fallbackCount: posters.filter((poster) => poster.getAttribute('data-poster') === 'plate').length,
+            fallbackLayoutShift,
+            minimumResolutionRatio: resolutionRatios.length ? Math.min(...resolutionRatios) : null,
+            posterCount: posters.length,
+            remoteResourceCount: remoteResources.length,
+            slowestResourceMilliseconds: Math.max(0, ...remoteResources.map((entry) => entry.duration)),
+            visiblePosterCount: visibleImages.length
+          };
+        })()
+      `)) as {
+        aspectRatioDeviation: number;
+        decodeMilliseconds: number;
+        fallbackCount: number;
+        fallbackLayoutShift: number;
+        minimumResolutionRatio: number | null;
+        posterCount: number;
+        remoteResourceCount: number;
+        slowestResourceMilliseconds: number;
+        visiblePosterCount: number;
+      };
+
+      if (
+        measurements.posterCount === 0 ||
+        measurements.visiblePosterCount === 0 ||
+        measurements.minimumResolutionRatio === null ||
+        measurements.minimumResolutionRatio < 0.99 ||
+        measurements.aspectRatioDeviation > 0.01 ||
+        measurements.fallbackLayoutShift > 0.5
+      ) {
+        throw new Error(`Installed poster acceptance failed: ${JSON.stringify(measurements)}`);
+      }
+
+      process.stdout.write(`installed poster performance: ${JSON.stringify(measurements)}\n`);
+    }
+
+    if (captureRequestedView === 'accessibility-audit') {
+      const audit = (await mainWindow.webContents.executeJavaScript(`
+        (async () => {
+          const readLabel = (element) =>
+            (element.getAttribute('aria-label') || element.textContent || '').trim().toLowerCase();
+          const navigationItems = [...document.querySelectorAll(${JSON.stringify(navigationSelector)})];
+          const settlePaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const results = [];
+          const isVisible = (element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+          };
+          const accessibleName = (element) => {
+            const labelledBy = element.getAttribute('aria-labelledby');
+            const labelledText = labelledBy
+              ? labelledBy.split(/\\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' ')
+              : '';
+            const explicitLabel = element.id
+              ? document.querySelector('label[for="' + CSS.escape(element.id) + '"]')?.textContent ?? ''
+              : '';
+            return (
+              element.getAttribute('aria-label') ||
+              labelledText ||
+              explicitLabel ||
+              element.closest('label')?.textContent ||
+              element.getAttribute('alt') ||
+              element.getAttribute('title') ||
+              element.textContent ||
+              ''
+            ).trim();
+          };
+          const parseColor = (value) => {
+            const match = value.match(/rgba?\\(([^)]+)\\)/);
+            if (!match) return null;
+            const parts = match[1].split(/[ ,/]+/).filter(Boolean).map(Number);
+            return { red: parts[0], green: parts[1], blue: parts[2], alpha: parts[3] ?? 1 };
+          };
+          const composite = (foreground, background) => ({
+            red: foreground.red * foreground.alpha + background.red * (1 - foreground.alpha),
+            green: foreground.green * foreground.alpha + background.green * (1 - foreground.alpha),
+            blue: foreground.blue * foreground.alpha + background.blue * (1 - foreground.alpha),
+            alpha: 1
+          });
+          const luminance = (color) => {
+            const channel = (value) => {
+              const normalized = value / 255;
+              return normalized <= 0.04045 ? normalized / 12.92 : Math.pow((normalized + 0.055) / 1.055, 2.4);
+            };
+            return 0.2126 * channel(color.red) + 0.7152 * channel(color.green) + 0.0722 * channel(color.blue);
+          };
+          const contrastRatio = (left, right) => {
+            const lighter = Math.max(luminance(left), luminance(right));
+            const darker = Math.min(luminance(left), luminance(right));
+            return (lighter + 0.05) / (darker + 0.05);
+          };
+          const readBackground = (element) => {
+            let current = element;
+            const layers = [];
+            while (current) {
+              const style = getComputedStyle(current);
+              if (style.backgroundImage !== 'none') return null;
+              const color = parseColor(style.backgroundColor);
+              if (color && color.alpha > 0) {
+                layers.push(color);
+                if (color.alpha >= 1) break;
+              }
+              current = current.parentElement;
+            }
+            let background = layers.pop() ?? { red: 255, green: 255, blue: 255, alpha: 1 };
+            while (layers.length > 0) {
+              background = composite(layers.pop(), background);
+            }
+            return background;
+          };
+          const auditSurface = (label) => {
+            const interactive = [...document.querySelectorAll(
+              'button, input:not([type="hidden"]), select, textarea, a[href], [role="button"], [role="tab"], [role="option"]'
+            )].filter(isVisible);
+            const missingNames = interactive
+              .filter((element) => !accessibleName(element))
+              .map((element) => element.outerHTML.slice(0, 160));
+            const hiddenFocusable = interactive
+              .filter((element) => element.closest('[aria-hidden="true"]'))
+              .map((element) => element.outerHTML.slice(0, 160));
+            const imagesMissingAlternatives = [...document.querySelectorAll('img')]
+              .filter(isVisible)
+              .filter((image) => !image.hasAttribute('alt') && image.getAttribute('aria-hidden') !== 'true')
+              .map((image) => image.outerHTML.slice(0, 160));
+            const ids = [...document.querySelectorAll('[id]')].map((element) => element.id);
+            const duplicateIds = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+            const contrastFailures = [...document.querySelectorAll('body *')]
+              .filter(isVisible)
+              .filter((element) =>
+                [...element.childNodes].some(
+                  (node) => node.nodeType === Node.TEXT_NODE && Boolean(node.textContent?.trim())
+                )
+              )
+              .flatMap((element) => {
+                const style = getComputedStyle(element);
+                const foreground = parseColor(style.color);
+                const background = readBackground(element);
+                if (!foreground || !background) return [];
+                const ratio = contrastRatio(composite(foreground, background), background);
+                const fontSize = Number.parseFloat(style.fontSize);
+                const fontWeight = Number.parseInt(style.fontWeight, 10) || 400;
+                const threshold = fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700) ? 3 : 4.5;
+                return ratio + 0.01 < threshold
+                  ? [(element.textContent?.trim().slice(0, 80) ?? '') + ':' + ratio.toFixed(2)]
+                  : [];
+              });
+            const undersizedMajorTargets = window.innerWidth > 700
+              ? []
+              : [...document.querySelectorAll('.mobile-nav-item, .header-log-action, .filter-sheet-trigger, .sheet-close')]
+                  .filter(isVisible)
+                  .filter((element) => {
+                    const rect = element.getBoundingClientRect();
+                    return rect.width < 44 || rect.height < 44;
+                  })
+                  .map((element) => element.className);
+            results.push({
+              contrastFailures,
+              duplicateIds,
+              hiddenFocusable,
+              imagesMissingAlternatives,
+              interactiveCount: interactive.length,
+              label,
+              missingNames,
+              undersizedMajorTargets
+            });
+          };
+
+          for (const label of ['diary', 'library', 'search', 'statistics', 'settings']) {
+            navigationItems.find((item) => readLabel(item).includes(label))?.click();
+            await settlePaint();
+            auditSurface(label);
+          }
+
+          navigationItems.find((item) => readLabel(item).includes('library'))?.click();
+          await settlePaint();
+          document.querySelector('.movie-card-face')?.click();
+          await settlePaint();
+          document.querySelector('.movie-card-selected .movie-card-face')?.click();
+          await settlePaint();
+          if (document.querySelector('.movie-dossier')) {
+            auditSurface('dossier');
+            document.querySelector('.dossier-back-action')?.click();
+            await settlePaint();
+          }
+
+          document.querySelector(${JSON.stringify(logActionSelector)})?.click();
+          await settlePaint();
+          if (document.querySelector('.log-sheet')) {
+            auditSurface('log');
+            document.querySelector('.sheet-close')?.click();
+            await settlePaint();
+          }
+
+          navigationItems.find((item) => readLabel(item).includes('diary'))?.click();
+          await settlePaint();
+          const issues = results.flatMap((result) =>
+            [
+              'contrastFailures',
+              'duplicateIds',
+              'hiddenFocusable',
+              'imagesMissingAlternatives',
+              'missingNames',
+              'undersizedMajorTargets'
+            ]
+              .flatMap((key) => result[key].map((value) => result.label + ':' + key + ':' + value))
+          );
+          return { issues, results };
+        })()
+      `)) as {
+        issues: string[];
+        results: Array<{ interactiveCount: number; label: string }>;
+      };
+
+      if (audit.issues.length > 0) {
+        throw new Error(`Installed accessibility audit failed: ${JSON.stringify(audit)}`);
+      }
+
+      process.stdout.write(`installed accessibility: ${JSON.stringify(audit)}\n`);
     }
 
     if (captureRequestedView === 'diary-ledger' || captureRequestedView === 'diary-grid') {
@@ -1044,6 +1398,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
     }
 
     const viewSelector = {
+      'accessibility-audit': '.diary-view',
       'aggregation-verify': '.movie-dossier',
       catalog: '.search-view',
       'catalog-outage': '.catalog-error',
@@ -1074,11 +1429,14 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
       'persistence-edit': '.diary-view',
       'persistence-edit-verify': '.diary-view',
       performance: '.search-result',
+      'performance-large': '.movie-card',
+      'poster-performance': '.library-view',
       'retry-backoff-verify': '.metadata-retry',
       search: '.search-view',
       'search-results': '.search-result',
       'search-long': '.search-result-active',
       settings: '.settings-view',
+      'slow-catalog': '.search-result',
       statistics: '.statistics-view',
       'statistics-lower': '.activity-panel'
     }[captureRequestedView];
@@ -1408,6 +1766,8 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
 
     // The first capture after a tab or focus transition can contain incomplete
     // compositor layers on macOS. Warm the surface, then reject every black or occluded frame.
+    mainWindow.webContents.sendInputEvent({ type: 'mouseMove', x: 2, y: 2 });
+    await new Promise((resolve) => setTimeout(resolve, 50));
     await mainWindow.webContents.capturePage();
     let image = await mainWindow.webContents.capturePage();
 
@@ -1434,6 +1794,11 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
   }
 
   return {
+    beforeCatalogSearch: async () => {
+      if (captureRequestedView === 'slow-catalog') {
+        await new Promise((resolve) => setTimeout(resolve, 4_000));
+      }
+    },
     beforeReadState: async () => {
       if (captureRequestedView === 'loading') {
         await new Promise((resolve) => setTimeout(resolve, 10_000));

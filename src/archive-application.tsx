@@ -3,8 +3,10 @@
 import type { DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import { ArchiveNavigation, MobileArchiveNavigation } from './components/archive-navigation.js';
+import { FilterPanel } from './components/filters.js';
 import { PageHeader } from './components/page-header.js';
 import { ViewSkeleton, ErrorState } from './components/states.js';
+import { buildFilterOptions } from './filter-options.js';
 import { DiaryView } from './views/diary.js';
 import { DossierView } from './views/dossier.js';
 import { LibraryView } from './views/library.js';
@@ -14,6 +16,7 @@ import { SettingsView } from './views/settings.js';
 import { StatisticsView } from './views/statistics.js';
 import {
   buildArchiveItems,
+  filterArchiveItems,
   readArchiveCoverage,
   type ArchiveFilters,
   type ArchiveItem,
@@ -101,6 +104,7 @@ const periodFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', yea
 export function ArchiveApplication(props: ArchiveApplicationProps) {
   const archiveItems = buildArchiveItems(props.state);
   const coverage = readArchiveCoverage(props.state);
+  const filterOptions = buildFilterOptions(archiveItems);
   const latestEntry = props.state.history[0];
   const periodLabel = latestEntry ? periodFormatter.format(new Date(latestEntry.watchedAt)).toUpperCase() : 'EMPTY';
 
@@ -137,13 +141,8 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
   } else if (props.activeView === 'library') {
     view = (
       <LibraryView
-        filterSheetOpen={props.filterSheetOpen}
-        filterDraft={props.filterDraft}
         filters={props.filters}
-        onApplyFilterDraft={props.onApplyFilterDraft}
-        onFilterDraftChange={props.onFilterDraftChange}
         onFilterChange={props.onFilterChange}
-        onFilterSheetOpenChange={props.onFilterSheetOpenChange}
         onOpenPath={props.onSelectPath}
         onSelectLibraryPath={props.onSelectLibraryPath}
         selectedLibraryPath={props.selectedLibraryPath}
@@ -221,6 +220,21 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
         archiveCount={archiveItems.length}
         coverage={coverage}
         diaryCount={props.state.history.length}
+        libraryTools={
+          props.activeView === 'library' && !props.loading && !props.loadError && archiveItems.length > 0 ? (
+            <FilterPanel
+              draftFilters={props.filterDraft}
+              filters={props.filters}
+              onApplyDraft={props.onApplyFilterDraft}
+              onDraftFilterChange={props.onFilterDraftChange}
+              onFilterChange={props.onFilterChange}
+              onSheetOpenChange={props.onFilterSheetOpenChange}
+              options={filterOptions}
+              resultCount={filterArchiveItems(archiveItems, props.filterDraft).length}
+              sheetOpen={props.filterSheetOpen}
+            />
+          ) : undefined
+        }
         onOpenLogPanel={props.onOpenLogPanel}
         onRetryMetadata={props.onRetryMetadata}
         onSearchQueryChange={props.onSearchQueryChange}

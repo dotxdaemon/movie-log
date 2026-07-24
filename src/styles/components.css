@@ -84,6 +84,22 @@
   gap: var(--space-2);
 }
 
+.archive-header > .header-library-tools {
+  max-width: none;
+  padding-bottom: 0;
+  border-bottom: 0;
+  grid-column: 1 / -1;
+}
+
+.archive-header > .header-library-tools::after {
+  display: none;
+}
+
+.header-library-tools .filter-panel,
+.header-library-tools .filter-toolbar {
+  max-width: none;
+}
+
 .header-search {
   position: relative;
   display: flex;

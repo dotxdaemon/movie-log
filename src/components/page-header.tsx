@@ -1,5 +1,6 @@
 // ABOUTME: Renders the shared archive page title, count line, search, filters, and logging action.
 // ABOUTME: Keeps every view's heading controls in one consistent character-sheet header.
+import type { ReactNode } from 'react';
 import { navigationItems, readNavigationView, readViewTitle } from './archive-navigation-data.js';
 import { MetadataStatus } from './metadata-status.js';
 import type { ArchiveCoverage, ArchiveView } from '../archive-model.js';
@@ -9,6 +10,7 @@ interface PageHeaderProps {
   archiveCount: number;
   coverage: ArchiveCoverage;
   diaryCount: number;
+  libraryTools?: ReactNode;
   onOpenLogPanel(): void;
   onRetryMetadata(): Promise<void>;
   onSearchQueryChange(value: string): void;
@@ -22,6 +24,7 @@ export function PageHeader({
   archiveCount,
   coverage,
   diaryCount,
+  libraryTools,
   onOpenLogPanel,
   onRetryMetadata,
   onSearchQueryChange,
@@ -76,6 +79,7 @@ export function PageHeader({
           Log a Film
         </button>
       </div>
+      {libraryTools ? <div className="header-library-tools">{libraryTools}</div> : null}
     </header>
   );
 }
