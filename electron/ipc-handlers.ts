@@ -6,6 +6,7 @@ import { buildFilmSourcePath, parseFilmTitle, readFilmKey } from '../shared/film
 import { createEntryFromPath } from '../shared/history.js';
 import { isTrackableMediaItem } from '../shared/media-items.js';
 import type {
+  CatalogSearchResult,
   EntryDetails,
   EntryKind,
   LogEntryDetails,
@@ -15,11 +16,12 @@ import type {
 } from '../shared/types.js';
 import type { CaptureController } from './capture.js';
 import type { CatalogOrchestrator } from './catalog-orchestrator.js';
-import type { FilmCatalog } from './film-catalog.js';
+import { searchCatalogProviders, type FilmCatalog } from './film-catalog.js';
 import type { FilmIndex } from './film-index.js';
 import type { FolderMonitor } from './folder-monitor.js';
 import {
   addWatchedFolderPath,
+  createAttachedCatalogSelection,
   logCatalogFilmEntry,
   logPathsFromDrop,
   searchCatalogWithFallback
@@ -76,6 +78,7 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
   } = options;
 
   ipcMain.handle('movie-log:add-watched-folders', async () => {
+    capture.assertWritable('add watched folders');
     const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'multiSelections'] });
 
     if (result.canceled || result.filePaths.length === 0) {
@@ -117,12 +120,13 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
   ipcMain.handle('movie-log:get-note-file-path', async () => historyStore.getNoteFilePath());
   ipcMain.handle('movie-log:get-state', async () => {
     await capture.beforeReadState();
-    return readState();
+    return capture.transformReadState(await readState());
   });
 
   ipcMain.handle(
     'movie-log:log-paths',
     async (_event, paths: string[], details?: LogEntryDetails, selectedFilm?: LogFilmRequest) => {
+      capture.assertWritable('log paths');
       const result = await logPathsFromDrop(
         paths,
         {
@@ -131,16 +135,7 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
           createEntryForPath: async (itemPath) => createEntryForPath(itemPath, details),
           matchFilmForEntry: async (entry, film) => {
             const key = readFilmKey(parseFilmTitle(entry.title));
-            await filmIndex.attachFilm(key, {
-              catalogId: film.catalogId,
-              catalogSource: film.catalogSource,
-              description: 'Selected catalog match',
-              director: film.director,
-              pageId: film.pageId,
-              posterUrl: film.posterUrl ?? null,
-              title: film.title,
-              year: film.year
-            });
+            await filmIndex.attachFilm(key, createAttachedCatalogSelection(film));
           },
           reportError: (error, phase) => console.error(`Path logging ${phase} failed.`, error)
         },
@@ -152,6 +147,7 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
   );
 
   ipcMain.handle('movie-log:log-film', async (_event, film: LogFilmRequest, details?: LogEntryDetails) => {
+    capture.assertWritable('log film');
     const { watchedAt = new Date().toISOString(), ...annotations } = details ?? {};
     const sourcePath = buildFilmSourcePath(
       { title: film.title, year: film.year },
@@ -167,16 +163,10 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
     const result = await logCatalogFilmEntry(entry, film, {
       addHistoryEntry: historyStore.addHistoryEntry,
       attachFilm: async (_entry, selectedFilm) => {
-        await filmIndex.attachFilm(readFilmKey({ title: selectedFilm.title, year: selectedFilm.year }), {
-          catalogId: selectedFilm.catalogId,
-          catalogSource: selectedFilm.catalogSource,
-          description: 'Selected catalog match',
-          director: selectedFilm.director,
-          pageId: selectedFilm.pageId,
-          posterUrl: selectedFilm.posterUrl ?? null,
-          title: selectedFilm.title,
-          year: selectedFilm.year
-        });
+        await filmIndex.attachFilm(
+          readFilmKey({ title: selectedFilm.title, year: selectedFilm.year }),
+          createAttachedCatalogSelection(selectedFilm)
+        );
       },
       broadcastState,
       reportError: (error, phase) => console.error(`Catalog-only logging ${phase} failed.`, error)
@@ -187,25 +177,47 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
 
   ipcMain.handle('movie-log:search-catalog', async (_event, query: string) => {
     await capture.beforeCatalogSearch();
+    if (capture.requireLiveCatalogSuccess) {
+      return searchCatalogProviders(
+        capture.forceCatalogPrimaryFailure
+          ? {
+              searchFilms: async () => {
+                throw new Error('Capture-only primary catalog failure.');
+              },
+              searchPosterFallback: (searchQuery, options) =>
+                filmCatalog.searchPosterFallback?.(searchQuery, options) ?? Promise.resolve([])
+            }
+          : filmCatalog,
+        query
+      );
+    }
+
     return searchCatalogWithFallback(query, {
       searchCachedFilms: capture.forceCatalogOutage ? async () => [] : filmIndex.searchFilms,
       searchLiveFilms: capture.forceCatalogOutage
         ? async () => {
             throw new Error('Catalog connection unavailable.');
           }
-        : (searchQuery, signal) => filmCatalog.searchFilms(searchQuery, { signal })
+        : (searchQuery, signal) => searchCatalogProviders(filmCatalog, searchQuery, { signal })
     });
   });
 
   ipcMain.handle(
     'movie-log:match-film',
-    async (_event, filmKey: string, film: { title: string; year: number | null }, pageId: number | null) => {
-      await filmIndex.matchFilm(filmKey, film, pageId);
+    async (
+      _event,
+      filmKey: string,
+      film: { title: string; year: number | null },
+      selection: CatalogSearchResult | null
+    ) => {
+      capture.assertWritable('match film');
+      await filmIndex.matchFilm(filmKey, film, selection);
       await broadcastState();
     }
   );
 
   ipcMain.handle('movie-log:update-entry', async (_event, entryId: string, details: EntryDetails) => {
+    capture.assertWritable('update entry');
     const entry = await historyStore.updateHistoryEntry(entryId, details);
 
     if (entry) {
@@ -218,10 +230,12 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
   ipcMain.handle('movie-log:open-in-finder', async (_event, itemPath: string) => shell.showItemInFolder(itemPath));
   ipcMain.handle('movie-log:open-item', async (_event, itemPath: string) => openPath(itemPath));
   ipcMain.handle('movie-log:scan-now', async () => {
+    capture.assertWritable('scan watched folders');
     await options.getWatchedFolderSync().refreshWatchedFolders();
     void catalogOrchestrator.enrich();
   });
   ipcMain.handle('movie-log:remove-watched-folder', async (_event, folderId: string) => {
+    capture.assertWritable('remove watched folder');
     const removedFolder = await historyStore.removeWatchedFolder(folderId);
 
     if (removedFolder) {
@@ -231,6 +245,7 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
     }
   });
   ipcMain.handle('movie-log:retry-film-enrichment', async () => {
+    capture.assertWritable('retry film enrichment');
     await catalogOrchestrator.retry();
   });
 }

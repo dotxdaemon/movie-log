@@ -14,7 +14,7 @@ const posterSizes: Record<PosterSize, string> = {
   thumb: '46px',
   entry: '68px',
   card: '(max-width: 520px) 31vw, (max-width: 1179px) 150px, 190px',
-  dossier: '(max-width: 700px) 130px, 320px'
+  dossier: '(max-width: 700px) 130px, 400px'
 };
 
 function buildImdbVariant(source: URL, width: number): string | null {

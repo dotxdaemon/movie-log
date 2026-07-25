@@ -98,6 +98,7 @@ describe('createFilmIndex', () => {
         description: 'Cached catalog match',
         director: ['Charlie Polinger'],
         pageId: 79985226,
+        posterLookupComplete: false,
         posterUrl: plagueDetails.posterUrl,
         title: 'The Plague',
         year: 2025
@@ -158,6 +159,7 @@ describe('createFilmIndex', () => {
         description: 'Cached catalog match',
         director: ['Charlie Polinger'],
         pageId: 79985226,
+        posterLookupComplete: false,
         posterUrl: plagueDetails.posterUrl,
         title: 'The Plague',
         year: 2025
@@ -185,13 +187,166 @@ describe('createFilmIndex', () => {
     const { catalog } = createStubCatalog();
     const index = createFilmIndex({ catalog, dataDirectory, now: () => '2026-07-12T10:00:00.000Z' });
 
-    const matched = await index.matchFilm('home video::', { title: 'Home Video', year: null }, plagueResult.pageId);
+    const matched = await index.matchFilm('home video::', { title: 'Home Video', year: null }, plagueResult);
     expect(matched?.status).toBe('matched');
     expect(matched?.director).toEqual(['Charlie Polinger']);
 
     const cleared = await index.matchFilm('home video::', { title: 'Home Video', year: null }, null);
     expect(cleared?.status).toBe('unmatched');
     expect(cleared?.posterUrl).toBeNull();
+  });
+
+  it('attaches an explicitly selected IMDb fallback without treating its synthetic page ID as Wikipedia', async () => {
+    let wikipediaDetailCalls = 0;
+    const selected: CatalogSearchResult = {
+      catalogId: 'tt0298130',
+      catalogSource: 'imdb',
+      description: 'Feature film',
+      director: ['Gore Verbinski'],
+      pageId: -298130,
+      posterUrl: 'https://m.media-amazon.com/images/M/ring.jpg',
+      posterWidth: 1200,
+      title: 'The Ring',
+      year: 2002
+    };
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          wikipediaDetailCalls += 1;
+          throw new Error('IMDb selections must not fetch Wikipedia details.');
+        },
+        async searchFilms() {
+          return [];
+        }
+      },
+      dataDirectory,
+      now: () => '2026-07-12T10:00:00.000Z'
+    });
+
+    const matched = await index.matchFilm('the ring::2002', { title: 'The Ring', year: 2002 }, selected);
+
+    expect(wikipediaDetailCalls).toBe(0);
+    expect(matched).toMatchObject({
+      catalogId: 'tt0298130',
+      catalogSource: 'imdb',
+      detailsComplete: true,
+      director: ['Gore Verbinski'],
+      pageId: -298130,
+      posterLookupVersion: 1,
+      posterUrl: selected.posterUrl,
+      posterWidth: 1200,
+      status: 'matched',
+      title: 'The Ring',
+      year: 2002
+    });
+  });
+
+  it('persists series identity and every co-director through an attached catalog cache record', async () => {
+    const selection: CatalogSearchResult = {
+      catalogId: 'tt1190634',
+      catalogSource: 'imdb',
+      description: 'Television series',
+      director: ['Eric Kripke', 'Sarah Boyd'],
+      mediaType: 'series',
+      pageId: -1190634,
+      posterLookupComplete: true,
+      posterUrl: 'https://m.media-amazon.com/images/M/the-boys.jpg',
+      posterWidth: 1200,
+      title: 'The Boys',
+      year: 2019
+    };
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          throw new Error('IMDb selections must not fetch Wikipedia details.');
+        },
+        async searchFilms() {
+          return [];
+        }
+      },
+      dataDirectory,
+      now: () => '2026-07-24T10:00:00.000Z'
+    });
+
+    const attached = await index.attachFilm('the boys::2019', selection);
+    const cached = await index.searchFilms('The Boys TV series');
+
+    expect(attached).toMatchObject({
+      director: ['Eric Kripke', 'Sarah Boyd'],
+      mediaType: 'series'
+    });
+    expect(cached).toMatchObject([
+      {
+        director: ['Eric Kripke', 'Sarah Boyd'],
+        mediaType: 'series'
+      }
+    ]);
+  });
+
+  it('keeps unknown or undersized cached IMDb art retryable when that offline result is rematched', async () => {
+    await writeFile(
+      join(dataDirectory, 'movie-log-films.json'),
+      `${JSON.stringify({
+        films: {
+          'the ring::2002': {
+            attempts: 1,
+            cast: [],
+            catalogId: 'tt0298130',
+            catalogSource: 'imdb',
+            country: [],
+            detailsComplete: true,
+            director: ['Gore Verbinski'],
+            fetchedAt: '2026-07-12T10:00:00.000Z',
+            genres: [],
+            key: 'the ring::2002',
+            language: [],
+            matchVersion: 3,
+            pageId: -298130,
+            posterUrl: 'https://m.media-amazon.com/images/M/ring-small.jpg',
+            posterWidth: 500,
+            runtimeMinutes: null,
+            status: 'matched',
+            title: 'The Ring',
+            wikipediaUrl: null,
+            year: 2002
+          }
+        }
+      })}\n`,
+      'utf8'
+    );
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          throw new Error('IMDb rematches must not fetch Wikipedia details.');
+        },
+        async searchFilms() {
+          return [];
+        }
+      },
+      dataDirectory,
+      now: () => '2026-07-24T10:00:00.000Z'
+    });
+    const cachedResult = (await index.searchFilms('The Ring film'))[0];
+
+    expect(cachedResult).toMatchObject({
+      catalogId: 'tt0298130',
+      catalogSource: 'imdb',
+      posterLookupComplete: false,
+      posterWidth: 500
+    });
+
+    const matched = await index.matchFilm(
+      'offline ring::2002',
+      { title: 'The Ring', year: 2002 },
+      cachedResult ?? null
+    );
+
+    expect(matched).toMatchObject({
+      nextRetryAt: '2026-07-24T10:15:00.000Z',
+      posterUrl: 'https://m.media-amazon.com/images/M/ring-small.jpg',
+      posterWidth: 500
+    });
+    expect(matched?.posterLookupVersion).toBeUndefined();
   });
 
   it('reuses a complete cached page when attaching that catalog film to another accepted media key', async () => {
@@ -217,7 +372,7 @@ describe('createFilmIndex', () => {
     await index.enrichFilms([{ key: 'the plague::2025', title: 'The Plague', year: 2025 }]);
     catalogAvailable = false;
 
-    const attached = await index.matchFilm('local media::', { title: 'The Plague', year: 2025 }, plagueResult.pageId);
+    const attached = await index.matchFilm('local media::', { title: 'The Plague', year: 2025 }, plagueResult);
 
     expect(attached).toMatchObject({
       director: ['Charlie Polinger'],
@@ -439,6 +594,256 @@ describe('createFilmIndex', () => {
       detailsComplete: true,
       pageId: -79985226,
       posterUrl: fallbackResult.posterUrl,
+      status: 'matched'
+    });
+  });
+
+  it('upgrades a cached Wikipedia poster from an exact larger source without replacing its film identity', async () => {
+    await writeFile(
+      join(dataDirectory, 'movie-log-films.json'),
+      `${JSON.stringify({
+        films: {
+          'the plague::2025': {
+            ...plagueDetails,
+            attempts: 1,
+            catalogId: '79985226',
+            catalogSource: 'wikipedia',
+            detailsComplete: true,
+            fetchedAt: '2026-07-12T10:00:00.000Z',
+            key: 'the plague::2025',
+            matchVersion: 3,
+            mediaType: 'film',
+            posterUrl:
+              'https://upload.wikimedia.org/wikipedia/en/thumb/c/c3/The_Plague_film_poster.jpg/282px-The_Plague_film_poster.jpg',
+            posterWidth: 282,
+            status: 'matched',
+            title: 'The Plague'
+          }
+        }
+      })}\n`,
+      'utf8'
+    );
+    let fallbackCalls = 0;
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          throw new Error('complete cached details must remain intact');
+        },
+        async searchFilms() {
+          throw new Error('the established Wikipedia identity must remain intact');
+        },
+        async searchPosterFallback() {
+          fallbackCalls += 1;
+          return [
+            {
+              catalogId: 'tt32359447',
+              catalogSource: 'imdb' as const,
+              description: 'Feature film',
+              pageId: -32359447,
+              posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague@._V1_.jpg',
+              posterWidth: 900,
+              title: 'The Plague',
+              year: 2025
+            }
+          ];
+        }
+      },
+      dataDirectory,
+      now: () => '2026-07-24T10:00:00.000Z'
+    });
+
+    await index.enrichFilms([{ key: 'the plague::2025', mediaType: 'film', title: 'The Plague', year: 2025 }]);
+
+    expect(fallbackCalls).toBe(1);
+    expect((await index.readFilms())['the plague::2025']).toMatchObject({
+      catalogId: '79985226',
+      catalogSource: 'wikipedia',
+      director: ['Charlie Polinger'],
+      pageId: 79985226,
+      posterLookupVersion: 1,
+      posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague@._V1_.jpg',
+      posterWidth: 900,
+      status: 'matched'
+    });
+  });
+
+  it('keeps an inadequate partial poster lookup retryable until the dossier minimum is reached', async () => {
+    await writeFile(
+      join(dataDirectory, 'movie-log-films.json'),
+      `${JSON.stringify({
+        films: {
+          'the plague::2025': {
+            ...plagueDetails,
+            attempts: 1,
+            catalogId: '79985226',
+            catalogSource: 'wikipedia',
+            detailsComplete: true,
+            fetchedAt: '2026-07-12T10:00:00.000Z',
+            key: 'the plague::2025',
+            matchVersion: 3,
+            mediaType: 'film',
+            posterUrl:
+              'https://upload.wikimedia.org/wikipedia/en/thumb/c/c3/The_Plague_film_poster.jpg/282px-The_Plague_film_poster.jpg',
+            posterWidth: 282,
+            status: 'matched',
+            title: 'The Plague'
+          }
+        }
+      })}\n`,
+      'utf8'
+    );
+    let fallbackWidth = 500;
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          throw new Error('complete cached details must remain intact');
+        },
+        async searchFilms() {
+          throw new Error('the established Wikipedia identity must remain intact');
+        },
+        async searchPosterFallback() {
+          return [
+            {
+              catalogId: 'tt32359447',
+              catalogSource: 'imdb' as const,
+              description: 'Feature film',
+              pageId: -32359447,
+              posterLookupComplete: fallbackWidth >= 640,
+              posterUrl: `https://m.media-amazon.com/images/M/MV5Bplague-${fallbackWidth}.jpg`,
+              posterWidth: fallbackWidth,
+              title: 'The Plague',
+              year: 2025
+            }
+          ];
+        }
+      },
+      dataDirectory,
+      now: () => '2026-07-24T10:00:00.000Z'
+    });
+    const request = [{ key: 'the plague::2025', mediaType: 'film' as const, title: 'The Plague', year: 2025 }];
+
+    await index.enrichFilms(request);
+    const partial = (await index.readFilms())['the plague::2025'];
+    expect(partial).toMatchObject({
+      nextRetryAt: '2026-07-24T10:15:00.000Z',
+      posterWidth: 282
+    });
+    expect(partial?.posterLookupVersion).toBeUndefined();
+
+    fallbackWidth = 1200;
+    await index.enrichFilms(request, { forceRetry: true });
+    const completed = (await index.readFilms())['the plague::2025'];
+    expect(completed).toMatchObject({
+      posterLookupVersion: 1,
+      posterWidth: 1200
+    });
+    expect(completed?.nextRetryAt).toBeUndefined();
+  });
+
+  it('backs off and terminates repeated successful poster lookups with no usable exact match', async () => {
+    await writeFile(
+      join(dataDirectory, 'movie-log-films.json'),
+      `${JSON.stringify({
+        films: {
+          'the plague::2025': {
+            ...plagueDetails,
+            attempts: 1,
+            catalogId: '79985226',
+            catalogSource: 'wikipedia',
+            detailsComplete: true,
+            fetchedAt: '2026-07-24T10:00:00.000Z',
+            key: 'the plague::2025',
+            matchVersion: 3,
+            mediaType: 'film',
+            posterUrl:
+              'https://upload.wikimedia.org/wikipedia/en/thumb/c/c3/The_Plague_film_poster.jpg/282px-The_Plague_film_poster.jpg',
+            posterWidth: 282,
+            status: 'matched',
+            title: 'The Plague'
+          }
+        }
+      })}\n`,
+      'utf8'
+    );
+    let currentTime = '2026-07-24T10:00:00.000Z';
+    let fallbackCalls = 0;
+    const index = createFilmIndex({
+      backoffDelaysMs: [15 * 60_000, 60 * 60_000, 6 * 60 * 60_000],
+      catalog: {
+        async fetchFilmDetails() {
+          throw new Error('complete cached details must remain intact');
+        },
+        async searchFilms() {
+          throw new Error('the established Wikipedia identity must remain intact');
+        },
+        async searchPosterFallback() {
+          fallbackCalls += 1;
+          return [];
+        }
+      },
+      dataDirectory,
+      maxAttempts: 1,
+      maxFailureCount: 3,
+      now: () => currentTime
+    });
+    const request = [{ key: 'the plague::2025', mediaType: 'film' as const, title: 'The Plague', year: 2025 }];
+
+    await index.enrichFilms(request);
+    expect((await index.readFilms())['the plague::2025']).toMatchObject({
+      nextRetryAt: '2026-07-24T10:15:00.000Z',
+      posterFailureCount: 1,
+      status: 'matched'
+    });
+
+    currentTime = '2026-07-24T10:15:00.000Z';
+    await index.enrichFilms(request);
+    expect((await index.readFilms())['the plague::2025']).toMatchObject({
+      nextRetryAt: '2026-07-24T11:15:00.000Z',
+      posterFailureCount: 2,
+      status: 'matched'
+    });
+
+    currentTime = '2026-07-24T11:15:00.000Z';
+    await index.enrichFilms(request);
+    const terminal = (await index.readFilms())['the plague::2025'];
+    expect(terminal).toMatchObject({
+      posterFailureCount: 3,
+      posterLookupVersion: 1,
+      status: 'matched'
+    });
+    expect(terminal?.failureCount).toBeUndefined();
+    expect(terminal?.nextRetryAt).toBeUndefined();
+
+    currentTime = '2026-08-24T11:15:00.000Z';
+    await expect(index.enrichFilms(request)).resolves.toBe(false);
+    expect(fallbackCalls).toBe(3);
+  });
+
+  it('keeps a successful primary match when only the optional larger-poster lookup is unavailable', async () => {
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          return plagueDetails;
+        },
+        async searchFilms() {
+          return [{ ...plagueResult, posterWidth: 282 }];
+        },
+        async searchPosterFallback() {
+          throw new Error('IMDb suggestion service unavailable');
+        }
+      },
+      dataDirectory,
+      maxAttempts: 1,
+      now: () => '2026-07-24T10:00:00.000Z'
+    });
+
+    await index.enrichFilms([{ key: 'the plague::2025', mediaType: 'film', title: 'The Plague', year: 2025 }]);
+
+    expect((await index.readFilms())['the plague::2025']).toMatchObject({
+      catalogSource: 'wikipedia',
+      director: ['Charlie Polinger'],
+      pageId: 79985226,
+      posterUrl: plagueDetails.posterUrl,
       status: 'matched'
     });
   });

@@ -28,7 +28,8 @@ describe('renderer palette', () => {
     expect(stylesheet).toContain('--structural: #24232d');
     expect(stylesheet).toContain('--burgundy: #741f32');
     expect(stylesheet).toContain('--active-red: #a93246');
-    expect(stylesheet).toContain('--border: #74717c');
+    expect(stylesheet).toContain('--border: #c9c6cf');
+    expect(stylesheet).toContain('--border-strong: #74717c');
     expect(stylesheet).not.toContain('--lamp:');
     expect(stylesheet).not.toContain('--lamp-bright:');
     expect(stylesheet).not.toContain('var(--lamp)');
@@ -41,13 +42,28 @@ describe('renderer palette', () => {
     expect(stylesheet).not.toContain('--amber:');
   });
 
-  it('keeps shared control boundaries above 3:1 on every pale surface', () => {
-    const boundary = '#74717c';
+  it('keeps pale separators subordinate while retaining a strong boundary token', () => {
+    const separator = '#c9c6cf';
+    const strongBoundary = '#74717c';
 
-    expect(contrastRatio(boundary, '#f5f3f6')).toBeGreaterThanOrEqual(3);
-    expect(contrastRatio(boundary, '#eae8ee')).toBeGreaterThanOrEqual(3);
-    expect(contrastRatio(boundary, '#d7d3df')).toBeGreaterThanOrEqual(3);
-    expect(contrastRatio(boundary, '#fbfafc')).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(separator, '#f5f3f6')).toBeLessThan(2);
+    expect(contrastRatio(strongBoundary, '#f5f3f6')).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(strongBoundary, '#eae8ee')).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(strongBoundary, '#d7d3df')).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(strongBoundary, '#fbfafc')).toBeGreaterThanOrEqual(3);
+  });
+
+  it('uses the strong boundary token for controls while reserving the pale token for separators', () => {
+    expect(stylesheet).toMatch(/\.filter-field select\s*\{[^}]*border:\s*1px solid var\(--border-strong\)/s);
+    expect(stylesheet).toMatch(
+      /\.field-block input,\s*\.field-block textarea\s*\{[^}]*border:\s*1px solid var\(--border-strong\)/s
+    );
+    expect(stylesheet).toMatch(/\.rating-segment-mark\s*\{[^}]*border:\s*1px solid var\(--border-strong\)/s);
+    expect(stylesheet).toMatch(/\.command-block\s*\{[^}]*border:\s*1px solid var\(--border-strong\)/s);
+    expect(stylesheet).toMatch(
+      /\.filter-toolbar \.filter-field select\s*\{[^}]*border-top:\s*1px solid var\(--border-strong\)/s
+    );
+    expect(stylesheet).toMatch(/\.month-metrics\s*\{[^}]*border-top:\s*1px solid var\(--border\)/s);
   });
 
   it('does not paint a decorative X across the framed wall panel', () => {

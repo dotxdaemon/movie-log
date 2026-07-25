@@ -91,7 +91,10 @@ export interface FilmRecord {
   language: string[];
   pageId: number | null;
   nextRetryAt?: string;
+  posterFailureCount?: number;
+  posterLookupVersion?: number;
   posterUrl: string | null;
+  posterWidth?: number;
   runtimeMinutes: number | null;
   status: FilmStatus;
   title: string;
@@ -105,8 +108,11 @@ export interface CatalogSearchResult {
   catalogRank?: number;
   description: string;
   director?: string[];
+  mediaType?: 'film' | 'series';
   pageId: number;
+  posterLookupComplete?: boolean;
   posterUrl: string | null;
+  posterWidth?: number;
   title: string;
   year: number | null;
 }
@@ -129,8 +135,11 @@ export interface LogFilmRequest {
   catalogId?: string;
   catalogSource?: CatalogSource;
   director?: string[];
+  mediaType?: 'film' | 'series';
   pageId: number;
+  posterLookupComplete?: boolean;
   posterUrl?: string | null;
+  posterWidth?: number;
   title: string;
   year: number | null;
 }
@@ -142,7 +151,11 @@ export interface MovieLogApi {
   getNoteFilePath(): Promise<string>;
   logFilm(film: LogFilmRequest, details?: LogEntryDetails): Promise<LogPathsResult>;
   logPaths(paths: string[], details?: LogEntryDetails, film?: LogFilmRequest): Promise<LogPathsResult>;
-  matchFilm(filmKey: string, film: { title: string; year: number | null }, pageId: number | null): Promise<void>;
+  matchFilm(
+    filmKey: string,
+    film: { title: string; year: number | null },
+    selection: CatalogSearchResult | null
+  ): Promise<void>;
   searchCatalog(query: string): Promise<CatalogSearchResult[]>;
   updateEntry(entryId: string, details: EntryDetails): Promise<WatchEntry | null>;
   addWatchedFolders(): Promise<WatchedFolder[]>;

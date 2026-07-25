@@ -2,29 +2,22 @@
 // ABOUTME: Exposes a real retry action only when temporary catalog failures need another pass.
 import type { ArchiveCoverage } from '../archive-model.js';
 
-export function MetadataStatus({
-  coverage,
-  diaryCount,
-  onRetry,
-  titleCount
-}: {
-  coverage: ArchiveCoverage;
-  diaryCount: number;
-  onRetry(): Promise<void>;
-  titleCount: number;
-}) {
+export function MetadataStatus({ coverage, onRetry }: { coverage: ArchiveCoverage; onRetry(): Promise<void> }) {
   if (coverage.total === 0) {
     return null;
   }
 
+  const needsAttention = coverage.failed > 0 || coverage.retryScheduled > 0 || coverage.unmatched > 0;
+  const summary =
+    coverage.pending > 0 ? 'matching metadata…' : needsAttention ? 'metadata needs attention' : 'metadata complete';
+
   return (
     <details className="metadata-status">
       <summary aria-live="polite" className="metadata-status-primary">
-        {`${diaryCount} entries · ${titleCount} titles · `}
-        {coverage.pending > 0 ? 'matching metadata… ' : 'metadata '}
-        {`${coverage.matched} of ${coverage.total} enriched`}
+        {summary}
       </summary>
       <div className="metadata-status-details" role="status">
+        <span>{`${coverage.matched} of ${coverage.total} enriched`}</span>
         {coverage.unmatched > 0 ? <span>{`${coverage.unmatched} need review`}</span> : null}
         <span>{`${coverage.annotated} annotated`}</span>
         {coverage.retryScheduled > 0 ? <span>{`${coverage.retryScheduled} retry scheduled`}</span> : null}

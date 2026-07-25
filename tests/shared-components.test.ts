@@ -54,7 +54,31 @@ describe('shared archive components', () => {
     expect(findByClass(tree, 'header-search')).toHaveLength(1);
     expect(findByClass(tree, 'header-filters')).toHaveLength(0);
     expect(findByClass(tree, 'header-log-action')).toHaveLength(1);
-    expect(readText(tree)).toContain('Library');
+    const headerText = readText(tree);
+    expect(headerText).toContain('Library');
+    expect(headerText.match(/98 diary entries · 22 titles/g)).toHaveLength(1);
+    expect(readText(findByClass(tree, 'metadata-status-primary'))).toBe('matching metadata…');
+    expect(headerText).toContain('12 of 22 enriched');
+  });
+
+  it('summarizes complete metadata without repeating the title count in the visible header line', () => {
+    const tree = renderTree(
+      createElement(PageHeader, {
+        activeView: 'library',
+        archiveCount: 22,
+        coverage: { annotated: 4, failed: 0, matched: 22, pending: 0, retryScheduled: 0, total: 22, unmatched: 0 },
+        diaryCount: 98,
+        onOpenLogPanel: noop,
+        onRetryMetadata: async () => {},
+        onSearchQueryChange: noop,
+        onViewChange: noop,
+        periodLabel: 'JUL 2026',
+        searchQuery: ''
+      })
+    );
+
+    expect(readText(findByClass(tree, 'metadata-status-primary'))).toBe('metadata complete');
+    expect(readText(findByClass(tree, 'metadata-status-details'))).toContain('22 of 22 enriched');
   });
 
   it('shares backdrop, close, and downward-swipe dismissal across sheets', () => {

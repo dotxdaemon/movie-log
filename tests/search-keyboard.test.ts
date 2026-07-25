@@ -10,7 +10,7 @@ const noop = () => {};
 
 function makeResult(index: number): SearchResultItem {
   return {
-    director: `Director ${index}`,
+    director: [`Director ${index}`],
     key: `diary:/Movies/Film-${index}.mkv`,
     kind: 'diary',
     mediaType: 'film',

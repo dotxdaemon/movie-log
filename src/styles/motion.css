@@ -14,7 +14,7 @@
 
 @keyframes sheet-reveal {
   from {
-    transform: translateX(24px);
+    transform: translateX(4px);
   }
 
   to {
@@ -24,7 +24,7 @@
 
 @keyframes sheet-rise {
   from {
-    transform: translateY(24px);
+    transform: translateY(4px);
   }
 
   to {

@@ -347,7 +347,7 @@ describe('archive model', () => {
     ]);
 
     expect(groups.diary.map((result) => result.title)).toEqual(['Flow']);
-    expect(groups.diary[0]?.director).toBe('Gints Zilbalodis');
+    expect(groups.diary[0]?.director).toEqual(['Gints Zilbalodis']);
     expect(groups.diary[0]?.year).toBe(2024);
     expect(groups.diary[0]?.posterUrl).toContain('Flow_poster');
     expect(groups.library).toEqual([]);

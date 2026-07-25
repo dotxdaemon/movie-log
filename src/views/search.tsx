@@ -67,7 +67,7 @@ function SearchLane({
               <span className="search-result-year">{result.year ?? ''}</span>
             </span>
             <span className="search-result-meta">
-              {result.director ? `${result.director} · ` : ''}
+              {result.director.length > 0 ? `${result.director.join(', ')} · ` : ''}
               {result.status}
             </span>
           </span>
@@ -228,7 +228,7 @@ export function SearchView({
                     <span className="search-result-year">{result.year ?? ''}</span>
                   </span>
                   <span className="search-result-meta">
-                    {result.director ? `${result.director} · ` : ''}
+                    {result.director.length > 0 ? `${result.director.join(', ')} · ` : ''}
                     {result.status}
                   </span>
                 </span>

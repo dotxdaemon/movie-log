@@ -2,7 +2,7 @@
 /* ABOUTME: Gives tokens, shared components, view refinements, motion, and responsive rules explicit owners. */
 @import './styles/foundation.css';
 @import './styles/components.css';
-@import './styles/responsive-foundation.css';
-@import './styles/view-refinements.css';
+@import './styles/views.css';
 @import './styles/motion.css';
+@import './styles/responsive-foundation.css';
 @import './styles/responsive.css';

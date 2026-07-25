@@ -68,6 +68,7 @@ export function MovieCard({ item, onOpen, onSelect, selected }: MovieCardProps) 
             </span>
           </span>
         </span>
+        {selected ? <span className="movie-card-open-action">Open dossier</span> : null}
       </button>
       {markers.length > 0 ? <span className="visually-hidden">{markers.join(', ')}</span> : null}
     </div>

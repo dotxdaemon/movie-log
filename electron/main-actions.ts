@@ -37,6 +37,22 @@ interface LogCatalogFilmOptions {
   reportError?(error: unknown, phase: 'broadcast' | 'metadata' | 'persistence'): void;
 }
 
+export function createAttachedCatalogSelection(film: LogFilmRequest): CatalogSearchResult {
+  return {
+    catalogId: film.catalogId,
+    catalogSource: film.catalogSource,
+    description: 'Selected catalog match',
+    director: film.director ? [...film.director] : undefined,
+    mediaType: film.mediaType,
+    pageId: film.pageId,
+    posterLookupComplete: film.posterLookupComplete,
+    posterUrl: film.posterUrl ?? null,
+    posterWidth: film.posterWidth,
+    title: film.title,
+    year: film.year
+  };
+}
+
 export async function addWatchedFolderPath(
   folderPath: string,
   options: AddWatchedFolderPathOptions

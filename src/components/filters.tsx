@@ -120,11 +120,7 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
 }
 
 interface FilterPanelProps extends FilterControlsProps {
-  draftFilters: ArchiveFilters;
-  onApplyDraft(filters: ArchiveFilters): void;
-  onDraftFilterChange(filters: ArchiveFilters): void;
   onSheetOpenChange(open: boolean): void;
-  resultCount: number;
   sheetOpen: boolean;
 }
 
@@ -134,17 +130,7 @@ function countActiveFilters(filters: ArchiveFilters): number {
   ).length;
 }
 
-export function FilterPanel({
-  draftFilters,
-  filters,
-  onApplyDraft,
-  onDraftFilterChange,
-  onFilterChange,
-  onSheetOpenChange,
-  options,
-  resultCount,
-  sheetOpen
-}: FilterPanelProps) {
+export function FilterPanel({ filters, onFilterChange, onSheetOpenChange, options, sheetOpen }: FilterPanelProps) {
   const activeCount = countActiveFilters(filters);
 
   return (
@@ -160,37 +146,39 @@ export function FilterPanel({
       >
         Filters{activeCount > 0 ? ` · ${activeCount}` : ''}
       </button>
-      {sheetOpen ? (
-        <SheetDialog
-          backdropClassName="filter-sheet-backdrop"
-          eyebrow="Library"
-          headClassName="filter-sheet-head"
-          label="Library filters"
-          onClose={() => onSheetOpenChange(false)}
-          sheetClassName="filter-sheet"
-          title="Filters"
-        >
-          <div className="filter-sheet-body">
-            <FilterControls filters={draftFilters} onFilterChange={onDraftFilterChange} options={options} />
-          </div>
-          <footer className="filter-sheet-actions">
-            <button className="command-block" onClick={() => onDraftFilterChange(defaultArchiveFilters)} type="button">
-              Reset
-            </button>
-            <button
-              className="command-block command-block-primary"
-              onClick={() => {
-                onApplyDraft(draftFilters);
-                onSheetOpenChange(false);
-              }}
-              type="button"
-            >
-              {`Show ${resultCount} ${resultCount === 1 ? 'title' : 'titles'}`}
-            </button>
-          </footer>
-        </SheetDialog>
-      ) : null}
     </div>
+  );
+}
+
+interface FilterSheetProps extends FilterControlsProps {
+  onApply(filters: ArchiveFilters): void;
+  onClose(): void;
+  resultCount: number;
+}
+
+export function FilterSheet({ filters, onApply, onClose, onFilterChange, options, resultCount }: FilterSheetProps) {
+  return (
+    <SheetDialog
+      backdropClassName="filter-sheet-backdrop"
+      eyebrow="Library"
+      headClassName="filter-sheet-head"
+      label="Library filters"
+      onClose={onClose}
+      sheetClassName="filter-sheet"
+      title="Filters"
+    >
+      <div className="filter-sheet-body">
+        <FilterControls filters={filters} onFilterChange={onFilterChange} options={options} />
+      </div>
+      <footer className="filter-sheet-actions">
+        <button className="command-block" onClick={() => onFilterChange(defaultArchiveFilters)} type="button">
+          Reset
+        </button>
+        <button className="command-block command-block-primary" onClick={() => onApply(filters)} type="button">
+          {`Show ${resultCount} ${resultCount === 1 ? 'title' : 'titles'}`}
+        </button>
+      </footer>
+    </SheetDialog>
   );
 }
 

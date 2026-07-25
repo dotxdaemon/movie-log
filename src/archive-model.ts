@@ -52,12 +52,14 @@ export interface ArchiveItem {
 export interface SearchResultItem {
   catalogId?: string;
   catalogSource?: 'imdb' | 'wikipedia';
-  director: string | null;
+  director: string[];
   key: string;
   kind: 'diary' | 'library' | 'catalog';
   mediaType: MediaType;
   pageId: number | null;
+  posterLookupComplete?: boolean;
   posterUrl: string | null;
+  posterWidth?: number;
   sourcePath: string | null;
   status: string;
   title: string;
@@ -425,7 +427,7 @@ export function buildSearchResults(
   const toResult = (item: ArchiveItem, kind: 'diary' | 'library'): SearchResultItem => ({
     catalogId: item.film?.catalogId,
     catalogSource: item.film?.catalogSource,
-    director: item.film?.director[0] ?? null,
+    director: [...(item.film?.director ?? [])],
     key: `${kind}:${item.sourcePath}`,
     kind,
     pageId: item.film?.pageId ?? null,
@@ -448,20 +450,27 @@ export function buildSearchResults(
   const localKeys = new Set(items.filter(matches).map((item) => item.filmKey));
   const catalog = catalogResults
     .filter((result) => !localKeys.has(readFilmKey({ title: result.title, year: result.year })))
-    .map((result): SearchResultItem => ({
-      catalogId: result.catalogId,
-      catalogSource: result.catalogSource,
-      director: result.director?.[0] ?? null,
-      key: `catalog:${result.pageId}`,
-      kind: 'catalog',
-      mediaType: /\b(?:series|episode|television|tv)\b/i.test(result.description) ? 'series' : 'film',
-      pageId: result.pageId,
-      posterUrl: result.posterUrl,
-      sourcePath: null,
-      status: `${/\b(?:series|episode|television|tv)\b/i.test(result.description) ? 'Series' : 'Film'} · ${result.description || 'Catalog match'}`,
-      title: result.title,
-      year: result.year
-    }));
+    .map((result): SearchResultItem => {
+      const mediaType =
+        result.mediaType ?? (/\b(?:series|episode|television|tv)\b/i.test(result.description) ? 'series' : 'film');
+
+      return {
+        catalogId: result.catalogId,
+        catalogSource: result.catalogSource,
+        director: [...(result.director ?? [])],
+        key: `catalog:${result.pageId}`,
+        kind: 'catalog',
+        mediaType,
+        pageId: result.pageId,
+        posterLookupComplete: result.posterLookupComplete,
+        posterUrl: result.posterUrl,
+        posterWidth: result.posterWidth,
+        sourcePath: null,
+        status: `${mediaType === 'series' ? 'Series' : 'Film'} · ${result.description || 'Catalog match'}`,
+        title: result.title,
+        year: result.year
+      };
+    });
 
   const diary = diaryItems.map((item) => toResult(item, 'diary'));
   const library = libraryItems.map((item) => toResult(item, 'library'));

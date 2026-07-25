@@ -5,7 +5,8 @@ import {
   chooseFilmMatch,
   createFilmCatalog,
   readImdbPosterResults,
-  readSearchResults
+  readSearchResults,
+  searchCatalogProviders
 } from '../electron/film-catalog.js';
 
 const searchPayload = {
@@ -157,6 +158,7 @@ describe('searchFilms', () => {
       catalogSource: 'wikipedia',
       description: 'Psychological drama thriller film',
       director: ['Charlie Polinger'],
+      mediaType: 'film',
       pageId: 79985226,
       posterUrl: 'https://upload.wikimedia.org/wikipedia/en/c/c3/The_Plague_film_poster.jpg',
       title: 'The Plague',
@@ -338,8 +340,10 @@ describe('IMDb poster fallback', () => {
         catalogRank: 0,
         catalogSource: 'imdb',
         description: 'Feature film',
+        mediaType: 'film',
         pageId: -1375666,
         posterUrl: 'https://m.media-amazon.com/inception.jpg',
+        posterWidth: 800,
         title: 'Inception',
         year: 2010
       },
@@ -348,11 +352,246 @@ describe('IMDb poster fallback', () => {
         catalogRank: 1,
         catalogSource: 'imdb',
         description: 'Television series',
+        mediaType: 'series',
         pageId: -1190634,
         posterUrl: 'https://m.media-amazon.com/the-boys.jpg',
+        posterWidth: 800,
         title: 'The Boys',
         year: 2019
       }
     ]);
+  });
+
+  it('adds directors to exact IMDb results when the Wikipedia identity can supply them', async () => {
+    const catalog = createFilmCatalog({
+      fetchImdbTitleJson: async () => ({ data: {} }),
+      fetchJson: async (url: string) => {
+        if (url.includes('generator=search')) {
+          return searchPayload;
+        }
+
+        if (url.includes('props=claims')) {
+          return searchClaimsPayload;
+        }
+
+        return searchLabelsPayload;
+      },
+      fetchPosterJson: async () => ({
+        d: [
+          {
+            i: {
+              height: 1400,
+              imageUrl: 'https://m.media-amazon.com/images/M/MV5Bplague@._V1_.jpg',
+              width: 900
+            },
+            id: 'tt32359447',
+            l: 'The Plague',
+            q: 'feature',
+            y: 2025
+          }
+        ]
+      })
+    });
+
+    await expect(catalog.searchPosterFallback?.('The Plague 2025 film')).resolves.toMatchObject([
+      {
+        catalogSource: 'imdb',
+        director: ['Charlie Polinger'],
+        posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague@._V1_.jpg',
+        title: 'The Plague',
+        year: 2025
+      }
+    ]);
+  });
+
+  it('prefers the largest portrait IMDb poster and reads its own director credits', async () => {
+    const catalog = createFilmCatalog({
+      fetchImdbTitleJson: async (catalogIds: string[]) => {
+        expect(catalogIds).toEqual(['tt32359447']);
+        return {
+          data: {
+            title0: {
+              credits: {
+                edges: [{ node: { name: { nameText: { text: 'Charlie Polinger' } } } }]
+              },
+              images: {
+                edges: [
+                  {
+                    node: {
+                      height: 2400,
+                      type: 'poster',
+                      url: 'https://m.media-amazon.com/images/M/MV5Bplague-large@._V1_.jpg',
+                      width: 1600
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        };
+      },
+      fetchJson: async () => {
+        throw new Error('Wikipedia unavailable');
+      },
+      fetchPosterJson: async () => ({
+        d: [
+          {
+            i: {
+              height: 1400,
+              imageUrl: 'https://m.media-amazon.com/images/M/MV5Bplague@._V1_.jpg',
+              width: 900
+            },
+            id: 'tt32359447',
+            l: 'The Plague',
+            q: 'feature',
+            y: 2025
+          }
+        ]
+      })
+    } as Parameters<typeof createFilmCatalog>[0]);
+
+    await expect(catalog.searchPosterFallback?.('The Plague 2025 film')).resolves.toMatchObject([
+      {
+        director: ['Charlie Polinger'],
+        posterLookupComplete: true,
+        posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-large@._V1_.jpg',
+        posterWidth: 1600
+      }
+    ]);
+  });
+
+  it.each([
+    { complete: false, width: 500 },
+    { complete: true, width: 640 }
+  ])('marks a successful IMDb title lookup with $width px art complete=$complete', async ({ complete, width }) => {
+    const catalog = createFilmCatalog({
+      fetchImdbTitleJson: async () => ({
+        data: {
+          title0: {
+            images: {
+              edges: [
+                {
+                  node: {
+                    height: Math.ceil(width * 1.5),
+                    type: 'poster',
+                    url: `https://m.media-amazon.com/images/M/title-${width}.jpg`,
+                    width
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }),
+      fetchPosterJson: async () => ({
+        d: [
+          {
+            i: {
+              height: 600,
+              imageUrl: 'https://m.media-amazon.com/images/M/suggestion.jpg',
+              width: 400
+            },
+            id: 'tt32359447',
+            l: 'The Plague',
+            q: 'feature',
+            y: 2025
+          }
+        ]
+      })
+    });
+
+    await expect(
+      catalog.searchPosterFallback?.('The Plague 2025 film', { includeCredits: false })
+    ).resolves.toMatchObject([
+      {
+        posterLookupComplete: complete,
+        posterUrl: `https://m.media-amazon.com/images/M/title-${width}.jpg`,
+        posterWidth: width
+      }
+    ]);
+  });
+
+  it('marks suggestion artwork retryable when IMDb title-detail lookup is only partially available', async () => {
+    const catalog = createFilmCatalog({
+      fetchImdbTitleJson: async () => {
+        throw new Error('IMDb title details unavailable');
+      },
+      fetchPosterJson: async () => ({
+        d: [
+          {
+            i: {
+              height: 750,
+              imageUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-small@._V1_.jpg',
+              width: 500
+            },
+            id: 'tt32359447',
+            l: 'The Plague',
+            q: 'feature',
+            y: 2025
+          }
+        ]
+      })
+    });
+
+    await expect(
+      catalog.searchPosterFallback?.('The Plague 2025 film', { includeCredits: false })
+    ).resolves.toMatchObject([
+      {
+        posterLookupComplete: false,
+        posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-small@._V1_.jpg',
+        posterWidth: 500
+      }
+    ]);
+  });
+});
+
+describe('catalog provider fallback', () => {
+  it('returns live IMDb results when Wikipedia is rate limited', async () => {
+    const fallback = {
+      description: 'Feature film',
+      director: ['Gore Verbinski'],
+      pageId: -2932536,
+      posterUrl: 'https://m.media-amazon.com/ring.jpg',
+      title: 'The Ring',
+      year: 2002
+    };
+
+    await expect(
+      searchCatalogProviders(
+        {
+          searchFilms: async () => {
+            throw new Error('Catalog request failed with status 429.');
+          },
+          searchPosterFallback: async () => [fallback]
+        },
+        'The Ring'
+      )
+    ).resolves.toEqual([fallback]);
+  });
+
+  it('does not call the secondary provider when Wikipedia returns results', async () => {
+    let fallbackCalls = 0;
+    const primary = {
+      description: '2002 horror film',
+      director: ['Gore Verbinski'],
+      pageId: 436434,
+      posterUrl: 'https://upload.wikimedia.org/ring.jpg',
+      title: 'The Ring',
+      year: 2002
+    };
+
+    await expect(
+      searchCatalogProviders(
+        {
+          searchFilms: async () => [primary],
+          searchPosterFallback: async () => {
+            fallbackCalls += 1;
+            return [];
+          }
+        },
+        'The Ring'
+      )
+    ).resolves.toEqual([primary]);
+    expect(fallbackCalls).toBe(0);
   });
 });

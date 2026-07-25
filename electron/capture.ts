@@ -4,12 +4,36 @@ import type { BrowserWindow } from 'electron';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { parseFilmTitle, readFilmKey } from '../shared/film-title.js';
-import type { MovieLogState, WatchEntry } from '../shared/types.js';
+import type { FilmRecord, MovieLogState, WatchEntry } from '../shared/types.js';
+import { captureSnapshotMarkerName, validateCaptureRuntimePaths } from './capture-data-safety.js';
 
 interface CaptureControllerOptions {
+  dataDirectory: string;
   historyStore: { readState(): Promise<MovieLogState> };
   quitApp(): void;
   readState(): Promise<MovieLogState>;
+}
+
+export type CaptureDataMode = 'real' | 'scratch';
+
+export function resolveCaptureDataMode(captureRequested: boolean, value: string | undefined): CaptureDataMode | null {
+  if (!captureRequested) {
+    return null;
+  }
+
+  if (value === 'real' || value === 'scratch') {
+    return value;
+  }
+
+  throw new Error('Installed captures require MOVIE_LOG_CAPTURE_DATA_MODE=real or scratch.');
+}
+
+export function assertCaptureWritable(dataMode: CaptureDataMode | null, operation: string): void {
+  if (dataMode === 'real') {
+    throw new Error(
+      `Capture operation "${operation}" requires MOVIE_LOG_CAPTURE_DATA_MODE=scratch; real-data captures are read-only.`
+    );
+  }
 }
 
 export function isFrameOccluded(bitmap: Buffer, width: number, height: number): boolean {
@@ -45,9 +69,19 @@ export function isFrameOccluded(bitmap: Buffer, width: number, height: number): 
   return black / Math.max(1, sampled) > 0.6 || topBlack / Math.max(1, topSampled) > 0.15;
 }
 
-export function createCaptureController({ historyStore, quitApp, readState }: CaptureControllerOptions) {
+export function createCaptureController({ dataDirectory, historyStore, quitApp, readState }: CaptureControllerOptions) {
   let mainWindow: BrowserWindow | null = null;
-  const captureRequested = Boolean(process.env.MOVIE_LOG_CAPTURE_PATH);
+  const captureRequested = process.env.MOVIE_LOG_CAPTURE_PATH !== undefined;
+  const captureDataMode = resolveCaptureDataMode(captureRequested, process.env.MOVIE_LOG_CAPTURE_DATA_MODE);
+  const runtimePaths = validateCaptureRuntimePaths({
+    captureDataMode,
+    capturePath: process.env.MOVIE_LOG_CAPTURE_PATH,
+    dataDirectory,
+    persistenceProofPath: process.env.MOVIE_LOG_PERSISTENCE_PROOF_PATH,
+    snapshotDirectory: process.env[captureSnapshotMarkerName]
+  });
+  const captureOutputPath = runtimePaths.capturePath;
+  const persistenceProofPath = runtimePaths.persistenceProofPath;
   const captureWidth = Number(process.env.MOVIE_LOG_CAPTURE_WIDTH ?? 1180);
   const captureHeight = Number(process.env.MOVIE_LOG_CAPTURE_HEIGHT ?? 788);
   const captureRequestedView = process.env.MOVIE_LOG_CAPTURE_VIEW ?? 'diary';
@@ -91,6 +125,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
     'statistics-lower',
     'settings',
     'detail',
+    'detail-imdb-match',
     'detail-missing',
     'detail-outage',
     'log',
@@ -108,6 +143,8 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
     'persistence-edit',
     'persistence-edit-verify',
     'accessibility-audit',
+    'layout-stability',
+    'performance-diary-large',
     'performance-large',
     'performance',
     'poster-performance',
@@ -156,6 +193,130 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
     );
   }
 
+  async function measureThrottledPosterResource(): Promise<{
+    decodeMilliseconds: number;
+    durationMilliseconds: number;
+    geometryShift: number;
+    layoutShift: number;
+    naturalWidth: number;
+    url: string;
+  }> {
+    if (!mainWindow) {
+      throw new Error('Installed poster throttle could not find the capture window.');
+    }
+
+    const debugTarget = mainWindow.webContents.debugger;
+
+    try {
+      debugTarget.attach('1.3');
+      await debugTarget.sendCommand('Network.enable');
+      await debugTarget.sendCommand('Network.setCacheDisabled', { cacheDisabled: true });
+      await debugTarget.sendCommand('Network.emulateNetworkConditions', {
+        connectionType: 'cellular3g',
+        downloadThroughput: 1024 * 1024,
+        latency: 400,
+        offline: false,
+        uploadThroughput: 512 * 1024
+      });
+
+      return (await mainWindow.webContents.executeJavaScript(`
+        (async () => {
+          const sourceImage = [...document.querySelectorAll('img.poster-art')].find((image) =>
+            /m\\.media-amazon\\.com|upload\\.wikimedia\\.org/.test(image.currentSrc || image.src)
+          );
+
+          if (!sourceImage) {
+            throw new Error('The installed Library did not expose a remote poster for throttled proof.');
+          }
+
+          const source = new URL(sourceImage.currentSrc || sourceImage.src);
+          source.searchParams.set('movieLogThrottleProof', String(Date.now()));
+          const proofUrl = source.toString();
+          const before = sourceImage.closest('.film-poster')?.getBoundingClientRect();
+          let layoutShift = 0;
+          const shiftObserver = new PerformanceObserver((list) => {
+            for (const entry of list.getEntries()) {
+              if (!entry.hadRecentInput) layoutShift += entry.value;
+            }
+          });
+          shiftObserver.observe({ type: 'layout-shift', buffered: false });
+          performance.clearResourceTimings();
+          const loaded = await new Promise((resolve, reject) => {
+            const timeout = setTimeout(
+              () => reject(new Error('The throttled poster proof did not settle within 10 seconds.')),
+              10_000
+            );
+            sourceImage.addEventListener(
+              'load',
+              () => {
+                clearTimeout(timeout);
+                resolve(true);
+              },
+              { once: true }
+            );
+            sourceImage.addEventListener(
+              'error',
+              () => {
+                clearTimeout(timeout);
+                reject(new Error('The throttled poster proof failed to decode its remote image.'));
+              },
+              { once: true }
+            );
+            sourceImage.removeAttribute('srcset');
+            sourceImage.removeAttribute('sizes');
+            sourceImage.loading = 'eager';
+            sourceImage.src = proofUrl;
+          });
+
+          if (!loaded || sourceImage.naturalWidth === 0) {
+            throw new Error('The throttled poster proof did not decode a real remote poster.');
+          }
+          const decodeStartedAt = performance.now();
+          await sourceImage.decode();
+          const decodeMilliseconds = performance.now() - decodeStartedAt;
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          shiftObserver.disconnect();
+          const after = sourceImage.closest('.film-poster')?.getBoundingClientRect();
+          const geometryShift =
+            before && after
+              ? Math.max(
+                  Math.abs(before.width - after.width),
+                  Math.abs(before.height - after.height),
+                  Math.abs(before.left - after.left),
+                  Math.abs(before.top - after.top)
+                )
+              : Number.POSITIVE_INFINITY;
+
+          const resource = performance
+            .getEntriesByName(proofUrl, 'resource')
+            .findLast((entry) => entry.name === proofUrl);
+
+          return {
+            decodeMilliseconds,
+            durationMilliseconds: resource?.duration ?? 0,
+            geometryShift,
+            layoutShift,
+            naturalWidth: sourceImage.naturalWidth,
+            url: proofUrl
+          };
+        })()
+      `)) as {
+        decodeMilliseconds: number;
+        durationMilliseconds: number;
+        geometryShift: number;
+        layoutShift: number;
+        naturalWidth: number;
+        url: string;
+      };
+    } catch (error) {
+      throw new Error(`Could not complete the installed poster slow-network profile: ${String(error)}`);
+    } finally {
+      if (debugTarget.isAttached()) {
+        debugTarget.detach();
+      }
+    }
+  }
+
   async function selectCaptureView(): Promise<void> {
     if (!mainWindow) {
       return;
@@ -173,7 +334,12 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
           (element.getAttribute('aria-label') || element.textContent || '').trim().toLowerCase();
         const navigationItems = [...document.querySelectorAll(navigationSelector)];
 
-        if (requestedView === 'performance' || requestedView === 'accessibility-audit') {
+        if (
+          requestedView === 'performance' ||
+          requestedView === 'accessibility-audit' ||
+          requestedView === 'layout-stability' ||
+          requestedView === 'performance-diary-large'
+        ) {
           return true;
         }
 
@@ -208,6 +374,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
 
         if (
           requestedView === 'detail' ||
+          requestedView === 'detail-imdb-match' ||
           requestedView === 'detail-missing' ||
           requestedView === 'detail-outage' ||
           requestedView === 'filters' ||
@@ -354,12 +521,69 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
       process.stdout.write(`installed large library: ${JSON.stringify(measurements)}\n`);
     }
 
+    if (captureRequestedView === 'performance-diary-large') {
+      const rendererMeasurements = (await mainWindow.webContents.executeJavaScript(`
+        (() => ({
+          collapsedFormCount: document.querySelectorAll('.diary-entry .entry-form').length,
+          entryCount: document.querySelectorAll('.diary-entry').length,
+          interactiveCount: document.querySelectorAll(
+            'button, input:not([type="hidden"]), select, textarea, a[href], summary, [tabindex]'
+          ).length,
+          readyMilliseconds: performance.now()
+        }))()
+      `)) as {
+        collapsedFormCount: number;
+        entryCount: number;
+        interactiveCount: number;
+        readyMilliseconds: number;
+      };
+      const captureStartedAt = Number(process.env.MOVIE_LOG_CAPTURE_STARTED_AT);
+      const measurements = {
+        ...rendererMeasurements,
+        launchReadyMilliseconds: Number.isFinite(captureStartedAt) ? Date.now() - captureStartedAt : -1
+      };
+
+      if (
+        measurements.entryCount < 1_000 ||
+        measurements.collapsedFormCount !== 0 ||
+        measurements.interactiveCount >= 3_500 ||
+        measurements.readyMilliseconds >= 3_000 ||
+        measurements.launchReadyMilliseconds < 0 ||
+        measurements.launchReadyMilliseconds >= 4_000
+      ) {
+        throw new Error(`Installed large-diary budget failed: ${JSON.stringify(measurements)}`);
+      }
+
+      process.stdout.write(`installed large diary: ${JSON.stringify(measurements)}\n`);
+    }
+
+    if (captureRequestedView === 'diary' && captureWidth <= 700) {
+      const viewport = (await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          const firstEntry = document.querySelector('.diary-entry');
+          const navigation = document.querySelector('.mobile-nav');
+          const switcher = document.querySelector('.view-switcher');
+          return {
+            firstEntryTop: firstEntry?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY,
+            navigationTop: navigation?.getBoundingClientRect().top ?? 0,
+            switcherBottom: switcher?.getBoundingClientRect().bottom ?? Number.POSITIVE_INFINITY
+          };
+        })()
+      `)) as { firstEntryTop: number; navigationTop: number; switcherBottom: number };
+
+      if (viewport.firstEntryTop >= viewport.navigationTop || viewport.switcherBottom >= viewport.navigationTop) {
+        throw new Error(`Installed mobile Diary first-viewport proof failed: ${JSON.stringify(viewport)}`);
+      }
+
+      process.stdout.write(`installed mobile diary viewport: ${JSON.stringify(viewport)}\n`);
+    }
+
     if (captureRequestedView === 'poster-performance') {
       await new Promise((resolve) => setTimeout(resolve, 1_200));
-      const measurements = (await mainWindow.webContents.executeJavaScript(`
+      const throttledPosterResource = await measureThrottledPosterResource();
+      const rendererMeasurements = (await mainWindow.webContents.executeJavaScript(`
         (async () => {
           const settlePaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-          const startedAt = performance.now();
           const images = [...document.querySelectorAll('img.poster-art')];
           await Promise.all(images.map(async (image) => {
             if (!image.complete) {
@@ -405,32 +629,32 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
             }
           }
 
-          const remoteResources = performance
-            .getEntriesByType('resource')
-            .filter((entry) => /m\\.media-amazon\\.com|upload\\.wikimedia\\.org/.test(entry.name));
-
           return {
             aspectRatioDeviation: Math.max(0, ...aspectRatios.map((ratio) => Math.abs(ratio - 2 / 3))),
-            decodeMilliseconds: performance.now() - startedAt,
             fallbackCount: posters.filter((poster) => poster.getAttribute('data-poster') === 'plate').length,
             fallbackLayoutShift,
             minimumResolutionRatio: resolutionRatios.length ? Math.min(...resolutionRatios) : null,
             posterCount: posters.length,
-            remoteResourceCount: remoteResources.length,
-            slowestResourceMilliseconds: Math.max(0, ...remoteResources.map((entry) => entry.duration)),
             visiblePosterCount: visibleImages.length
           };
         })()
       `)) as {
         aspectRatioDeviation: number;
-        decodeMilliseconds: number;
         fallbackCount: number;
         fallbackLayoutShift: number;
         minimumResolutionRatio: number | null;
         posterCount: number;
-        remoteResourceCount: number;
-        slowestResourceMilliseconds: number;
         visiblePosterCount: number;
+      };
+      const measurements = {
+        ...rendererMeasurements,
+        remoteResourceCount: 1,
+        slowestResourceMilliseconds: throttledPosterResource.durationMilliseconds,
+        throttledPosterDecodeMilliseconds: throttledPosterResource.decodeMilliseconds,
+        throttledPosterGeometryShift: throttledPosterResource.geometryShift,
+        throttledPosterLayoutShift: throttledPosterResource.layoutShift,
+        throttledPosterNaturalWidth: throttledPosterResource.naturalWidth,
+        throttledPosterUrl: throttledPosterResource.url
       };
 
       if (
@@ -439,7 +663,12 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
         measurements.minimumResolutionRatio === null ||
         measurements.minimumResolutionRatio < 0.99 ||
         measurements.aspectRatioDeviation > 0.01 ||
-        measurements.fallbackLayoutShift > 0.5
+        measurements.fallbackLayoutShift > 0.5 ||
+        measurements.slowestResourceMilliseconds < 350 ||
+        measurements.throttledPosterDecodeMilliseconds >= 1_000 ||
+        measurements.throttledPosterGeometryShift > 0.5 ||
+        measurements.throttledPosterLayoutShift > 0.001 ||
+        measurements.throttledPosterNaturalWidth === 0
       ) {
         throw new Error(`Installed poster acceptance failed: ${JSON.stringify(measurements)}`);
       }
@@ -530,8 +759,18 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
               .filter((element) => !accessibleName(element))
               .map((element) => element.outerHTML.slice(0, 160));
             const hiddenFocusable = interactive
-              .filter((element) => element.closest('[aria-hidden="true"]'))
+              .filter(
+                (element) =>
+                  element.closest('[aria-hidden="true"]') && !element.closest('[inert][aria-hidden="true"]')
+              )
               .map((element) => element.outerHTML.slice(0, 160));
+            const modalBackgroundIssues = document.querySelector('[aria-modal="true"]')
+              ? ['.archive-background', '.archive-spine', '.mobile-nav']
+                  .filter((selector) => {
+                    const element = document.querySelector(selector);
+                    return !element?.hasAttribute('inert') || element.getAttribute('aria-hidden') !== 'true';
+                  })
+              : [];
             const imagesMissingAlternatives = [...document.querySelectorAll('img')]
               .filter(isVisible)
               .filter((image) => !image.hasAttribute('alt') && image.getAttribute('aria-hidden') !== 'true')
@@ -575,6 +814,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
               interactiveCount: interactive.length,
               label,
               missingNames,
+              modalBackgroundIssues,
               undersizedMajorTargets
             });
           };
@@ -614,6 +854,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
               'hiddenFocusable',
               'imagesMissingAlternatives',
               'missingNames',
+              'modalBackgroundIssues',
               'undersizedMajorTargets'
             ]
               .flatMap((key) => result[key].map((value) => result.label + ':' + key + ':' + value))
@@ -657,9 +898,9 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
     }
 
     if (captureRequestedView === 'library-filtered' || captureRequestedView === 'library-empty') {
-      const filterSurface = captureWidth <= 700 ? '.filter-sheet' : '.filter-toolbar';
+      const filterSurface = captureWidth <= 1040 ? '.filter-sheet' : '.filter-toolbar';
 
-      if (captureWidth <= 700) {
+      if (captureWidth <= 1040) {
         await mainWindow.webContents.executeJavaScript(`document.querySelector('.filter-sheet-trigger')?.click()`);
       }
 
@@ -696,7 +937,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
         throw new Error(`Capture view did not apply filters: ${captureRequestedView}.`);
       }
 
-      if (captureWidth <= 700) {
+      if (captureWidth <= 1040) {
         await waitForCaptureSelector('.filter-sheet', false);
       }
 
@@ -704,7 +945,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
         await waitForCaptureSelector('.library-film-field .blank-slate');
       }
 
-      if (captureRequestedView === 'library-filtered' && captureWidth > 700) {
+      if (captureRequestedView === 'library-filtered' && captureWidth > 1040) {
         await waitForCaptureSelector('.filter-chip');
         await mainWindow.webContents.executeJavaScript(`document.querySelector('.filter-chip')?.click()`);
         await waitForCaptureSelector('.filter-chip', false);
@@ -876,6 +1117,26 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
       await waitForCaptureSelector('.log-sheet');
     }
 
+    if (captureRequestedView === 'log') {
+      const formFlow = (await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          const footer = document.querySelector('.log-sheet .entry-form-footer');
+          const previous = footer?.previousElementSibling;
+          return {
+            footerTop: footer?.offsetTop ?? -1,
+            position: footer ? getComputedStyle(footer).position : '',
+            previousBottom: previous ? previous.offsetTop + previous.offsetHeight : -1
+          };
+        })()
+      `)) as { footerTop: number; position: string; previousBottom: number };
+
+      if (formFlow.position !== 'static' || formFlow.footerTop < formFlow.previousBottom) {
+        throw new Error(`Installed Log action flow failed: ${JSON.stringify(formFlow)}`);
+      }
+
+      process.stdout.write(`installed log action flow: ${JSON.stringify(formFlow)}\n`);
+    }
+
     if (captureRequestedView === 'catalog' || captureRequestedView === 'catalog-outage') {
       await mainWindow.webContents.executeJavaScript(`
         (() => {
@@ -896,6 +1157,38 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
         await waitForCaptureSelector('.catalog-error');
       } else {
         await waitForCaptureSelector('.search-group-catalog .poster-art', true, 300);
+        const liveCatalog = (await mainWindow.webContents.executeJavaScript(`
+          (() => {
+            const rows = [...document.querySelectorAll('.search-group-catalog .search-result')];
+            const first = rows[0];
+            const meta = first?.querySelector('.search-result-meta')?.textContent?.trim() ?? '';
+            const poster = first?.querySelector('img.poster-art');
+            return {
+              directorVisible: meta.split('·').length >= 3,
+              meta,
+              posterWidth: poster?.naturalWidth ?? 0,
+              resultCount: rows.length,
+              title: first?.querySelector('.search-result-title')?.textContent?.trim() ?? ''
+            };
+          })()
+        `)) as {
+          directorVisible: boolean;
+          meta: string;
+          posterWidth: number;
+          resultCount: number;
+          title: string;
+        };
+
+        if (
+          liveCatalog.resultCount === 0 ||
+          !liveCatalog.directorVisible ||
+          liveCatalog.posterWidth === 0 ||
+          !liveCatalog.title
+        ) {
+          throw new Error(`Installed live catalog proof failed: ${JSON.stringify(liveCatalog)}`);
+        }
+
+        process.stdout.write(`installed live catalog: ${JSON.stringify(liveCatalog)}\n`);
       }
     }
 
@@ -1073,6 +1366,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
 
     if (
       captureRequestedView === 'detail' ||
+      captureRequestedView === 'detail-imdb-match' ||
       captureRequestedView === 'detail-missing' ||
       captureRequestedView === 'detail-outage'
     ) {
@@ -1099,6 +1393,54 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
       `);
       await new Promise((resolve) => setTimeout(resolve, 180));
 
+      if (captureRequestedView === 'detail') {
+        const dossierPoster = (await mainWindow.webContents.executeJavaScript(`
+          (async () => {
+            const image = document.querySelector('.movie-dossier img.poster-art');
+            if (image && !image.complete) {
+              await Promise.race([
+                new Promise((resolve) => {
+                  image.addEventListener('load', resolve, { once: true });
+                  image.addEventListener('error', resolve, { once: true });
+                }),
+                new Promise((resolve) => setTimeout(resolve, 10_000))
+              ]);
+            }
+            if (image?.complete && image.naturalWidth > 0) {
+              await image.decode().catch(() => undefined);
+            }
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            const poster = image?.closest('.film-poster');
+            return {
+              clientWidth: image?.clientWidth ?? 0,
+              currentSource: image?.currentSrc ?? '',
+              naturalWidth: image?.naturalWidth ?? 0,
+              quality: poster?.getAttribute('data-poster-quality') ?? '',
+              state: poster?.getAttribute('data-poster') ?? '',
+              visible: Boolean(image && getComputedStyle(image).display !== 'none')
+            };
+          })()
+        `)) as {
+          clientWidth: number;
+          currentSource: string;
+          naturalWidth: number;
+          quality: string;
+          state: string;
+          visible: boolean;
+        };
+
+        if (
+          !dossierPoster.visible ||
+          dossierPoster.state !== 'art' ||
+          dossierPoster.naturalWidth === 0 ||
+          dossierPoster.clientWidth === 0
+        ) {
+          throw new Error(`Installed Dossier poster anchor failed: ${JSON.stringify(dossierPoster)}`);
+        }
+
+        process.stdout.write(`installed dossier poster: ${JSON.stringify(dossierPoster)}\n`);
+      }
+
       if (captureRequestedView === 'detail-outage') {
         await mainWindow.webContents.executeJavaScript(`
           (() => {
@@ -1111,6 +1453,101 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
         await mainWindow.webContents.executeJavaScript(`
           document.querySelector('.dossier-match-error')?.scrollIntoView({ block: 'center' })
         `);
+      }
+
+      if (captureRequestedView === 'detail-imdb-match') {
+        const beforeFilms = (await readState()).films ?? {};
+        const targetKeys = (await mainWindow.webContents.executeJavaScript(`
+          JSON.parse(document.querySelector('.movie-dossier')?.getAttribute('data-film-record-keys') ?? '[]')
+        `)) as string[];
+        const beforeIdentities = new Map(
+          targetKeys.map((key) => {
+            const record = beforeFilms[key];
+            return [key, `${record?.catalogSource ?? 'wikipedia'}:${record?.catalogId ?? record?.pageId ?? ''}`];
+          })
+        );
+
+        if (targetKeys.length === 0) {
+          throw new Error('Installed IMDb Dossier proof could not identify the selected film keys.');
+        }
+
+        const searchSubmitted = (await mainWindow.webContents.executeJavaScript(`
+          (() => {
+            const details = document.querySelector('.match-study');
+            if (details) details.open = true;
+            const form = document.querySelector('.match-search');
+            form?.requestSubmit();
+            return Boolean(form);
+          })()
+        `)) as boolean;
+
+        if (!searchSubmitted) {
+          throw new Error('Installed IMDb Dossier proof could not submit a catalog match search.');
+        }
+
+        await waitForCaptureSelector('.match-results button', true, 150);
+        await mainWindow.webContents.executeJavaScript(`
+          document.querySelector('.match-results button')?.click()
+        `);
+
+        let matchedRecords: FilmRecord[] = [];
+
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          const currentFilms = (await readState()).films ?? {};
+          matchedRecords = targetKeys
+            .map((key) => currentFilms[key])
+            .filter((record): record is FilmRecord => Boolean(record));
+          const everyTargetChangedToImdb =
+            matchedRecords.length === targetKeys.length &&
+            targetKeys.every((key) => {
+              const record = currentFilms[key];
+              return (
+                record?.catalogSource === 'imdb' &&
+                beforeIdentities.get(key) !==
+                  `${record.catalogSource ?? 'wikipedia'}:${record.catalogId ?? record.pageId ?? ''}`
+              );
+            });
+
+          if (everyTargetChangedToImdb) {
+            break;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        const matchedRecord = matchedRecords[0];
+        const chosenIdentity = matchedRecord
+          ? `${matchedRecord.catalogSource}:${matchedRecord.catalogId}:${matchedRecord.pageId}`
+          : '';
+        const validTargets =
+          matchedRecords.length === targetKeys.length &&
+          matchedRecords.every(
+            (record) =>
+              record.catalogSource === 'imdb' &&
+              record.catalogId?.startsWith('tt') &&
+              record.pageId !== null &&
+              record.pageId < 0 &&
+              Boolean(record.posterUrl) &&
+              record.director.length > 0 &&
+              `${record.catalogSource}:${record.catalogId}:${record.pageId}` === chosenIdentity
+          );
+
+        if (!matchedRecord || !validTargets) {
+          throw new Error(
+            `Installed IMDb Dossier match did not preserve provider identity: ${JSON.stringify(matchedRecords)}`
+          );
+        }
+
+        process.stdout.write(
+          `installed IMDb dossier match: ${JSON.stringify({
+            catalogId: matchedRecord.catalogId,
+            catalogSource: matchedRecord.catalogSource,
+            director: matchedRecord.director,
+            pageId: matchedRecord.pageId,
+            posterWidth: matchedRecord.posterWidth,
+            title: matchedRecord.title
+          })}\n`
+        );
       }
     }
 
@@ -1221,12 +1658,8 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
         throw new Error('The installed Log Film flow did not persist every annotation exactly.');
       }
 
-      if (process.env.MOVIE_LOG_PERSISTENCE_PROOF_PATH) {
-        await writeFile(
-          process.env.MOVIE_LOG_PERSISTENCE_PROOF_PATH,
-          `${JSON.stringify(savedEntry, null, 2)}\n`,
-          'utf8'
-        );
+      if (persistenceProofPath) {
+        await writeFile(persistenceProofPath, `${JSON.stringify(savedEntry, null, 2)}\n`, 'utf8');
       }
     }
 
@@ -1307,12 +1740,8 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
         throw new Error('The installed diary edit did not persist every changed field exactly.');
       }
 
-      if (process.env.MOVIE_LOG_PERSISTENCE_PROOF_PATH) {
-        await writeFile(
-          process.env.MOVIE_LOG_PERSISTENCE_PROOF_PATH,
-          `${JSON.stringify(editedEntry, null, 2)}\n`,
-          'utf8'
-        );
+      if (persistenceProofPath) {
+        await writeFile(persistenceProofPath, `${JSON.stringify(editedEntry, null, 2)}\n`, 'utf8');
       }
     }
 
@@ -1403,6 +1832,7 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
       catalog: '.search-view',
       'catalog-outage': '.catalog-error',
       detail: '.movie-dossier',
+      'detail-imdb-match': '.movie-dossier',
       'detail-missing': '.movie-dossier',
       'detail-outage': '.dossier-match-error',
       diary: '.diary-view',
@@ -1423,12 +1853,14 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
       'log-rating-numeric': '.rating-segment:has(input:focus-visible)',
       'metadata-retry': '.status-banner',
       loading: '.screen-loading',
+      'layout-stability': '.diary-view',
       'load-error': '.error-state',
       'persistence-save': '.diary-view',
       'persistence-verify': '.diary-view',
       'persistence-edit': '.diary-view',
       'persistence-edit-verify': '.diary-view',
       performance: '.search-result',
+      'performance-diary-large': '.diary-view',
       'performance-large': '.movie-card',
       'poster-performance': '.library-view',
       'retry-backoff-verify': '.metadata-retry',
@@ -1587,8 +2019,9 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
         const backdrop = document.querySelector(${JSON.stringify(backdropSelector)});
         const body = document.querySelector(${JSON.stringify(bodySelector)});
         const input = document.querySelector(${JSON.stringify(inputSelector)});
-        const mobileNavigation = document.querySelector('.mobile-nav');
-        const navigationBounds = mobileNavigation?.getBoundingClientRect();
+        const navigationSelector = window.innerWidth <= 700 ? '.mobile-nav' : '.archive-spine';
+        const navigation = document.querySelector(navigationSelector);
+        const navigationBounds = navigation?.getBoundingClientRect();
         const navigationTarget = navigationBounds
           ? document.elementFromPoint(navigationBounds.left + navigationBounds.width / 2, navigationBounds.top + navigationBounds.height / 2)
           : null;
@@ -1610,8 +2043,8 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
           inputFontSize: input ? Number.parseFloat(getComputedStyle(input).fontSize) : 0,
           internalScroll: internalScroll && scrolled,
           mobileNavigationBlocked:
-            Boolean(backdrop && mobileNavigation && !navigationTarget?.closest('.mobile-nav')) &&
-            Number(getComputedStyle(backdrop).zIndex) > Number(getComputedStyle(mobileNavigation).zIndex)
+            Boolean(backdrop && navigation && !navigationTarget?.closest(navigationSelector)) &&
+            Number(getComputedStyle(backdrop).zIndex) > Number(getComputedStyle(navigation).zIndex)
         };
       })()
     `)) as {
@@ -1680,8 +2113,25 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
 
   async function captureIfRequested(captureWindow: BrowserWindow): Promise<void> {
     mainWindow = captureWindow;
-    if (!mainWindow || !process.env.MOVIE_LOG_CAPTURE_PATH) {
+    if (!mainWindow || !captureOutputPath) {
       return;
+    }
+
+    if (captureRequestedView === 'layout-stability') {
+      await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          window.__movieLogCaptureLayoutShift = 0;
+          window.__movieLogCaptureObservedSkeleton = Boolean(document.querySelector('.screen-loading'));
+          window.__movieLogCaptureLayoutObserver = new PerformanceObserver((list) => {
+            for (const entry of list.getEntries()) {
+              if (!entry.hadRecentInput) {
+                window.__movieLogCaptureLayoutShift += entry.value;
+              }
+            }
+          });
+          window.__movieLogCaptureLayoutObserver.observe({ buffered: true, type: 'layout-shift' });
+        })()
+      `);
     }
 
     let isReady = false;
@@ -1714,6 +2164,25 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
 
     await selectCaptureView();
     await new Promise((resolve) => setTimeout(resolve, 300));
+
+    if (captureRequestedView === 'layout-stability') {
+      const stability = (await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          window.__movieLogCaptureLayoutObserver?.disconnect();
+          return {
+            cumulativeLayoutShift: window.__movieLogCaptureLayoutShift ?? -1,
+            observedSkeleton: window.__movieLogCaptureObservedSkeleton === true
+          };
+        })()
+      `)) as { cumulativeLayoutShift: number; observedSkeleton: boolean };
+
+      if (!stability.observedSkeleton || stability.cumulativeLayoutShift < 0 || stability.cumulativeLayoutShift > 0.1) {
+        throw new Error(`Installed loading layout-stability proof failed: ${JSON.stringify(stability)}`);
+      }
+
+      process.stdout.write(`installed layout stability: ${JSON.stringify(stability)}\n`);
+    }
+
     mainWindow.webContents.sendInputEvent({ type: 'mouseMove', x: 1, y: 1 });
     await new Promise((resolve) => setTimeout(resolve, 50));
     const layout = (await mainWindow.webContents.executeJavaScript(`
@@ -1788,12 +2257,16 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
       );
     }
 
-    await mkdir(dirname(process.env.MOVIE_LOG_CAPTURE_PATH), { recursive: true });
-    await writeFile(process.env.MOVIE_LOG_CAPTURE_PATH, image.toPNG());
+    await mkdir(dirname(captureOutputPath), { recursive: true });
+    await writeFile(captureOutputPath, image.toPNG());
+    if (mainWindow.webContents.debugger.isAttached()) {
+      mainWindow.webContents.debugger.detach();
+    }
     quitApp();
   }
 
   return {
+    assertWritable: (operation: string) => assertCaptureWritable(captureDataMode, operation),
     beforeCatalogSearch: async () => {
       if (captureRequestedView === 'slow-catalog') {
         await new Promise((resolve) => setTimeout(resolve, 4_000));
@@ -1804,14 +2277,21 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
         await new Promise((resolve) => setTimeout(resolve, 10_000));
       }
 
+      if (captureRequestedView === 'layout-stability') {
+        await new Promise((resolve) => setTimeout(resolve, 1_200));
+      }
+
       if (captureRequestedView === 'load-error') {
         throw new Error("Error invoking remote method 'movie-log:get-state': ENOENT /private/archive.json");
       }
     },
     captureIfRequested,
     forceCatalogOutage: captureRequestedView === 'catalog-outage' || captureRequestedView === 'detail-outage',
+    forceCatalogPrimaryFailure: captureRequestedView === 'detail-imdb-match',
     height: captureHeight,
+    isReadOnly: captureDataMode === 'real',
     isRequested: captureRequested,
+    requireLiveCatalogSuccess: captureRequestedView === 'catalog' || captureRequestedView === 'detail-imdb-match',
     readLogPathOverride: async (): Promise<string[] | null> => {
       if (
         captureRequestedView !== 'log-ambiguity' &&
@@ -1825,6 +2305,10 @@ export function createCaptureController({ historyStore, quitApp, readState }: Ca
       return (await historyStore.readState()).libraryItems.slice(0, limit).map((item) => item.sourcePath);
     },
     rendererQuery: captureRequestedView,
+    transformReadState: (state: MovieLogState): MovieLogState =>
+      captureRequestedView === 'empty-archive'
+        ? { ...state, films: {}, history: [], libraryItems: [], watchedFolders: [] }
+        : state,
     width: captureWidth
   };
 }

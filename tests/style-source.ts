@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs';
 const styleUrls = [
   new URL('../src/styles/foundation.css', import.meta.url),
   new URL('../src/styles/components.css', import.meta.url),
-  new URL('../src/styles/responsive-foundation.css', import.meta.url),
-  new URL('../src/styles/view-refinements.css', import.meta.url),
+  new URL('../src/styles/views.css', import.meta.url),
   new URL('../src/styles/motion.css', import.meta.url),
+  new URL('../src/styles/responsive-foundation.css', import.meta.url),
   new URL('../src/styles/responsive.css', import.meta.url)
 ];
 

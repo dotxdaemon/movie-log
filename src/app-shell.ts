@@ -4,24 +4,31 @@ import { createElement, type ReactNode } from 'react';
 
 interface AppShellProps {
   mobileNavigation: ReactNode;
+  modalOpen?: boolean;
   navigationRail: ReactNode;
   workspaceStage: ReactNode;
 }
 
-export function AppShell({ mobileNavigation, navigationRail, workspaceStage }: AppShellProps) {
+export function AppShell({ mobileNavigation, modalOpen = false, navigationRail, workspaceStage }: AppShellProps) {
+  const inactiveNavigation = modalOpen ? { 'aria-hidden': 'true', inert: true } : {};
+
   return createElement(
     'main',
     { className: 'dossier-shell' },
-    createElement('aside', { 'aria-label': 'Movie Log controls', className: 'archive-spine' }, navigationRail),
+    createElement(
+      'aside',
+      { 'aria-label': 'Movie Log controls', className: 'archive-spine', ...inactiveNavigation },
+      navigationRail
+    ),
     createElement(
       'section',
       { className: 'dossier-stage' },
-      createElement(
-        'section',
-        { className: 'dossier-main' },
-        workspaceStage
-      )
+      createElement('section', { className: 'dossier-main' }, workspaceStage)
     ),
-    createElement('nav', { 'aria-label': 'Movie Log controls', className: 'mobile-nav' }, mobileNavigation)
+    createElement(
+      'nav',
+      { 'aria-label': 'Movie Log controls', className: 'mobile-nav', ...inactiveNavigation },
+      mobileNavigation
+    )
   );
 }

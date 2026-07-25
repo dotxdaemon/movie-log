@@ -182,7 +182,7 @@ describe('styles.css', () => {
 
     expect(tabletStyles).toMatch(/\.month-summary\s*\{[^}]*minmax\(170px,[^}]*gap:\s*var\(--space-5\)/s);
     expect(tabletStyles).toMatch(
-      /\.month-metrics\s*\{[^}]*min-width:\s*0[^}]*minmax\(0,\s*1\.1fr\)[^}]*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s
+      /\.month-metrics\s*\{[^}]*min-width:\s*0[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s
     );
     expect(tabletStyles).toMatch(
       /\.viewing-row\s*\{[^}]*grid-template-columns:[^}]*minmax\(0,\s*0\.9fr\)[^}]*minmax\(0,\s*1fr\)/s
@@ -206,7 +206,7 @@ describe('styles.css', () => {
     const styles = await readCompleteStyles();
 
     expect(styles).toMatch(
-      /\.rating-segment input:checked\s*~\s*\.rating-segment-mark\s*\{[^}]*background:\s*var\(--structural\)\s*!important/s
+      /\.rating-segment input:checked\s*~\s*\.rating-segment-mark\s*\{[^}]*background:\s*var\(--structural\)/s
     );
     expect(styles).toMatch(
       /\.rating-segment input:checked\s*~\s*\.rating-segment-readout\s*\{[^}]*color:\s*var\(--paper\)/s
@@ -281,32 +281,59 @@ describe('styles.css', () => {
 
   it('uses one cardless archive composition instead of dashboard matrices', async () => {
     const styles = await readCompleteStyles();
-    const composition = styles.split('/* Remaining audit composition */')[1] ?? '';
 
-    expect(composition).toMatch(/\.month-metrics\s*>\s*div\s*\{[^}]*background:\s*transparent/s);
-    expect(composition).toMatch(/\.filter-toolbar\s*\{[^}]*display:\s*none/s);
-    expect(composition).toMatch(/\.search-groups\s*\{[^}]*display:\s*block/s);
-    expect(composition).toMatch(/\.metric-strip\s*>\s*div\s*\{[^}]*background:\s*transparent/s);
-    expect(composition).toMatch(
+    expect(styles).not.toContain('Remaining audit composition');
+    expect(styles).toMatch(
+      /\.month-metrics\s*\{[^}]*grid-template-columns:\s*repeat\(5,[^}]*background:\s*transparent/s
+    );
+    expect(styles).toMatch(/\.month-metrics\s*>\s*div\s*\{[^}]*background:\s*transparent/s);
+    expect(styles).not.toMatch(/\.month-metrics\s*>\s*div:first-child\s*\{[^}]*surface-lavender/s);
+    expect(styles).toMatch(/\.filter-toolbar\s*\{[^}]*display:\s*none/s);
+    expect(styles).toMatch(/\.search-groups\s*\{[^}]*display:\s*block/s);
+    expect(styles).toMatch(/\.metric-strip\s*>\s*div\s*\{[^}]*background:\s*transparent/s);
+    expect(styles).toMatch(
       /\.statistics-panels\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1\.4fr\)\s+minmax\(260px,\s*0\.7fr\)/s
     );
-    expect(composition).toMatch(
+    expect(styles).toMatch(
       /\.activity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(53,[^}]*grid-template-rows:\s*repeat\(7,/s
     );
-    expect(composition).toMatch(/@media \(min-width:\s*1180px\)\s*\{[^}]*\.library-workspace-selected/s);
+    expect(styles).toMatch(/@media \(min-width:\s*1180px\)\s*\{[^}]*\.library-workspace-selected/s);
   });
 
   it('keeps the phone dossier informative and motion functional', async () => {
     const styles = await readCompleteStyles();
-    const composition = styles.split('/* Remaining audit composition */')[1] ?? '';
-    const phoneStyles = composition.split('@media (max-width: 700px)')[1] ?? '';
-    const reducedMotion = composition.split('@media (prefers-reduced-motion: reduce)')[1] ?? '';
+    const phoneStyles = styles.split('@media (max-width: 700px)')[1] ?? '';
+    const reducedMotion = styles.split('@media (prefers-reduced-motion: reduce)')[1] ?? '';
 
     expect(phoneStyles).toMatch(
       /\.dossier-identity\s*>\s*\.dossier-poster-col\s*\{[^}]*width:\s*min\(34vw,\s*130px\)/s
     );
-    expect(composition).toContain('@keyframes sheet-reveal');
-    expect(composition).toContain('@keyframes dossier-arrive');
+    expect(styles).toMatch(/@keyframes sheet-reveal\s*\{[^}]*translateX\(4px\)/s);
+    expect(styles).toMatch(/@keyframes sheet-rise\s*\{[^}]*translateY\(4px\)/s);
+    expect(styles).toContain('@keyframes dossier-arrive');
     expect(reducedMotion).toMatch(/animation-duration:\s*0\.01ms\s*!important/);
+  });
+
+  it('uses seams, compact filter access, and unobscured poster selection', async () => {
+    const styles = await readCompleteStyles();
+    const tabletStyles = styles.slice(
+      styles.indexOf('@media (max-width: 1040px)'),
+      styles.indexOf('@media (max-width: 900px)')
+    );
+
+    expect(styles).toMatch(/\.nav-item\[aria-current='page'\]\s*\{[^}]*background:\s*transparent/s);
+    expect(styles).toMatch(/\.nav-item\[aria-current='page'\]::before\s*\{[^}]*transform:\s*scaleY\(1\)/s);
+    expect(tabletStyles).toMatch(/\.filter-toolbar\s*\{[^}]*display:\s*none/s);
+    expect(tabletStyles).toMatch(/\.filter-sheet-trigger\s*\{[^}]*display:\s*block/s);
+    expect(styles).not.toMatch(/\.movie-card-selected\s+\.card-annotation/);
+  });
+
+  it('keeps form actions in flow and reserves importance overrides for reduced motion', async () => {
+    const styles = await readCompleteStyles();
+    const normalMotion = styles.split('@media (prefers-reduced-motion: reduce)')[0] ?? styles;
+
+    expect(styles).toMatch(/\.entry-form-footer\s*\{[^}]*position:\s*static/s);
+    expect(styles).toMatch(/\.sheet-close\s*\{[^}]*flex:\s*0 0 44px[^}]*width:\s*44px[^}]*height:\s*44px/s);
+    expect(normalMotion).not.toContain('!important');
   });
 });

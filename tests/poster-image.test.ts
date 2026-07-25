@@ -16,6 +16,7 @@ describe('poster image sources', () => {
 
     expect(sourceSet).toContain('MV5Babc@._V1_SX330.jpg 330w');
     expect(sourceSet).toContain('MV5Babc@._V1_SX960.jpg 960w');
+    expect(readPosterSizes('dossier')).toContain('400px');
   });
 
   it('uses the plate when a non-responsive poster cannot cover the rendered density', () => {

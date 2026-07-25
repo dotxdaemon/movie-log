@@ -10,8 +10,10 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, { day: '2-digit', month
 interface DiaryEntryRowProps {
   displayTitle: string;
   entry: WatchEntry;
+  expanded: boolean;
   film: FilmRecord | null;
   mediaLabel: string;
+  onExpandedChange(entryId: string, expanded: boolean): void;
   onOpen(path: string): void;
   onUpdateEntry(entryId: string, details: EntryDetails): Promise<void>;
   sequence: number;
@@ -21,8 +23,10 @@ interface DiaryEntryRowProps {
 export function DiaryEntryRow({
   displayTitle,
   entry,
+  expanded,
   film,
   mediaLabel,
+  onExpandedChange,
   onOpen,
   onUpdateEntry,
   sequence,
@@ -68,36 +72,42 @@ export function DiaryEntryRow({
             </ul>
           ) : null}
           {review ? <p className="entry-excerpt">{review}</p> : null}
-          <details className="entry-expand">
+          <details
+            className="entry-expand"
+            onToggle={(event) => onExpandedChange(entry.id, event.currentTarget.open)}
+            open={expanded}
+          >
             <summary>{review ? 'Full entry' : 'Annotate'}</summary>
-            <div className="entry-expanded">
-              {review ? (
-                <div className="entry-review-full">
-                  <p className="eyebrow">Review</p>
-                  <p className="diary-entry-review">{review}</p>
+            {expanded ? (
+              <div className="entry-expanded">
+                {review ? (
+                  <div className="entry-review-full">
+                    <p className="eyebrow">Review</p>
+                    <p className="diary-entry-review">{review}</p>
+                  </div>
+                ) : null}
+                {film && film.cast.length > 0 ? (
+                  <div className="entry-cast">
+                    <p className="eyebrow">Cast</p>
+                    <p className="entry-cast-names">{film.cast.join(', ')}</p>
+                  </div>
+                ) : null}
+                {entry.castNotes?.trim() ? (
+                  <div className="entry-cast-notes">
+                    <p className="eyebrow">Cast notes</p>
+                    <p>{entry.castNotes}</p>
+                  </div>
+                ) : null}
+                <div className="entry-annotation">
+                  <p className="eyebrow">Edit entry</p>
+                  <EntryForm
+                    defaults={entry}
+                    onSubmit={(details) => void onUpdateEntry(entry.id, details)}
+                    submitLabel="Save entry"
+                  />
                 </div>
-              ) : null}
-              {film && film.cast.length > 0 ? (
-                <div className="entry-cast">
-                  <p className="eyebrow">Cast</p>
-                  <p className="entry-cast-names">{film.cast.join(', ')}</p>
-                </div>
-              ) : null}
-              {entry.castNotes?.trim() ? (
-                <div className="entry-cast-notes">
-                  <p className="eyebrow">Cast notes</p>
-                  <p>{entry.castNotes}</p>
-                </div>
-              ) : null}
-              <div className="entry-annotation">
-                <p className="eyebrow">Edit entry</p>
-                <EntryForm
-                  defaults={entry}
-                  onSubmit={(details) => void onUpdateEntry(entry.id, details)}
-                  submitLabel="Save entry"
-                />
               </div>
-            </div>
+            ) : null}
           </details>
         </div>
       </div>

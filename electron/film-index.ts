@@ -3,6 +3,7 @@
 import { mkdir, open, readFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { chooseFilmMatch, type FilmCatalog } from './film-catalog.js';
+import { dossierPosterMinimumWidth } from '../shared/poster-policy.js';
 import type { CatalogSearchResult, FilmDetails, FilmRecord } from '../shared/types.js';
 
 export interface FilmEnrichmentRequest {
@@ -46,6 +47,37 @@ class EnrichmentCancelledError extends Error {
 }
 
 const automaticMatchVersion = 3;
+const posterLookupVersion = 1;
+
+function readPosterWidth(source: { posterUrl: string | null; posterWidth?: number }): number | null {
+  if (typeof source.posterWidth === 'number' && source.posterWidth > 0) {
+    return source.posterWidth;
+  }
+
+  const thumbnailWidth = source.posterUrl?.match(/\/(\d+)px-[^/]+$/)?.[1];
+  return thumbnailWidth ? Number(thumbnailWidth) : null;
+}
+
+function posterNeedsLookup(record: FilmRecord): boolean {
+  return record.posterLookupVersion !== posterLookupVersion;
+}
+
+function selectPoster(record: FilmRecord, fallback: CatalogSearchResult | null): FilmRecord {
+  const currentWidth = readPosterWidth(record);
+  const fallbackWidth = fallback ? readPosterWidth(fallback) : null;
+  const shouldUseFallback =
+    Boolean(fallback?.posterUrl) &&
+    (record.posterUrl === null ||
+      (fallbackWidth !== null && fallbackWidth >= dossierPosterMinimumWidth && fallbackWidth > (currentWidth ?? 0)));
+  const selectedPoster = shouldUseFallback && fallback ? fallback : record;
+  const selectedWidth = readPosterWidth(selectedPoster);
+
+  return {
+    ...record,
+    posterUrl: selectedPoster.posterUrl,
+    ...(selectedWidth === null ? {} : { posterWidth: selectedWidth })
+  };
+}
 
 function emptyRecord(
   request: FilmEnrichmentRequest,
@@ -68,7 +100,10 @@ function emptyRecord(
     matchVersion: previous?.matchVersion,
     mediaType: request.mediaType ?? previous?.mediaType,
     pageId: previous?.pageId ?? null,
+    posterFailureCount: previous?.posterFailureCount,
+    posterLookupVersion: previous?.posterLookupVersion,
     posterUrl: previous?.posterUrl ?? null,
+    posterWidth: previous?.posterWidth,
     runtimeMinutes: previous?.runtimeMinutes ?? null,
     status,
     title: previous?.title ?? request.title,
@@ -123,8 +158,14 @@ function buildAttachedRecord(key: string, film: CatalogSearchResult, fetchedAt: 
     key,
     language: [],
     matchVersion: automaticMatchVersion,
+    mediaType: film.mediaType,
     pageId: film.pageId,
+    posterLookupVersion:
+      film.catalogSource === 'imdb' && (readPosterWidth(film) ?? 0) >= dossierPosterMinimumWidth
+        ? posterLookupVersion
+        : undefined,
     posterUrl: film.posterUrl,
+    posterWidth: film.posterWidth,
     runtimeMinutes: null,
     status: 'matched',
     title: film.title,
@@ -163,6 +204,37 @@ export function createFilmIndex({
   const filmsFilePath = join(dataDirectory, 'movie-log-films.json');
   let queue = Promise.resolve();
   let activeJob: { controller: AbortController; forceRetry: boolean; promise: Promise<boolean> } | null = null;
+
+  function settlePosterLookup(
+    record: FilmRecord,
+    fallback: CatalogSearchResult | null,
+    previous: FilmRecord | undefined = record
+  ): FilmRecord {
+    const selected = selectPoster(record, fallback);
+    const selectedWidth = readPosterWidth(selected);
+
+    if (selectedWidth !== null && selectedWidth >= dossierPosterMinimumWidth) {
+      return {
+        ...selected,
+        nextRetryAt: undefined,
+        posterFailureCount: undefined,
+        posterLookupVersion
+      };
+    }
+
+    const previousFailureCount = previous?.posterLookupVersion === undefined ? (previous?.posterFailureCount ?? 0) : 0;
+    const posterFailureCount = previousFailureCount + 1;
+    const terminal = posterFailureCount >= Math.max(1, maxFailureCount);
+    const delay = backoffDelaysMs[Math.min(posterFailureCount - 1, backoffDelaysMs.length - 1)] ?? 7 * 24 * 60 * 60_000;
+    const failedAt = now();
+
+    return {
+      ...selected,
+      nextRetryAt: terminal ? undefined : addMilliseconds(failedAt, delay),
+      posterFailureCount,
+      posterLookupVersion: terminal ? posterLookupVersion : undefined
+    };
+  }
 
   function runSerialized<T>(work: () => Promise<T>): Promise<T> {
     const task = queue.catch(() => undefined).then(work);
@@ -265,46 +337,59 @@ export function createFilmIndex({
     signal: AbortSignal
   ): Promise<FilmRecord> {
     const totalAttempts = (previous?.attempts ?? 0) + attempt;
-
-    if (previous?.status === 'matched' && previous.posterUrl === null && catalog.searchPosterFallback) {
-      const mediaQualifier = request.mediaType === 'series' ? 'TV series' : 'film';
-      const query = `${request.title}${request.year ? ` ${request.year}` : ''} ${mediaQualifier}`;
-      const fallbackResults = await withBoundaryTimeout(
-        signal,
-        (requestSignal) => catalog.searchPosterFallback?.(query, { signal: requestSignal }) ?? Promise.resolve([])
-      );
-      const fallbackMatch = chooseFilmMatch(fallbackResults, request);
-
-      if (fallbackMatch?.posterUrl) {
-        return {
-          ...buildAttachedRecord(request.key, fallbackMatch, now()),
-          attempts: totalAttempts,
-          detailsComplete: true,
-          mediaType: request.mediaType
-        };
-      }
-    }
-
-    if (
-      previous?.status === 'matched' &&
-      previous.detailsComplete === false &&
-      previous.pageId !== null &&
-      previous.matchVersion === automaticMatchVersion &&
-      (previous.mediaType === undefined || previous.mediaType === request.mediaType)
-    ) {
-      const details = await withBoundaryTimeout(signal, (requestSignal) =>
-        catalog.fetchFilmDetails(previous.pageId as number, { signal: requestSignal })
-      );
-
-      if (!details) {
-        throw new Error('Catalog details are temporarily unavailable.');
-      }
-
-      return buildRecord(request.key, previous, details, now(), totalAttempts, request.mediaType);
-    }
-
     const mediaQualifier = request.mediaType === 'series' ? 'TV series' : 'film';
     const query = `${request.title}${request.year ? ` ${request.year}` : ''} ${mediaQualifier}`;
+    const canReusePreviousIdentity =
+      previous?.status === 'matched' &&
+      previous.pageId !== null &&
+      previous.matchVersion === automaticMatchVersion &&
+      (previous.mediaType === undefined || previous.mediaType === request.mediaType);
+    const needsPosterLookup = Boolean(
+      canReusePreviousIdentity && catalog.searchPosterFallback && posterNeedsLookup(previous)
+    );
+
+    if (canReusePreviousIdentity && (previous.detailsComplete === false || needsPosterLookup)) {
+      let record =
+        previous.detailsComplete === false
+          ? await withBoundaryTimeout(signal, async (requestSignal) => {
+              const details = await catalog.fetchFilmDetails(previous.pageId as number, { signal: requestSignal });
+
+              if (!details) {
+                throw new Error('Catalog details are temporarily unavailable.');
+              }
+
+              return buildRecord(request.key, previous, details, now(), totalAttempts, request.mediaType);
+            })
+          : { ...previous, attempts: totalAttempts, fetchedAt: now() };
+
+      if (previous.posterLookupVersion === posterLookupVersion) {
+        record = {
+          ...record,
+          nextRetryAt: undefined,
+          posterFailureCount: previous.posterFailureCount,
+          posterLookupVersion
+        };
+      } else if (catalog.searchPosterFallback) {
+        try {
+          const fallbackResults = await withBoundaryTimeout(
+            signal,
+            (requestSignal) =>
+              catalog.searchPosterFallback?.(query, { includeCredits: false, signal: requestSignal }) ??
+              Promise.resolve([])
+          );
+          record = settlePosterLookup(record, chooseFilmMatch(fallbackResults, request), previous);
+        } catch (error) {
+          if (error instanceof EnrichmentCancelledError || signal.aborted) {
+            throw error;
+          }
+
+          record = settlePosterLookup(record, null, previous);
+        }
+      }
+
+      return record;
+    }
+
     let results: CatalogSearchResult[] = [];
     let primaryFailed = false;
 
@@ -321,15 +406,26 @@ export function createFilmIndex({
     }
 
     let match = chooseFilmMatch(results, request);
+    let fallbackMatch: CatalogSearchResult | null = null;
+    let fallbackLookupComplete = !catalog.searchPosterFallback;
 
-    if ((!match || !match.posterUrl) && catalog.searchPosterFallback) {
-      const fallbackResults = await withBoundaryTimeout(
-        signal,
-        (requestSignal) => catalog.searchPosterFallback?.(query, { signal: requestSignal }) ?? Promise.resolve([])
-      );
-      const fallbackMatch = chooseFilmMatch(fallbackResults, request);
+    if (catalog.searchPosterFallback) {
+      try {
+        const fallbackResults = await withBoundaryTimeout(
+          signal,
+          (requestSignal) =>
+            catalog.searchPosterFallback?.(query, { includeCredits: false, signal: requestSignal }) ??
+            Promise.resolve([])
+        );
+        fallbackMatch = chooseFilmMatch(fallbackResults, request);
+        fallbackLookupComplete = true;
+      } catch (error) {
+        if (!match || error instanceof EnrichmentCancelledError || signal.aborted) {
+          throw error;
+        }
+      }
 
-      if (fallbackMatch?.posterUrl) {
+      if (!match && fallbackMatch?.posterUrl) {
         match = fallbackMatch;
       }
     }
@@ -338,21 +434,26 @@ export function createFilmIndex({
       return buildRecord(request.key, request, null, now(), totalAttempts, request.mediaType);
     }
 
+    const finishPosterLookup = (record: FilmRecord): FilmRecord =>
+      !catalog.searchPosterFallback
+        ? record
+        : settlePosterLookup(record, fallbackLookupComplete ? fallbackMatch : null);
+
     if (match.catalogSource === 'imdb') {
-      return {
+      return finishPosterLookup({
         ...buildAttachedRecord(request.key, match, now()),
         attempts: totalAttempts,
         detailsComplete: true,
         mediaType: request.mediaType
-      };
+      });
     }
 
     if (deferDetails || primaryFailed) {
-      return {
+      return finishPosterLookup({
         ...buildAttachedRecord(request.key, match, now()),
         attempts: totalAttempts,
         mediaType: request.mediaType
-      };
+      });
     }
 
     const details = await withBoundaryTimeout(signal, (requestSignal) =>
@@ -363,7 +464,7 @@ export function createFilmIndex({
       throw new Error('Catalog details are temporarily unavailable.');
     }
 
-    return buildRecord(request.key, request, details, now(), totalAttempts, request.mediaType);
+    return finishPosterLookup(buildRecord(request.key, request, details, now(), totalAttempts, request.mediaType));
   }
 
   function buildFailureRecord(
@@ -433,12 +534,15 @@ export function createFilmIndex({
       (record.status === 'matched' || record.status === 'unmatched') && record.matchVersion !== automaticMatchVersion;
     const incompleteMatch = record.status === 'matched' && record.detailsComplete === false;
     const missingPoster = record.status === 'matched' && record.posterUrl === null;
+    const pendingPosterLookup =
+      record.status === 'matched' && Boolean(catalog.searchPosterFallback) && posterNeedsLookup(record);
     const forcedUnmatched = record.status === 'unmatched' && forceRetry;
 
     if (
       record.status !== 'retry-scheduled' &&
       !incompleteMatch &&
       !missingPoster &&
+      !pendingPosterLookup &&
       !forcedUnmatched &&
       !staleAutomaticMatch
     ) {
@@ -477,7 +581,11 @@ export function createFilmIndex({
         return 1;
       }
 
-      return record.status === 'retry-scheduled' ? 2 : 3;
+      if (record.status === 'matched' && catalog.searchPosterFallback && posterNeedsLookup(record)) {
+        return 2;
+      }
+
+      return record.status === 'retry-scheduled' ? 3 : 4;
     };
     const pending = uniqueRequests
       .map((request, index) => ({ index, priority: readPriority(known[request.key]), request }))
@@ -614,8 +722,13 @@ export function createFilmIndex({
           director: [...film.director],
           catalogId: film.catalogId,
           catalogSource: film.catalogSource,
+          mediaType: film.mediaType,
           pageId: film.pageId as number,
+          posterLookupComplete:
+            film.posterLookupVersion === posterLookupVersion &&
+            (readPosterWidth(film) ?? 0) >= dossierPosterMinimumWidth,
           posterUrl: film.posterUrl,
+          ...(film.posterWidth === undefined ? {} : { posterWidth: film.posterWidth }),
           title: film.title,
           year: film.year
         }));
@@ -638,8 +751,15 @@ export function createFilmIndex({
     async matchFilm(
       key: string,
       film: { title: string; year: number | null },
-      pageId: number | null
+      selection: CatalogSearchResult | null
     ): Promise<FilmRecord | null> {
+      if (selection?.catalogSource === 'imdb') {
+        const record = settlePosterLookup(buildAttachedRecord(key, selection, now()), selection);
+        await persistRecords([record]);
+        return record;
+      }
+
+      const pageId = selection?.pageId ?? null;
       const controller = new AbortController();
       const cachedPage =
         pageId === null
@@ -670,7 +790,7 @@ export function createFilmIndex({
         throw new Error('Catalog details are temporarily unavailable.');
       }
 
-      const record = buildRecord(key, film, details, now());
+      const record = buildRecord(key, film, details, now(), 0, selection?.mediaType ?? cachedPage?.mediaType);
       await persistRecords([record]);
       return record;
     }

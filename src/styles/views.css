@@ -1,4 +1,5 @@
-/* Remaining audit composition */
+/* ABOUTME: Composes the archive views as restrained editorial studies without dashboard-card framing. */
+/* ABOUTME: Owns Diary, Library, Search, Statistics, dossier, and sheet composition above the shared foundation. */
 
 .month-summary {
   position: relative;
@@ -6,51 +7,16 @@
   max-width: 1100px;
   border-top: 1px solid var(--structural);
   border-bottom: 1px solid var(--border);
-  grid-template-columns: minmax(210px, 0.72fr) minmax(0, 1.9fr);
-  align-items: start;
-  gap: clamp(32px, 6vw, 88px);
-  padding: 28px 0 32px;
+  grid-template-columns: minmax(180px, 0.58fr) minmax(0, 2fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 56px);
+  padding: 20px 0;
   background: transparent;
 }
 
 .month-summary-title {
   padding-left: var(--space-4);
   border-left: 4px solid var(--structural);
-}
-
-.month-metrics {
-  grid-template-columns: minmax(126px, 1.15fr) repeat(3, minmax(92px, 1fr)) !important;
-  gap: var(--space-2) var(--space-4) !important;
-  border-left: 0;
-  background: transparent !important;
-}
-
-.month-metrics > div {
-  min-height: 58px;
-  padding: var(--space-3) 0 !important;
-  border-top: 1px solid var(--border);
-  border-right: 0;
-  border-bottom: 1px solid var(--border);
-  background: transparent !important;
-}
-
-.month-metrics > div:first-child {
-  grid-row: 1 / 3;
-  padding: var(--space-4) !important;
-  border-top: 4px solid var(--structural);
-  border-bottom-color: var(--structural);
-  background: var(--surface-lavender) !important;
-}
-
-.month-metrics > div:first-child dd {
-  margin-top: var(--space-2);
-  font-size: clamp(3rem, 6vw, 4.5rem);
-  line-height: 0.82;
-}
-
-.month-metrics > .summary-wide {
-  grid-column: 2 / -1;
-  border-bottom-color: var(--structural);
 }
 
 .view-switcher {
@@ -65,7 +31,6 @@
   min-width: 84px;
   min-height: 44px;
   padding: 0 14px;
-  border-right: 0;
   color: var(--ink-muted);
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -85,7 +50,6 @@
 
 .filter-panel {
   max-width: 1180px;
-  border-top: 1px solid var(--structural);
   border: 0;
 }
 
@@ -118,7 +82,7 @@
 .filter-toolbar .filter-field select {
   padding-right: 18px;
   border: 0;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-strong);
   background: transparent;
 }
 
@@ -245,7 +209,7 @@
   width: 100%;
   min-height: 54px;
   padding: 0 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-left: 3px solid var(--burgundy);
   font-family: var(--heading);
   font-size: 1.15rem;
@@ -315,7 +279,6 @@
 .metric-strip {
   display: grid;
   max-width: 1040px;
-  padding-top: 4px;
   margin: 0;
   grid-template-columns: minmax(150px, 1.25fr) repeat(4, minmax(0, 1fr));
   gap: 0;
@@ -327,16 +290,16 @@
 
 .metric-strip > div {
   min-height: 88px;
-  padding: var(--space-4) !important;
+  padding: var(--space-4);
   border-top: 1px solid var(--border);
   border-right: 0;
-  background: transparent !important;
+  background: transparent;
 }
 
 .metric-strip > div:first-child {
   border-top: 0;
   border-right: var(--space-2) solid var(--canvas);
-  background: var(--surface-lavender) !important;
+  background: var(--surface-lavender);
 }
 
 .metric-strip > div:first-child dd {
@@ -403,6 +366,73 @@
 .monthly-chart {
   grid-row: 1;
   grid-column: 1;
+}
+
+.monthly-line-chart {
+  margin: 0;
+  padding-top: var(--space-5);
+}
+
+.monthly-line-plot {
+  height: 190px;
+  border-bottom: 1px solid var(--structural);
+  background: linear-gradient(
+    to bottom,
+    transparent 0 32%,
+    var(--border) 32% calc(32% + 1px),
+    transparent calc(32% + 1px) 66%,
+    var(--border) 66% calc(66% + 1px),
+    transparent calc(66% + 1px)
+  );
+}
+
+.monthly-line-plot svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.monthly-line-baseline {
+  stroke: var(--structural);
+  stroke-width: 1;
+}
+
+.monthly-line-path {
+  fill: none;
+  stroke: var(--structural);
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 1.5;
+}
+
+.monthly-line-point {
+  fill: var(--canvas);
+  stroke: var(--structural);
+  stroke-width: 1.5;
+}
+
+.monthly-line-point-latest {
+  fill: var(--burgundy);
+  stroke: var(--burgundy);
+}
+
+.monthly-line-labels {
+  display: grid;
+  min-height: 28px;
+  padding-top: var(--space-2);
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.monthly-line-labels span {
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.monthly-line-labels span:last-child {
+  text-align: right;
 }
 
 .rating-chart {
@@ -488,7 +518,6 @@
 }
 
 .activity-grid {
-  padding-top: 20px;
   display: grid;
   grid-row: 2;
   grid-column: 2;

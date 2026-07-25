@@ -15,6 +15,37 @@ const activityMonthFormatter = new Intl.DateTimeFormat(undefined, {
   year: 'numeric'
 });
 const activityMonthShortFormatter = new Intl.DateTimeFormat(undefined, { month: 'short' });
+const lineChartWidth = 720;
+const lineChartTop = 14;
+const lineChartBottom = 154;
+
+interface MonthlyTrendPoint {
+  count: number;
+  key: string;
+  label: string;
+  x: number;
+  y: number;
+}
+
+function readMonthlyTrendPoints(
+  months: Array<{ count: number; key: string; label: string }>,
+  max: number
+): MonthlyTrendPoint[] {
+  return months.map((month, index) => ({
+    ...month,
+    x: months.length === 1 ? lineChartWidth / 2 : (index / (months.length - 1)) * lineChartWidth,
+    y: lineChartBottom - (month.count / max) * (lineChartBottom - lineChartTop)
+  }));
+}
+
+function shouldShowMonthLabel(index: number, count: number): boolean {
+  if (count <= 6) {
+    return true;
+  }
+
+  const step = Math.ceil((count - 1) / 5);
+  return index === 0 || index === count - 1 || (index % step === 0 && index <= count - 1 - step);
+}
 
 function BarList({ maxRows = 8, rows }: { maxRows?: number; rows: Array<{ count: number; name: string }> }) {
   const visible = rows.slice(0, maxRows);
@@ -49,7 +80,12 @@ export function StatisticsView({ now, state }: StatisticsViewProps) {
     );
   }
 
-  const maxMonth = Math.max(1, ...stats.months.map((month) => month.count));
+  const visibleMonths = stats.months.slice(-14);
+  const maxMonth = Math.max(1, ...visibleMonths.map((month) => month.count));
+  const monthlyTrendPoints = readMonthlyTrendPoints(visibleMonths, maxMonth);
+  const monthlyTrendPath = monthlyTrendPoints
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(' ');
   const maxRating = Math.max(1, ...stats.ratings.map((rating) => rating.count));
   const maxYear = Math.max(1, ...stats.years.map((year) => year.count));
   const maxDecade = Math.max(1, ...stats.decades.map((decade) => decade.count));
@@ -126,27 +162,62 @@ export function StatisticsView({ now, state }: StatisticsViewProps) {
         <section className="chart-panel monthly-chart">
           <header>
             <p className="eyebrow">Frequency</p>
-            <h2>Monthly viewings</h2>
+            <h2 id="monthly-viewings-title">Monthly viewings</h2>
           </header>
           {stats.months.length === 0 ? (
             <p className="chart-empty">No monthly activity yet.</p>
           ) : (
-            <div className="bar-chart">
-              {stats.months.slice(-14).map((month) => (
-                <div className="bar-column" key={month.key}>
-                  <div className="bar-column-plot">
-                    <span className="bar-column-value">{month.count}</span>
-                    <span
-                      className="bar-column-bar"
-                      style={{
-                        height: `${Math.max(6, (month.count / maxMonth) * 100)}%`
-                      }}
-                    />
-                  </div>
-                  <small>{month.label}</small>
-                </div>
-              ))}
-            </div>
+            <figure aria-labelledby="monthly-viewings-title" className="monthly-line-chart">
+              <div aria-hidden="true" className="monthly-line-plot">
+                <svg preserveAspectRatio="none" viewBox={`0 0 ${lineChartWidth} 170`}>
+                  <line
+                    className="monthly-line-baseline"
+                    vectorEffect="non-scaling-stroke"
+                    x1="0"
+                    x2={lineChartWidth}
+                    y1={lineChartBottom}
+                    y2={lineChartBottom}
+                  />
+                  <path className="monthly-line-path" d={monthlyTrendPath} vectorEffect="non-scaling-stroke" />
+                  {monthlyTrendPoints.map((point, index) => (
+                    <circle
+                      className={
+                        index === monthlyTrendPoints.length - 1
+                          ? 'monthly-line-point monthly-line-point-latest'
+                          : 'monthly-line-point'
+                      }
+                      cx={point.x}
+                      cy={point.y}
+                      key={point.key}
+                      r="3"
+                      vectorEffect="non-scaling-stroke"
+                    >
+                      <title>{`${point.label}: ${point.count}`}</title>
+                    </circle>
+                  ))}
+                </svg>
+              </div>
+              <div
+                aria-hidden="true"
+                className="monthly-line-labels"
+                style={{ gridTemplateColumns: `repeat(${visibleMonths.length}, minmax(0, 1fr))` }}
+              >
+                {visibleMonths.map((month, index) => (
+                  <span key={month.key}>{shouldShowMonthLabel(index, visibleMonths.length) ? month.label : null}</span>
+                ))}
+              </div>
+              <figcaption className="visually-hidden">
+                Monthly viewing trend for the latest {visibleMonths.length} recorded{' '}
+                {visibleMonths.length === 1 ? 'month' : 'months'}.
+                <ol className="monthly-line-values">
+                  {visibleMonths.map((month) => (
+                    <li key={month.key}>
+                      {`${month.label}: ${month.count} ${month.count === 1 ? 'viewing' : 'viewings'}`}
+                    </li>
+                  ))}
+                </ol>
+              </figcaption>
+            </figure>
           )}
         </section>
 

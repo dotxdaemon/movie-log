@@ -41,7 +41,9 @@ export async function createMovieLogWindow(options: CreateMovieLogWindowOptions)
 
   mainWindow.webContents.once('did-finish-load', () => {
     void options.broadcastState();
-    void options.enrichCatalog();
+    if (!capture.isReadOnly) {
+      void options.enrichCatalog();
+    }
     void capture.captureIfRequested(mainWindow).catch((error) => {
       console.error(error);
       options.exitWithFailure();

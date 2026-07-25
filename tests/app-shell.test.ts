@@ -27,4 +27,22 @@ describe('App shell', () => {
     expect(readText(tree)).toContain('Diary');
     expect(readText(tree)).toContain('Add Folder');
   });
+
+  it('removes desktop and mobile navigation from interaction and the accessibility tree while a modal is open', () => {
+    const tree = renderTree(
+      createElement(AppShell, {
+        mobileNavigation: createElement('button', { type: 'button' }, 'Add Folder'),
+        modalOpen: true,
+        navigationRail: createElement('span', null, 'Diary'),
+        workspaceStage: createElement('div', { className: 'dossier-canvas' }, 'History')
+      })
+    );
+    const spine = findByClass(tree, 'archive-spine')[0];
+    const mobileNavigation = findByClass(tree, 'mobile-nav')[0];
+
+    expect(spine?.props.inert).toBe(true);
+    expect(spine?.props['aria-hidden']).toBe('true');
+    expect(mobileNavigation?.props.inert).toBe(true);
+    expect(mobileNavigation?.props['aria-hidden']).toBe('true');
+  });
 });

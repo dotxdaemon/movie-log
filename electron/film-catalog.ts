@@ -1,6 +1,7 @@
 // ABOUTME: Looks up film posters, credits, and technical metadata from Wikipedia and Wikidata.
 // ABOUTME: Keeps request shaping and response mapping injectable so catalog logic tests run offline.
 import { parseFilmTitle, readFilmKey } from '../shared/film-title.js';
+import { dossierPosterMinimumWidth } from '../shared/poster-policy.js';
 import type { CatalogSearchResult, FilmDetails } from '../shared/types.js';
 
 export interface FilmCatalog {
@@ -12,6 +13,48 @@ export interface FilmCatalog {
 export interface CatalogRequestOptions {
   includeCredits?: boolean;
   signal?: AbortSignal;
+}
+
+export async function searchCatalogProviders(
+  catalog: Pick<FilmCatalog, 'searchFilms' | 'searchPosterFallback'>,
+  query: string,
+  options: CatalogRequestOptions = {}
+): Promise<CatalogSearchResult[]> {
+  let primaryFailure: unknown;
+
+  try {
+    const results = await catalog.searchFilms(query, options);
+
+    if (results.length > 0) {
+      return results;
+    }
+  } catch (error) {
+    if (options.signal?.aborted) {
+      throw error;
+    }
+
+    primaryFailure = error;
+  }
+
+  try {
+    const fallbackResults = (await catalog.searchPosterFallback?.(query, options)) ?? [];
+
+    if (fallbackResults.length > 0) {
+      return fallbackResults;
+    }
+  } catch (error) {
+    if (options.signal?.aborted) {
+      throw error;
+    }
+
+    primaryFailure ??= error;
+  }
+
+  if (primaryFailure) {
+    throw primaryFailure;
+  }
+
+  return [];
 }
 
 interface SearchPage {
@@ -39,9 +82,27 @@ interface LabelsPayload {
   entities?: Record<string, { labels?: { en?: { value?: string } } }>;
 }
 
+interface ImdbImage {
+  height?: number;
+  type?: string;
+  url?: string;
+  width?: number;
+}
+
+interface ImdbTitlePayload {
+  data?: Record<
+    string,
+    {
+      credits?: { edges?: Array<{ node?: { name?: { nameText?: { text?: string } } } }> };
+      images?: { edges?: Array<{ node?: ImdbImage }> };
+    }
+  >;
+}
+
 const WIKIPEDIA_API = 'https://en.wikipedia.org/w/api.php';
 const WIKIDATA_API = 'https://www.wikidata.org/w/api.php';
 const IMDB_SUGGESTION_API = 'https://v2.sg.media-imdb.com/suggestion/x';
+const IMDB_GRAPHQL_API = 'https://api.graphql.imdb.com/';
 
 async function fetchJsonFromNetwork(url: string, options: CatalogRequestOptions = {}): Promise<unknown> {
   const response = await fetch(url, {
@@ -51,6 +112,43 @@ async function fetchJsonFromNetwork(url: string, options: CatalogRequestOptions 
 
   if (!response.ok) {
     throw new Error(`Catalog request failed with status ${response.status}.`);
+  }
+
+  return response.json();
+}
+
+async function fetchImdbTitleJsonFromNetwork(
+  catalogIds: string[],
+  options: CatalogRequestOptions = {}
+): Promise<unknown> {
+  const variableDefinitions = catalogIds.map((_catalogId, index) => `$id${index}: ID!`).join(', ');
+  const titleSelections = catalogIds
+    .map(
+      (_catalogId, index) => `title${index}: title(id: $id${index}) {
+        credits(first: 8, filter: { categories: ["director"] }) {
+          edges { node { name { nameText { text } } } }
+        }
+        images(first: 20, filter: { types: ["poster"] }) {
+          edges { node { height type url width } }
+        }
+      }`
+    )
+    .join('\n');
+  const response = await fetch(IMDB_GRAPHQL_API, {
+    body: JSON.stringify({
+      query: `query MovieLogTitles(${variableDefinitions}) { ${titleSelections} }`,
+      variables: Object.fromEntries(catalogIds.map((catalogId, index) => [`id${index}`, catalogId]))
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'MovieLog/0.1 (personal desktop film diary)'
+    },
+    method: 'POST',
+    signal: options.signal
+  });
+
+  if (!response.ok) {
+    throw new Error(`IMDb title request failed with status ${response.status}.`);
   }
 
   return response.json();
@@ -92,16 +190,28 @@ function readTitleYear(page: SearchPage): { title: string; year: number | null }
   };
 }
 
+function readCatalogMediaType(value: string): 'film' | 'series' | undefined {
+  const normalized = value.toLowerCase();
+
+  if (/\b(?:anime|television|tv|web) (?:series|sitcom|drama|program)\b|\bminiseries\b/.test(normalized)) {
+    return 'series';
+  }
+
+  return /\b(?:film|movie)\b/.test(normalized) ? 'film' : undefined;
+}
+
 export function readSearchResults(payload: unknown): CatalogSearchResult[] {
   return readPages(payload)
     .sort((left, right) => (left.index ?? 0) - (right.index ?? 0))
     .map((page) => {
       const { title, year } = readTitleYear(page);
+      const mediaType = readCatalogMediaType(`${page.title} ${page.description ?? ''}`);
 
       return {
         catalogId: String(page.pageid),
         catalogSource: 'wikipedia',
         description: page.description ?? '',
+        ...(mediaType ? { mediaType } : {}),
         pageId: page.pageid,
         posterUrl: readPosterUrl(page),
         title,
@@ -149,12 +259,52 @@ export function readImdbPosterResults(payload: unknown): CatalogSearchResult[] {
         catalogRank,
         catalogSource: 'imdb' as const,
         description: isSeries ? 'Television series' : 'Feature film',
+        mediaType: isSeries ? ('series' as const) : ('film' as const),
         pageId: Number.isSafeInteger(numericId) ? -numericId : -1,
         posterUrl: source,
+        posterWidth: width,
         title,
         year: typeof suggestion.y === 'number' ? suggestion.y : null
       }
     ];
+  });
+}
+
+function enrichImdbResults(payload: unknown, results: CatalogSearchResult[]): CatalogSearchResult[] {
+  if (((payload as { errors?: unknown[] }).errors?.length ?? 0) > 0) {
+    throw new Error('IMDb title details returned an incomplete response.');
+  }
+
+  const titles = (payload as ImdbTitlePayload).data ?? {};
+
+  return results.map((result, index) => {
+    const title = titles[`title${index}`];
+    const directors = [
+      ...new Set(
+        (title?.credits?.edges ?? []).map((edge) => edge.node?.name?.nameText?.text?.trim() ?? '').filter(Boolean)
+      )
+    ];
+    const posters = (title?.images?.edges ?? [])
+      .map((edge) => edge.node)
+      .filter(
+        (image): image is Required<Pick<ImdbImage, 'height' | 'url' | 'width'>> & ImdbImage =>
+          typeof image?.url === 'string' &&
+          typeof image.width === 'number' &&
+          typeof image.height === 'number' &&
+          image.height >= image.width * 1.1
+      )
+      .sort((left, right) => right.width - left.width);
+    const poster = posters[0];
+    const posterWidth = poster?.width ?? result.posterWidth;
+
+    return {
+      ...result,
+      director: directors,
+      posterLookupComplete:
+        Boolean(title) && typeof posterWidth === 'number' && posterWidth >= dossierPosterMinimumWidth,
+      posterUrl: poster?.url ?? result.posterUrl,
+      posterWidth
+    };
   });
 }
 
@@ -187,6 +337,10 @@ export function chooseFilmMatch(
   };
   const wantedMediaType = film.mediaType ?? 'film';
   const matchesMediaType = (result: CatalogSearchResult) => {
+    if (result.mediaType) {
+      return result.mediaType === wantedMediaType;
+    }
+
     const description = result.description.toLowerCase();
     const series = /\b(?:anime|television|tv|web) (?:series|sitcom|drama|program)\b|\bminiseries\b/.test(description);
     const movie = /\bfilm\b/.test(description);
@@ -264,11 +418,13 @@ function readGenreLabel(label: string): string {
 export function createFilmCatalog(
   options: {
     fetchJson?: (url: string, options?: CatalogRequestOptions) => Promise<unknown>;
+    fetchImdbTitleJson?: (catalogIds: string[], options?: CatalogRequestOptions) => Promise<unknown>;
     fetchPosterJson?: (url: string, options?: CatalogRequestOptions) => Promise<unknown>;
     requestTimeoutMs?: number;
   } = {}
 ): FilmCatalog {
   const fetchJson = options.fetchJson ?? fetchJsonFromNetwork;
+  const fetchImdbTitleJson = options.fetchImdbTitleJson ?? fetchImdbTitleJsonFromNetwork;
   const fetchPosterJson = options.fetchPosterJson ?? fetchJsonFromNetwork;
   const requestTimeoutMs = options.requestTimeoutMs ?? 8000;
 
@@ -379,7 +535,55 @@ export function createFilmCatalog(
     const normalizedQuery = query.replace(/\s+(?:film|TV series)\s*$/i, '').trim();
     const slug = encodeURIComponent(normalizedQuery.replace(/\s+/g, '_'));
     const payload = await fetchPosterJson(`${IMDB_SUGGESTION_API}/${slug}.json`, requestOptions);
-    return readImdbPosterResults(payload);
+    let results = readImdbPosterResults(payload);
+
+    if (results.length === 0) {
+      return results;
+    }
+
+    try {
+      results = enrichImdbResults(
+        await fetchImdbTitleJson(
+          results.map((result) => result.catalogId).filter((catalogId): catalogId is string => Boolean(catalogId)),
+          requestOptions
+        ),
+        results
+      );
+    } catch (error) {
+      if (requestOptions.signal?.aborted) {
+        throw error;
+      }
+
+      results = results.map((result) => ({ ...result, posterLookupComplete: false }));
+    }
+
+    if (requestOptions.includeCredits === false || results.every((result) => (result.director?.length ?? 0) > 0)) {
+      return results;
+    }
+
+    try {
+      const wikipediaResults = await searchFilms(normalizedQuery, requestOptions);
+
+      return results.map((result) => {
+        const wikipediaMatch = chooseFilmMatch(wikipediaResults, {
+          mediaType: result.mediaType,
+          title: result.title,
+          year: result.year
+        });
+
+        return {
+          ...result,
+          director:
+            (result.director?.length ?? 0) > 0 ? [...(result.director ?? [])] : [...(wikipediaMatch?.director ?? [])]
+        };
+      });
+    } catch (error) {
+      if (requestOptions.signal?.aborted) {
+        throw error;
+      }
+
+      return results.map((result) => ({ ...result, director: [...(result.director ?? [])] }));
+    }
   }
 
   async function fetchFilmDetails(

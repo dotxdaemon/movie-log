@@ -1,13 +1,34 @@
 // ABOUTME: Launches the Electron app and captures a proof screenshot from the normal local Movie Log data.
 // ABOUTME: Uses the same dev-time renderer flow as the desktop app so the artifact matches the real app state.
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import process from 'node:process';
 import { setTimeout as delay } from 'node:timers/promises';
+import {
+  assertAbsolutePathOutsideApplicationSupport,
+  captureSnapshotMarkerName,
+  createRealCaptureSnapshot,
+  readProductionApplicationSupportDirectory,
+  readProductionDataDirectory
+} from './capture-data-safety.mjs';
 
-const capturePath = join(homedir(), '.codex-artifacts', 'movie-log-desktop.png');
+const productionApplicationSupportDirectory = readProductionApplicationSupportDirectory();
+const productionDataDirectory = readProductionDataDirectory();
+const capturePath = await assertAbsolutePathOutsideApplicationSupport(
+  join(homedir(), '.codex-artifacts', 'movie-log-desktop.png'),
+  productionApplicationSupportDirectory,
+  'Capture output path'
+);
+const persistenceProofPath =
+  process.env.MOVIE_LOG_PERSISTENCE_PROOF_PATH === undefined
+    ? undefined
+    : await assertAbsolutePathOutsideApplicationSupport(
+        process.env.MOVIE_LOG_PERSISTENCE_PROOF_PATH,
+        productionApplicationSupportDirectory,
+        'Persistence proof output path'
+      );
 const devServerUrl = 'http://127.0.0.1:4173';
 
 function spawnChild(command, args, extraEnv = {}) {
@@ -34,6 +55,7 @@ async function waitForServer(url) {
   throw new Error(`Timed out waiting for ${url}`);
 }
 
+const snapshot = await createRealCaptureSnapshot(productionDataDirectory);
 const viteServer = spawnChild('npm', ['exec', 'vite', '--', '--host', '127.0.0.1', '--port', '4173', '--strictPort']);
 
 try {
@@ -42,7 +64,12 @@ try {
 
   await new Promise((resolve, reject) => {
     const electron = spawnChild('npm', ['exec', 'electron', '--', 'electron/main.ts'], {
+      [captureSnapshotMarkerName]: snapshot.dataDirectory,
+      MOVIE_LOG_CAPTURE_DATA_MODE: 'real',
       MOVIE_LOG_CAPTURE_PATH: capturePath,
+      MOVIE_LOG_CAPTURE_STARTED_AT: String(Date.now()),
+      MOVIE_LOG_DATA_DIR: snapshot.dataDirectory,
+      ...(persistenceProofPath === undefined ? {} : { MOVIE_LOG_PERSISTENCE_PROOF_PATH: persistenceProofPath }),
       NODE_OPTIONS: '--import tsx',
       VITE_DEV_SERVER_URL: devServerUrl
     });
@@ -62,4 +89,5 @@ try {
   process.stdout.write(`${capturePath}\n`);
 } finally {
   viteServer.kill('SIGTERM');
+  await rm(snapshot.rootDirectory, { force: true, recursive: true });
 }

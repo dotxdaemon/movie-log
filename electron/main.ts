@@ -37,6 +37,7 @@ const folderMonitor = createFolderMonitor({
   onChange: async (folderPath) => watchedFolderSync.queueRefresh(folderPath)
 });
 const capture = createCaptureController({
+  dataDirectory,
   historyStore,
   quitApp: () => app.quit(),
   readState
@@ -65,7 +66,7 @@ async function broadcastState(): Promise<void> {
     return;
   }
 
-  const state = await readState();
+  const state = capture.transformReadState(await readState());
 
   if (!windowToNotify.isDestroyed() && !windowToNotify.webContents.isDestroyed()) {
     windowToNotify.webContents.send('movie-log:state-changed', state);

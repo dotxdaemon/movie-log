@@ -29,7 +29,9 @@ const diaryModes: DiaryMode[] = ['timeline', 'ledger', 'grid'];
 
 interface DiaryViewProps {
   diaryMode: DiaryMode;
+  expandedEntryIds?: ReadonlySet<string>;
   onDiaryModeChange(mode: DiaryMode): void;
+  onDiaryEntryExpandedChange?(entryId: string, expanded: boolean): void;
   onOpenLogPanel(): void;
   onSelectPath(path: string): void;
   onUpdateEntry(entryId: string, details: EntryDetails): Promise<void>;
@@ -38,7 +40,9 @@ interface DiaryViewProps {
 
 export function DiaryView({
   diaryMode,
+  expandedEntryIds = new Set(),
   onDiaryModeChange,
+  onDiaryEntryExpandedChange = () => {},
   onOpenLogPanel,
   onSelectPath,
   onUpdateEntry,
@@ -226,9 +230,11 @@ export function DiaryView({
                 <DiaryEntryRow
                   displayTitle={film?.status === 'matched' ? film.title : parsed.title}
                   entry={entry}
+                  expanded={expandedEntryIds.has(entry.id)}
                   film={film}
                   key={entry.id}
                   mediaLabel={readMediaTypeLabel({ episodeCode: readEpisodeCode(entry.title), mediaType })}
+                  onExpandedChange={onDiaryEntryExpandedChange}
                   onOpen={onSelectPath}
                   onUpdateEntry={onUpdateEntry}
                   sequence={history.length - index}

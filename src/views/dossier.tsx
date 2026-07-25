@@ -17,7 +17,7 @@ interface DossierViewProps {
   matchResults: CatalogSearchResult[];
   onBack(): void;
   onCopyPath(path: string): Promise<void>;
-  onMatchFilm(item: ArchiveItem, pageId: number | null): void;
+  onMatchFilm(item: ArchiveItem, selection: CatalogSearchResult | null): void;
   onOpenInFinder(path: string): Promise<void>;
   onOpenItem(path: string): Promise<void>;
   onSearchMatch(query: string): void;
@@ -71,7 +71,10 @@ export function DossierView({
   }
 
   return (
-    <section className={`movie-dossier dossier-from-${originLabel.toLowerCase()}`}>
+    <section
+      className={`movie-dossier dossier-from-${originLabel.toLowerCase()}`}
+      data-film-record-keys={JSON.stringify(item.filmRecordKeys)}
+    >
       <button className="dossier-back-action" onClick={onBack} type="button">
         <span aria-hidden="true">←</span>
         {`Back to ${originLabel}`}
@@ -162,8 +165,8 @@ export function DossierView({
               {matchResults.length > 0 ? (
                 <ol className="match-results">
                   {matchResults.map((result) => (
-                    <li key={result.pageId}>
-                      <button onClick={() => onMatchFilm(item, result.pageId)} type="button">
+                    <li key={`${result.catalogSource ?? 'wikipedia'}:${result.catalogId ?? result.pageId}`}>
+                      <button onClick={() => onMatchFilm(item, result)} type="button">
                         <span className="match-result-title">{result.title}</span>
                         <span className="match-result-meta">
                           {result.year ?? '—'} · {result.description || 'Catalog page'}

@@ -20,6 +20,7 @@ import {
 import { readCatalogFailureMessage } from './catalog-search.js';
 import { focusDossierReturnTarget, focusSearchReturnTarget } from './search-focus.js';
 import { readActionFailureMessage, type ActionFailureContext } from './action-error.js';
+import { createCatalogLogSelection } from './catalog-log-selection.js';
 import { updateArchiveState, useArchiveData } from './use-archive-data.js';
 import { useCatalogSearch } from './use-catalog-search.js';
 import { useDialogSurface } from './use-dialog-surface.js';
@@ -32,6 +33,7 @@ export default function App() {
   const [diaryMode, setDiaryMode] = useState<DiaryMode>('timeline');
   const { dataFilePath, loadError, loading, noteFilePath, retryLoad, setState, state } = useArchiveData();
   const [dropActive, setDropActive] = useState(false);
+  const [expandedDiaryEntryIds, setExpandedDiaryEntryIds] = useState<Set<string>>(() => new Set());
   const [feedback, setFeedback] = useState<WorkspaceFeedback | null>(null);
   const [filters, setFilters] = useState(defaultArchiveFilters);
   const [filterDraft, setFilterDraft] = useState(defaultArchiveFilters);
@@ -96,6 +98,20 @@ export default function App() {
     }
 
     setFilterSheetOpen(open);
+  };
+
+  const handleDiaryEntryExpandedChange = (entryId: string, expanded: boolean) => {
+    setExpandedDiaryEntryIds((current) => {
+      const next = new Set(current);
+
+      if (expanded) {
+        next.add(entryId);
+      } else {
+        next.delete(entryId);
+      }
+
+      return next;
+    });
   };
 
   const handleAddWatchedFolders = () =>
@@ -176,34 +192,9 @@ export default function App() {
       let outcome;
 
       if (pendingLogPaths.length > 0) {
-        outcome = await window.movieLog.logPaths(
-          pendingLogPaths,
-          details,
-          logSelectedFilm
-            ? {
-                catalogId: logSelectedFilm.catalogId,
-                catalogSource: logSelectedFilm.catalogSource,
-                director: logSelectedFilm.director,
-                pageId: logSelectedFilm.pageId,
-                posterUrl: logSelectedFilm.posterUrl,
-                title: logSelectedFilm.title,
-                year: logSelectedFilm.year
-              }
-            : undefined
-        );
+        outcome = await window.movieLog.logPaths(pendingLogPaths, details, logSelectedFilm ?? undefined);
       } else if (logSelectedFilm) {
-        outcome = await window.movieLog.logFilm(
-          {
-            catalogId: logSelectedFilm.catalogId,
-            catalogSource: logSelectedFilm.catalogSource,
-            director: logSelectedFilm.director,
-            pageId: logSelectedFilm.pageId,
-            posterUrl: logSelectedFilm.posterUrl,
-            title: logSelectedFilm.title,
-            year: logSelectedFilm.year
-          },
-          details
-        );
+        outcome = await window.movieLog.logFilm(logSelectedFilm, details);
       }
 
       if (!outcome || outcome.entryStatus === 'failed') {
@@ -325,15 +316,7 @@ export default function App() {
 
   const handleOpenSearchResult = (result: SearchResultItem) => {
     if (result.kind === 'catalog') {
-      setLogSelectedFilm({
-        catalogId: result.catalogId,
-        catalogSource: result.catalogSource,
-        description: result.status,
-        pageId: result.pageId ?? 0,
-        posterUrl: result.posterUrl,
-        title: result.title,
-        year: result.year
-      });
+      setLogSelectedFilm(createCatalogLogSelection(result));
       handleLogPanelOpenChange(true);
       return;
     }
@@ -354,23 +337,20 @@ export default function App() {
       .finally(() => setDossierMatchPending(false));
   };
 
-  const handleMatchFilm = (item: ArchiveItem, pageId: number | null) => {
-    const selectedMatch = dossierMatchResults.find((result) => result.pageId === pageId);
-    const parsed = selectedMatch
-      ? { title: selectedMatch.title, year: selectedMatch.year }
-      : parseFilmTitle(item.title);
+  const handleMatchFilm = (item: ArchiveItem, selection: CatalogSearchResult | null) => {
+    const parsed = selection ? { title: selection.title, year: selection.year } : parseFilmTitle(item.title);
     setDossierMatchResults([]);
     setDossierMatchError(null);
     void (async () => {
       try {
         await Promise.all(
           item.filmRecordKeys.map((filmRecordKey) =>
-            window.movieLog.matchFilm(filmRecordKey, { title: parsed.title, year: parsed.year }, pageId)
+            window.movieLog.matchFilm(filmRecordKey, { title: parsed.title, year: parsed.year }, selection)
           )
         );
         updateArchiveState(await window.movieLog.getState(), setState);
         setFeedback({
-          message: pageId === null ? 'Catalog match cleared.' : 'Catalog match updated.',
+          message: selection === null ? 'Catalog match cleared.' : 'Catalog match updated.',
           tone: 'notice'
         });
       } catch (error) {
@@ -427,6 +407,7 @@ export default function App() {
           : `${dossierReturnView.current[0]?.toUpperCase()}${dossierReturnView.current.slice(1)}`
       }
       dropActive={dropActive}
+      expandedDiaryEntryIds={expandedDiaryEntryIds}
       feedback={feedback}
       filterSheetOpen={filterSheetOpen}
       filterDraft={filterDraft}
@@ -449,6 +430,7 @@ export default function App() {
       onCopyPath={handleCopyPathFor}
       onCreateLog={handleCreateLog}
       onDiaryModeChange={setDiaryMode}
+      onDiaryEntryExpandedChange={handleDiaryEntryExpandedChange}
       onDossierBack={handleDossierBack}
       onDrop={handleDrop}
       onDropActiveChange={setDropActive}

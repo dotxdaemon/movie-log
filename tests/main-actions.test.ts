@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addWatchedFolderPath,
+  createAttachedCatalogSelection,
   logCatalogFilmEntry,
   logPathsFromDrop,
   searchCatalogWithFallback
@@ -21,6 +22,30 @@ function watchedFolder(path: string): WatchedFolder {
 }
 
 describe('main actions', () => {
+  it('preserves series identity, co-directors, and poster quality for the index', () => {
+    expect(
+      createAttachedCatalogSelection({
+        catalogId: 'tt0298130',
+        catalogSource: 'imdb',
+        director: ['Gore Verbinski', 'Jane Campion'],
+        mediaType: 'series',
+        pageId: -298130,
+        posterLookupComplete: false,
+        posterUrl: 'https://m.media-amazon.com/images/M/ring-small.jpg',
+        posterWidth: 500,
+        title: 'The Ring',
+        year: 2002
+      })
+    ).toMatchObject({
+      catalogId: 'tt0298130',
+      catalogSource: 'imdb',
+      director: ['Gore Verbinski', 'Jane Campion'],
+      mediaType: 'series',
+      posterLookupComplete: false,
+      posterWidth: 500
+    });
+  });
+
   it('removes a watched folder again if the initial refresh fails', async () => {
     const order: string[] = [];
     const savedFolders = new Map<string, WatchedFolder>();

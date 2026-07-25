@@ -3,7 +3,7 @@
 import type { DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import { ArchiveNavigation, MobileArchiveNavigation } from './components/archive-navigation.js';
-import { FilterPanel } from './components/filters.js';
+import { FilterPanel, FilterSheet } from './components/filters.js';
 import { PageHeader } from './components/page-header.js';
 import { ViewSkeleton, ErrorState } from './components/states.js';
 import { buildFilterOptions } from './filter-options.js';
@@ -37,6 +37,7 @@ export interface ArchiveApplicationProps {
   dossierMatchResults: CatalogSearchResult[];
   dossierOriginLabel: string;
   dropActive: boolean;
+  expandedDiaryEntryIds: ReadonlySet<string>;
   feedback: WorkspaceFeedback | null;
   filterSheetOpen: boolean;
   filterDraft: ArchiveFilters;
@@ -59,6 +60,7 @@ export interface ArchiveApplicationProps {
   onCopyPath(path: string): Promise<void>;
   onCreateLog(details: LogEntryDetails): Promise<void>;
   onDiaryModeChange(mode: DiaryMode): void;
+  onDiaryEntryExpandedChange(entryId: string, expanded: boolean): void;
   onDossierBack(): void;
   onDrop(event: DragEvent<HTMLElement>): Promise<void> | void;
   onDropActiveChange(active: boolean): void;
@@ -69,7 +71,7 @@ export interface ArchiveApplicationProps {
   onFilterSheetOpenChange(open: boolean): void;
   onLogFilmQueryChange(value: string): void;
   onLogReviewChange(value: string): void;
-  onMatchFilm(item: ArchiveItem, pageId: number | null): void;
+  onMatchFilm(item: ArchiveItem, selection: CatalogSearchResult | null): void;
   onOpenInFinder(path: string): Promise<void>;
   onOpenItem(path: string): Promise<void>;
   onOpenLogPanel(): void;
@@ -106,6 +108,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
   const coverage = readArchiveCoverage(props.state);
   const filterOptions = buildFilterOptions(archiveItems);
   const latestEntry = props.state.history[0];
+  const modalOpen = props.filterSheetOpen || props.logPanelOpen;
   const periodLabel = latestEntry ? periodFormatter.format(new Date(latestEntry.watchedAt)).toUpperCase() : 'EMPTY';
 
   const navigation = (
@@ -126,6 +129,8 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
   let view = (
     <DiaryView
       diaryMode={props.diaryMode}
+      expandedEntryIds={props.expandedDiaryEntryIds}
+      onDiaryEntryExpandedChange={props.onDiaryEntryExpandedChange}
       onDiaryModeChange={props.onDiaryModeChange}
       onOpenLogPanel={props.onOpenLogPanel}
       onSelectPath={props.onSelectPath}
@@ -201,63 +206,90 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
   const stage = (
     <div
       className={props.dropActive ? 'archive-canvas archive-canvas-drop' : 'archive-canvas'}
-      onDragEnter={() => props.onDropActiveChange(true)}
-      onDragLeave={(event) => {
-        if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
-          return;
-        }
+      onDragEnter={modalOpen ? undefined : () => props.onDropActiveChange(true)}
+      onDragLeave={
+        modalOpen
+          ? undefined
+          : (event) => {
+              if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                return;
+              }
 
-        props.onDropActiveChange(false);
-      }}
-      onDragOver={(event) => {
-        event.preventDefault();
-        props.onDropActiveChange(true);
-      }}
-      onDrop={props.onDrop}
+              props.onDropActiveChange(false);
+            }
+      }
+      onDragOver={
+        modalOpen
+          ? undefined
+          : (event) => {
+              event.preventDefault();
+              props.onDropActiveChange(true);
+            }
+      }
+      onDrop={modalOpen ? undefined : props.onDrop}
     >
-      <PageHeader
-        activeView={props.activeView}
-        archiveCount={archiveItems.length}
-        coverage={coverage}
-        diaryCount={props.state.history.length}
-        libraryTools={
-          props.activeView === 'library' && !props.loading && !props.loadError && archiveItems.length > 0 ? (
-            <FilterPanel
-              draftFilters={props.filterDraft}
-              filters={props.filters}
-              onApplyDraft={props.onApplyFilterDraft}
-              onDraftFilterChange={props.onFilterDraftChange}
-              onFilterChange={props.onFilterChange}
-              onSheetOpenChange={props.onFilterSheetOpenChange}
-              options={filterOptions}
-              resultCount={filterArchiveItems(archiveItems, props.filterDraft).length}
-              sheetOpen={props.filterSheetOpen}
-            />
-          ) : undefined
-        }
-        onOpenLogPanel={props.onOpenLogPanel}
-        onRetryMetadata={props.onRetryMetadata}
-        onSearchQueryChange={props.onSearchQueryChange}
-        onViewChange={props.onViewChange}
-        periodLabel={periodLabel}
-        searchQuery={props.searchQuery}
-      />
-      {props.feedback ? (
-        <div
-          className={`status-banner status-${props.feedback.tone}`}
-          role={props.feedback.tone === 'error' ? 'alert' : 'status'}
-        >
-          <span>{props.feedback.message}</span>
-          <button onClick={props.onFeedbackDismiss} type="button">
-            Dismiss
-          </button>
-        </div>
-      ) : null}
-      <div className="archive-content">{view}</div>
-      {props.dropActive ? (
-        <div className="drop-overlay">
-          <span>Drop to add to the log</span>
-        </div>
+      <div
+        aria-hidden={modalOpen ? 'true' : undefined}
+        className="archive-background"
+        inert={modalOpen ? true : undefined}
+      >
+        <PageHeader
+          activeView={props.activeView}
+          archiveCount={archiveItems.length}
+          coverage={coverage}
+          diaryCount={props.state.history.length}
+          libraryTools={
+            props.activeView === 'library' && !props.loading && !props.loadError && archiveItems.length > 0 ? (
+              <FilterPanel
+                filters={props.filters}
+                onFilterChange={props.onFilterChange}
+                onSheetOpenChange={props.onFilterSheetOpenChange}
+                options={filterOptions}
+                sheetOpen={props.filterSheetOpen}
+              />
+            ) : undefined
+          }
+          onOpenLogPanel={props.onOpenLogPanel}
+          onRetryMetadata={props.onRetryMetadata}
+          onSearchQueryChange={props.onSearchQueryChange}
+          onViewChange={props.onViewChange}
+          periodLabel={periodLabel}
+          searchQuery={props.searchQuery}
+        />
+        {props.feedback ? (
+          <div
+            className={`status-banner status-${props.feedback.tone}`}
+            role={props.feedback.tone === 'error' ? 'alert' : 'status'}
+          >
+            <span>{props.feedback.message}</span>
+            <button onClick={props.onFeedbackDismiss} type="button">
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+        <div className="archive-content">{view}</div>
+        {props.dropActive ? (
+          <div className="drop-overlay">
+            <span>Drop to add to the log</span>
+          </div>
+        ) : null}
+      </div>
+      {props.filterSheetOpen &&
+      props.activeView === 'library' &&
+      !props.loading &&
+      !props.loadError &&
+      archiveItems.length > 0 ? (
+        <FilterSheet
+          filters={props.filterDraft}
+          onApply={(filters) => {
+            props.onApplyFilterDraft(filters);
+            props.onFilterSheetOpenChange(false);
+          }}
+          onClose={() => props.onFilterSheetOpenChange(false)}
+          onFilterChange={props.onFilterDraftChange}
+          options={filterOptions}
+          resultCount={filterArchiveItems(archiveItems, props.filterDraft).length}
+        />
       ) : null}
       {props.logPanelOpen ? (
         <LogPanel
@@ -281,5 +313,12 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
     </div>
   );
 
-  return <AppShell mobileNavigation={mobileNavigation} navigationRail={navigation} workspaceStage={stage} />;
+  return (
+    <AppShell
+      mobileNavigation={mobileNavigation}
+      modalOpen={modalOpen}
+      navigationRail={navigation}
+      workspaceStage={stage}
+    />
+  );
 }

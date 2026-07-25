@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('movieLog', {
   getState: () => ipcRenderer.invoke('movie-log:get-state'),
   logFilm: (film, details) => ipcRenderer.invoke('movie-log:log-film', film, details),
   logPaths: (paths, details, film) => ipcRenderer.invoke('movie-log:log-paths', paths, details, film),
-  matchFilm: (filmKey, film, pageId) => ipcRenderer.invoke('movie-log:match-film', filmKey, film, pageId),
+  matchFilm: (filmKey, film, selection) => ipcRenderer.invoke('movie-log:match-film', filmKey, film, selection),
   searchCatalog: (query) => ipcRenderer.invoke('movie-log:search-catalog', query),
   openInFinder: (itemPath) => ipcRenderer.invoke('movie-log:open-in-finder', itemPath),
   openItem: (itemPath) => ipcRenderer.invoke('movie-log:open-item', itemPath),

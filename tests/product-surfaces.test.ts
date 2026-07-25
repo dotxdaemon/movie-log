@@ -94,6 +94,7 @@ const baseProps: ArchiveApplicationProps = {
   dossierMatchResults: [],
   dossierOriginLabel: 'Library',
   dropActive: false,
+  expandedDiaryEntryIds: new Set(),
   feedback: null,
   filterSheetOpen: false,
   filterDraft: defaultArchiveFilters,
@@ -116,6 +117,7 @@ const baseProps: ArchiveApplicationProps = {
   onCopyPath: asyncNoop,
   onCreateLog: asyncNoop,
   onDiaryModeChange: noop,
+  onDiaryEntryExpandedChange: noop,
   onDossierBack: noop,
   onDrop: noop,
   onDropActiveChange: noop,
@@ -214,7 +216,9 @@ describe('ArchiveApplication', () => {
   });
 
   it('renders diary entries with clean titles, markers, catalog cast, and editable user cast notes', () => {
-    const tree = renderSurface('diary');
+    const tree = renderSurface('diary', {
+      expandedDiaryEntryIds: new Set(['2026-07-10T20:00:00.000Z:/Movies/Flow.2024.mkv'])
+    });
     const text = readText(tree);
 
     expect(findByClass(tree, 'diary-entry')).toHaveLength(2);
@@ -230,7 +234,7 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'entry-cast-notes')).toHaveLength(1);
     expect(text).toContain('The silent ensemble carries the final movement.');
     expect(text).toContain('Cast notes');
-    expect(findByClass(tree, 'entry-annotation')).toHaveLength(2);
+    expect(findByClass(tree, 'entry-annotation')).toHaveLength(1);
     expect(findByClass(tree, 'rating-meter')).not.toHaveLength(0);
   });
 
@@ -264,6 +268,8 @@ describe('ArchiveApplication', () => {
     });
 
     expect(findByClass(tree, 'movie-card-selected')).toHaveLength(1);
+    expect(findByClass(tree, 'movie-card-open-action')).toHaveLength(1);
+    expect(findByClass(tree, 'movie-card-open-action')[0]?.type).toBe('span');
     expect(findByClass(tree, 'library-inspector')).toHaveLength(1);
     expect(findByClass(tree, 'library-inspector-poster')).toHaveLength(1);
     expect(readText(tree)).toContain('Open dossier');
@@ -273,15 +279,34 @@ describe('ArchiveApplication', () => {
     const tree = renderSurface('library');
 
     expect(findByClass(tree, 'library-inspector')).toHaveLength(0);
+    expect(findByClass(tree, 'movie-card-open-action')).toHaveLength(0);
   });
 
   it('renders the mobile filter sheet with apply and reset actions when open', () => {
     const tree = renderSurface('library', { filterSheetOpen: true });
+    const background = findByClass(tree, 'archive-background')[0];
 
     expect(findByClass(tree, 'filter-sheet')).toHaveLength(1);
+    expect(findByClass(background?.children ?? [], 'filter-sheet')).toHaveLength(0);
+    expect(background?.props.inert).toBe(true);
+    expect(background?.props['aria-hidden']).toBe('true');
     expect(findByClass(tree, 'filter-sheet-actions')).toHaveLength(1);
     expect(readText(tree)).toContain('Reset');
     expect(readText(tree)).toContain('Show 2 titles');
+  });
+
+  it('makes the application background inert without hiding the open log dialog', () => {
+    const tree = renderSurface('diary', { logPanelOpen: true });
+    const background = findByClass(tree, 'archive-background')[0];
+    const canvas = findByClass(tree, 'archive-canvas')[0];
+
+    expect(background?.props.inert).toBe(true);
+    expect(background?.props['aria-hidden']).toBe('true');
+    expect(findByClass(background?.children ?? [], 'log-sheet')).toHaveLength(0);
+    expect(findByClass(tree, 'log-sheet')).toHaveLength(1);
+    expect(canvas?.props.onDragEnter).toBeUndefined();
+    expect(canvas?.props.onDragOver).toBeUndefined();
+    expect(canvas?.props.onDrop).toBeUndefined();
   });
 
   it('keeps mobile filter changes in draft state until Apply', () => {
@@ -494,8 +519,10 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'director-chart')).toHaveLength(1);
     expect(findByClass(tree, 'decade-chart')).toHaveLength(1);
     expect(findByClass(tree, 'year-chart')).toHaveLength(1);
+    expect(findByClass(tree, 'monthly-line-path')).toHaveLength(1);
+    expect(findByClass(tree, 'monthly-line-point').length).toBeGreaterThanOrEqual(2);
+    expect(readText(findByClass(tree, 'monthly-line-values'))).toContain('viewing');
     expect(findByClass(tree, 'bar-column-plot').length).toBeGreaterThanOrEqual(2);
-    expect(findByClass(tree, 'bar-column-bar').map((bar) => bar.props.style)).toContainEqual({ height: '50%' });
     expect(findByClass(tree, 'activity-cell')).toHaveLength(365);
     expect(findByClass(tree, 'statistics-coverage')).toHaveLength(1);
   });
@@ -672,9 +699,11 @@ describe('ArchiveApplication', () => {
     const statisticsTree = renderSurface('statistics', { loading: true });
 
     expect(findByClass(diaryTree, 'diary-loading')).toHaveLength(1);
-    expect(findByClass(diaryTree, 'skeleton-entry')).toHaveLength(5);
+    expect(findByClass(diaryTree, 'skeleton-month-metric')).toHaveLength(5);
+    expect(findByClass(diaryTree, 'skeleton-diary-entry')).toHaveLength(3);
     expect(findByClass(libraryTree, 'skeleton-card')).toHaveLength(8);
-    expect(findByClass(statisticsTree, 'skeleton-panel')).not.toHaveLength(0);
+    expect(findByClass(statisticsTree, 'skeleton-chart-panel')).toHaveLength(6);
+    expect(findByClass(statisticsTree, 'skeleton-activity-calendar')).toHaveLength(1);
     expect(findByClass(diaryTree, 'blank-slate')).toHaveLength(0);
   });
 

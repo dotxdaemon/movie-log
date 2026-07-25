@@ -73,4 +73,24 @@ describe('yearly statistics activity', () => {
     expect(readText(summary)).toContain('2025-07-16: 1 viewing');
     expect(readText(summary)).toContain('2026-07-14: 1 viewing');
   });
+
+  it('plots real monthly counts as a thin line with a complete text equivalent', () => {
+    const tree = renderTree(
+      createElement(StatisticsView, {
+        now: new Date('2026-07-14T12:00:00.000Z'),
+        state
+      })
+    );
+    const linePath = findByClass(tree, 'monthly-line-path');
+    const points = findByClass(tree, 'monthly-line-point');
+    const values = findByClass(tree, 'monthly-line-values');
+
+    expect(linePath).toHaveLength(1);
+    expect(linePath[0]?.props.d).toBe('M 0.00 14.00 L 720.00 14.00');
+    expect(points).toHaveLength(2);
+    expect(findByClass(tree, 'monthly-line-point-latest')).toHaveLength(1);
+    expect(findByClass(tree, 'monthly-line-plot')[0]?.props['aria-hidden']).toBe('true');
+    expect(readText(values)).toContain('Jul 2025: 1 viewing');
+    expect(readText(values)).toContain('Jul 2026: 1 viewing');
+  });
 });

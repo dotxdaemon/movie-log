@@ -52,15 +52,11 @@
   }
 
   .filter-toolbar {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    display: none;
   }
 
-  .filter-toolbar .filter-field:nth-child(4n) {
-    border-right: 0;
-  }
-
-  .filter-toolbar .filter-field:nth-child(-n + 4) {
-    border-bottom: 1px solid var(--border);
+  .filter-sheet-trigger {
+    display: block;
   }
 
   .movie-dossier {

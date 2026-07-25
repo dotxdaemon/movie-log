@@ -15,7 +15,8 @@
   --burgundy: #741f32;
   --active-red: #a93246;
   --active: var(--active-red);
-  --border: #74717c;
+  --border: #c9c6cf;
+  --border-strong: #74717c;
   --border-dark: rgba(23, 24, 33, 0.22);
   --heading: 'Avenir Next Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif;
   --body: 'Avenir Next', 'Helvetica Neue', sans-serif;
@@ -182,7 +183,7 @@ textarea {
 
 .nav-item[aria-current='page'] {
   color: var(--paper);
-  background: rgba(215, 211, 223, 0.08);
+  background: transparent;
 }
 
 .log-action {
@@ -333,31 +334,38 @@ h3 {
   line-height: 1;
 }
 
-.month-summary dl {
+.month-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(88px, 1fr));
-  gap: 1px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
   margin-bottom: 0;
-  background: var(--border);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: transparent;
 }
 
-.month-summary .summary-wide {
-  grid-column: 1 / -1;
-  min-height: 62px;
+.month-metrics > .summary-wide {
+  grid-column: auto;
+  min-height: 58px;
 }
 
-.month-summary .summary-wide dd {
+.month-metrics > .summary-wide dd {
   overflow: hidden;
   font-size: 1rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.month-summary dl > div,
-.metric-strip > div {
-  min-height: 76px;
-  padding: 12px 14px;
-  background: var(--surface);
+.month-metrics > div {
+  min-width: 0;
+  min-height: 58px;
+  padding: var(--space-2) var(--space-3);
+  border-left: 1px solid var(--border);
+  background: transparent;
+}
+
+.month-metrics > div:first-child {
+  border-left: 0;
 }
 
 .month-summary dt,
@@ -649,7 +657,7 @@ h3 {
   width: 100%;
   min-height: 34px;
   padding: 0 26px 0 7px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   color: var(--ink);
   background: var(--paper);
   font-size: 0.76rem;
@@ -659,7 +667,7 @@ h3 {
   width: 100%;
   min-height: 44px;
   padding: 0 28px 0 var(--space-2);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   background: var(--paper);
 }
 
@@ -774,15 +782,6 @@ h3 {
 .chart-panel,
 .activity-panel {
   min-width: 0;
-}
-
-.bar-chart {
-  display: flex;
-  align-items: end;
-  gap: 8px;
-  height: 220px;
-  padding-top: 28px;
-  border-bottom: 1px solid var(--structural);
 }
 
 .bar-column {
@@ -1007,7 +1006,7 @@ h3 {
 .dossier-actions button {
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   font-family: var(--mono);
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -1092,7 +1091,7 @@ h3 {
   display: grid;
   min-height: 44px;
   place-items: center;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   color: var(--ink-muted);
   background: var(--surface);
   font-family: var(--mono);
@@ -1128,7 +1127,7 @@ h3 {
   min-height: 44px;
   padding: 10px 11px;
   resize: vertical;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   background: var(--paper);
 }
 
@@ -1195,7 +1194,7 @@ h3 {
   min-height: 82px;
   margin-top: 22px;
   padding: 16px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-left: 4px solid var(--burgundy);
   background: var(--surface);
   text-align: left;

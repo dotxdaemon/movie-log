@@ -100,7 +100,20 @@ function repeatBlocks(count: number, render: (index: number) => ReactNode): Reac
   return Array.from({ length: count }, (_item, index) => render(index));
 }
 
-export function ViewSkeleton({ view }: { view: 'diary' | 'library' | 'search' | 'statistics' | 'settings' | 'detail' }) {
+const statisticPanelClasses = [
+  'monthly-chart',
+  'rating-chart',
+  'genre-chart',
+  'director-chart',
+  'decade-chart',
+  'year-chart'
+];
+
+export function ViewSkeleton({
+  view
+}: {
+  view: 'diary' | 'library' | 'search' | 'statistics' | 'settings' | 'detail';
+}) {
   if (view === 'library') {
     return (
       <div aria-label="Loading library" className="screen-loading library-loading" role="status">
@@ -135,12 +148,101 @@ export function ViewSkeleton({ view }: { view: 'diary' | 'library' | 'search' | 
   if (view === 'statistics') {
     return (
       <div aria-label="Loading statistics" className="screen-loading statistics-loading" role="status">
-        <SkeletonBlock className="skeleton-strip" />
-        <div className="skeleton-panel-row">
-          <SkeletonBlock className="skeleton-panel" />
-          <SkeletonBlock className="skeleton-panel" />
+        <dl className="metric-strip skeleton-statistics-metrics">
+          {repeatBlocks(8, (index) => (
+            <div className="skeleton-statistics-metric" key={index}>
+              <dt>
+                <SkeletonBlock className="skeleton-line skeleton-line-short" />
+              </dt>
+              <dd>
+                <SkeletonBlock className="skeleton-metric-value" />
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <section className="statistics-coverage skeleton-statistics-coverage">
+          {repeatBlocks(2, (index) => (
+            <div key={index}>
+              <SkeletonBlock className="skeleton-line skeleton-line-short" />
+              <SkeletonBlock className="skeleton-line" />
+              <SkeletonBlock className="skeleton-line skeleton-coverage-detail" />
+            </div>
+          ))}
+        </section>
+        <div className="statistics-panels skeleton-statistics-panels">
+          {statisticPanelClasses.map((panelClass) => (
+            <section className={`chart-panel ${panelClass} skeleton-chart-panel`} key={panelClass}>
+              <header>
+                <span>
+                  <SkeletonBlock className="skeleton-line skeleton-line-short" />
+                  <SkeletonBlock className="skeleton-chart-title" />
+                </span>
+              </header>
+              <SkeletonBlock className="skeleton-chart-plot" />
+            </section>
+          ))}
         </div>
-        <SkeletonBlock className="skeleton-panel skeleton-panel-wide" />
+        <section className="activity-panel skeleton-activity-panel">
+          <header>
+            <span>
+              <SkeletonBlock className="skeleton-line skeleton-line-short" />
+              <SkeletonBlock className="skeleton-chart-title" />
+            </span>
+          </header>
+          <SkeletonBlock className="skeleton-activity-calendar" />
+        </section>
+      </div>
+    );
+  }
+
+  if (view === 'diary') {
+    return (
+      <div aria-label="Loading diary" className="screen-loading diary-loading" role="status">
+        <header className="month-summary skeleton-month-summary">
+          <div className="month-summary-title">
+            <SkeletonBlock className="skeleton-line skeleton-line-short" />
+            <SkeletonBlock className="skeleton-month-title" />
+          </div>
+          <dl className="month-metrics skeleton-month-metrics">
+            {repeatBlocks(5, (index) => (
+              <div className={index === 4 ? 'skeleton-month-metric summary-wide' : 'skeleton-month-metric'} key={index}>
+                <dt>
+                  <SkeletonBlock className="skeleton-line skeleton-line-short" />
+                </dt>
+                <dd>
+                  <SkeletonBlock className="skeleton-month-value" />
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </header>
+        <div aria-hidden="true" className="view-switcher skeleton-view-switcher">
+          {repeatBlocks(3, (index) => (
+            <SkeletonBlock className="skeleton-tab" key={index} />
+          ))}
+        </div>
+        <div className="diary-list skeleton-diary-list">
+          {repeatBlocks(3, (index) => (
+            <article className="diary-entry skeleton-diary-entry" key={index}>
+              <span className="entry-date skeleton-entry-date">
+                <SkeletonBlock className="skeleton-date-day" />
+                <small>
+                  <SkeletonBlock className="skeleton-line" />
+                </small>
+              </span>
+              <div className="entry-body skeleton-entry-body">
+                <SkeletonBlock className="film-poster film-poster-entry skeleton-entry-poster" />
+                <div className="entry-copy skeleton-entry-copy">
+                  <SkeletonBlock className="skeleton-line skeleton-line-short" />
+                  <SkeletonBlock className="skeleton-entry-title" />
+                  <SkeletonBlock className="skeleton-line" />
+                  <SkeletonBlock className="skeleton-entry-marks" />
+                  <SkeletonBlock className="skeleton-entry-action" />
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
     );
   }
@@ -171,19 +273,5 @@ export function ViewSkeleton({ view }: { view: 'diary' | 'library' | 'search' | 
     );
   }
 
-  return (
-    <div aria-label="Loading diary" className="screen-loading diary-loading" role="status">
-      <SkeletonBlock className="skeleton-strip" />
-      {repeatBlocks(5, (index) => (
-        <span className="skeleton-entry" key={index}>
-          <SkeletonBlock className="skeleton-date" />
-          <SkeletonBlock className="skeleton-thumb" />
-          <span className="skeleton-entry-copy">
-            <SkeletonBlock className="skeleton-line" />
-            <SkeletonBlock className="skeleton-line skeleton-line-short" />
-          </span>
-        </span>
-      ))}
-    </div>
-  );
+  return null;
 }
