@@ -401,6 +401,10 @@
     order: 3;
   }
 
+  .dossier-unlogged {
+    order: 3;
+  }
+
   .dossier-review {
     order: 4;
   }
@@ -417,6 +421,7 @@
   .dossier-review,
   .dossier-tags,
   .viewing-history,
+  .dossier-unlogged,
   .annotation-panel {
     grid-column: auto;
   }

@@ -2,7 +2,7 @@
 // ABOUTME: Prevents catalog-only diary entries from losing media type, co-directors, or poster quality.
 import { describe, expect, it } from 'vitest';
 import { buildSearchResults, type SearchResultItem } from '../src/archive-model.js';
-import { createCatalogLogSelection } from '../src/catalog-log-selection.js';
+import { createArchiveLogSelection, createCatalogLogSelection } from '../src/catalog-log-selection.js';
 
 const catalogResult: SearchResultItem = {
   catalogId: 'tt0298130',
@@ -37,6 +37,44 @@ describe('createCatalogLogSelection', () => {
 
   it('leaves the director absent when the provider did not return one', () => {
     expect(createCatalogLogSelection({ ...catalogResult, director: [] }).director).toBeUndefined();
+  });
+
+  it('prefills the logging sheet from a matched Library title', () => {
+    const selection = createArchiveLogSelection({
+      current: true,
+      film: {
+        cast: [],
+        catalogId: catalogResult.catalogId,
+        catalogSource: catalogResult.catalogSource,
+        country: [],
+        director: [...catalogResult.director],
+        fetchedAt: '2026-07-25T12:00:00.000Z',
+        genres: [],
+        key: 'the ring::2002',
+        language: [],
+        mediaType: 'film',
+        pageId: catalogResult.pageId,
+        posterUrl: catalogResult.posterUrl,
+        posterWidth: catalogResult.posterWidth,
+        runtimeMinutes: 115,
+        status: 'matched',
+        title: catalogResult.title,
+        wikipediaUrl: null,
+        year: catalogResult.year
+      },
+      mediaType: 'film'
+    });
+
+    expect(selection).toMatchObject({
+      catalogId: 'tt0298130',
+      catalogSource: 'imdb',
+      description: 'From your Library',
+      director: ['Gore Verbinski', 'Jane Campion'],
+      mediaType: 'film',
+      pageId: -298130,
+      title: 'The Ring',
+      year: 2002
+    });
   });
 
   it('keeps series identity, co-directors, and poster quality through global Search into logging', () => {

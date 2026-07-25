@@ -1,13 +1,16 @@
 // ABOUTME: Renders the Log a Film flow as a structured side panel with catalog search before media choice.
 // ABOUTME: The selected film sits as a poster unit above the form and the save action stays visible.
+import type { KeyboardEvent } from 'react';
 import { EntryForm } from '../components/entry-form.js';
 import { FilmPoster } from '../components/film-poster.js';
 import { SheetDialog } from '../components/sheet-dialog.js';
+import { readCatalogResultKey } from '../catalog-result.js';
 import type { CatalogSearchResult, LogEntryDetails } from '../../shared/types.js';
 
 const pathName = (path: string): string => path.split('/').filter(Boolean).at(-1) ?? path;
 
 interface LogPanelProps {
+  filmActiveIndex: number;
   filmError: string | null;
   filmPending: boolean;
   filmQuery: string;
@@ -16,6 +19,7 @@ interface LogPanelProps {
   onClearLogPaths(): void;
   onClose(): void;
   onCreateLog(details: LogEntryDetails): Promise<void>;
+  onFilmActiveIndexChange(index: number): void;
   onFilmQueryChange(value: string): void;
   onReviewChange(value: string): void;
   onSelectFilm(film: CatalogSearchResult | null): void;
@@ -26,6 +30,7 @@ interface LogPanelProps {
 }
 
 export function LogPanel({
+  filmActiveIndex,
   filmError,
   filmPending,
   filmQuery,
@@ -34,6 +39,7 @@ export function LogPanel({
   onClearLogPaths,
   onClose,
   onCreateLog,
+  onFilmActiveIndexChange,
   onFilmQueryChange,
   onReviewChange,
   onSelectFilm,
@@ -44,6 +50,48 @@ export function LogPanel({
 }: LogPanelProps) {
   const ambiguousSelection = selectedFilm !== null && pendingLogPaths.length > 1;
   const canSubmit = (selectedFilm !== null || pendingLogPaths.length > 0) && !ambiguousSelection;
+  const activeIndex = Math.max(0, Math.min(filmActiveIndex, Math.max(0, filmResults.length - 1)));
+  const activeResult = filmResults[activeIndex];
+
+  function moveActive(nextIndex: number): void {
+    if (filmResults.length === 0) {
+      return;
+    }
+
+    onFilmActiveIndexChange(nextIndex);
+    document.getElementById(`log-film-option-${nextIndex}`)?.scrollIntoView({ block: 'nearest' });
+  }
+
+  function handleFilmKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveActive(Math.min(activeIndex + 1, filmResults.length - 1));
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveActive(Math.max(activeIndex - 1, 0));
+      return;
+    }
+
+    if (event.key === 'Home' && filmResults.length > 0) {
+      event.preventDefault();
+      moveActive(0);
+      return;
+    }
+
+    if (event.key === 'End' && filmResults.length > 0) {
+      event.preventDefault();
+      moveActive(filmResults.length - 1);
+      return;
+    }
+
+    if (event.key === 'Enter' && activeResult) {
+      event.preventDefault();
+      onSelectFilm(activeResult);
+    }
+  }
 
   return (
     <SheetDialog
@@ -89,9 +137,16 @@ export function LogPanel({
               <label className="field-block">
                 <span>Find the film</span>
                 <input
+                  aria-autocomplete="list"
+                  aria-activedescendant={activeResult ? `log-film-option-${activeIndex}` : undefined}
+                  aria-controls="log-film-results"
+                  aria-expanded={filmResults.length > 0}
+                  aria-keyshortcuts="ArrowDown ArrowUp Home End Enter"
                   autoFocus
                   onChange={(event) => onFilmQueryChange(event.target.value)}
+                  onKeyDown={handleFilmKeyDown}
                   placeholder="Search the catalog by title"
+                  role="combobox"
                   type="search"
                   value={filmQuery}
                 />
@@ -104,10 +159,19 @@ export function LogPanel({
                 </div>
               ) : null}
               {filmResults.length > 0 ? (
-                <ol className="film-search-results">
-                  {filmResults.map((result) => (
-                    <li key={result.pageId}>
-                      <button onClick={() => onSelectFilm(result)} type="button">
+                <ol className="film-search-results" id="log-film-results" role="listbox">
+                  {filmResults.map((result, index) => (
+                    <li key={readCatalogResultKey(result)}>
+                      <button
+                        aria-selected={index === activeIndex}
+                        className={index === activeIndex ? 'film-search-result-active' : undefined}
+                        id={`log-film-option-${index}`}
+                        onClick={() => onSelectFilm(result)}
+                        onMouseEnter={() => onFilmActiveIndexChange(index)}
+                        role="option"
+                        tabIndex={-1}
+                        type="button"
+                      >
                         <FilmPoster
                           displayTitle={result.title}
                           film={null}

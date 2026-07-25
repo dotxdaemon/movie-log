@@ -2,6 +2,7 @@
 // ABOUTME: Feeds the pure ArchiveApplication surface and keeps every user action tied to real behavior.
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { ArchiveApplication } from './archive-application.js';
+import { readAppShortcut } from './app-shortcuts.js';
 import {
   buildSearchResults,
   defaultArchiveFilters,
@@ -20,7 +21,8 @@ import {
 import { readCatalogFailureMessage } from './catalog-search.js';
 import { focusDossierReturnTarget, focusSearchReturnTarget } from './search-focus.js';
 import { readActionFailureMessage, type ActionFailureContext } from './action-error.js';
-import { createCatalogLogSelection } from './catalog-log-selection.js';
+import { createArchiveLogSelection, createCatalogLogSelection } from './catalog-log-selection.js';
+import { isSearchContext, readSearchReturnView } from './navigation-state.js';
 import { updateArchiveState, useArchiveData } from './use-archive-data.js';
 import { useCatalogSearch } from './use-catalog-search.js';
 import { useDialogSurface } from './use-dialog-surface.js';
@@ -38,6 +40,7 @@ export default function App() {
   const [filters, setFilters] = useState(defaultArchiveFilters);
   const [filterDraft, setFilterDraft] = useState(defaultArchiveFilters);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [logFilmActiveIndex, setLogFilmActiveIndex] = useState(0);
   const [logFilmQuery, setLogFilmQuery] = useState('');
   const [logPanelOpen, setLogPanelOpen] = useState(false);
   const [logReview, setLogReview] = useState('');
@@ -71,6 +74,49 @@ export default function App() {
   );
 
   useEffect(() => guardDragNavigation(window), []);
+
+  useEffect(() => {
+    const handleAppKeyDown = (event: KeyboardEvent) => {
+      const shortcut = readAppShortcut(
+        event,
+        filterSheetOpen || logPanelOpen,
+        navigator.platform.toLowerCase().includes('mac') ? 'mac' : 'other'
+      );
+
+      if (!shortcut) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (shortcut === 'log') {
+        rememberDialogOpener();
+        setLogPanelOpen(true);
+        return;
+      }
+
+      if (activeView === 'search') {
+        document.querySelector<HTMLInputElement>('.archive-search input')?.focus();
+        return;
+      }
+
+      const returningToExistingSearch = activeView === 'detail' && dossierReturnView.current === 'search';
+
+      if (!returningToExistingSearch) {
+        searchReturnView.current = readSearchReturnView(activeView, dossierReturnView.current);
+        searchReturnFocus.current = document.activeElement as HTMLElement | null;
+      }
+
+      if (activeView === 'detail') {
+        setSelectedPath(null);
+      }
+
+      setActiveView('search');
+    };
+
+    document.addEventListener('keydown', handleAppKeyDown);
+    return () => document.removeEventListener('keydown', handleAppKeyDown);
+  }, [activeView, filterSheetOpen, logPanelOpen, rememberDialogOpener]);
 
   const runAction = async (action: () => Promise<void>, context: ActionFailureContext) => {
     setFeedback(null);
@@ -157,6 +203,7 @@ export default function App() {
 
   const resetLogDraft = () => {
     setPendingLogPaths([]);
+    setLogFilmActiveIndex(0);
     setLogSelectedFilm(null);
     setLogFilmQuery('');
     setLogReview('');
@@ -316,6 +363,7 @@ export default function App() {
 
   const handleOpenSearchResult = (result: SearchResultItem) => {
     if (result.kind === 'catalog') {
+      setLogFilmActiveIndex(0);
       setLogSelectedFilm(createCatalogLogSelection(result));
       handleLogPanelOpenChange(true);
       return;
@@ -371,6 +419,30 @@ export default function App() {
     setSearchActiveIndex(0);
   };
 
+  const handleLogFilmQueryChange = (value: string) => {
+    setLogFilmQuery(value);
+    setLogFilmActiveIndex(0);
+  };
+
+  const handleLogItem = (item: ArchiveItem) => {
+    const selection = createArchiveLogSelection(item);
+    const localPath = item.localSourcePaths.includes(item.sourcePath) ? item.sourcePath : item.localSourcePaths[0];
+
+    resetLogDraft();
+
+    if (localPath) {
+      setPendingLogPaths([localPath]);
+    }
+
+    if (selection) {
+      setLogSelectedFilm(selection);
+    } else {
+      setLogFilmQuery(item.displayTitle);
+    }
+
+    handleLogPanelOpenChange(true);
+  };
+
   const handleSearchDismiss = () => {
     const returnTarget = searchReturnFocus.current;
     setSearchQuery('');
@@ -382,8 +454,24 @@ export default function App() {
 
   const handleViewChange = (view: ArchiveView) => {
     if (view === 'search' && activeView !== 'search') {
-      searchReturnView.current = activeView === 'detail' ? 'library' : activeView;
-      searchReturnFocus.current = document.activeElement as HTMLElement | null;
+      const returningToExistingSearch = activeView === 'detail' && dossierReturnView.current === 'search';
+
+      if (!returningToExistingSearch) {
+        searchReturnView.current = readSearchReturnView(activeView, dossierReturnView.current);
+        searchReturnFocus.current = document.activeElement as HTMLElement | null;
+      }
+    }
+
+    const leavingSearchContext = isSearchContext(activeView, dossierReturnView.current) && view !== 'search';
+
+    if (leavingSearchContext) {
+      setSearchQuery('');
+      setSearchActiveIndex(0);
+      searchReturnFocus.current = null;
+    }
+
+    if (activeView === 'detail' && view !== 'detail') {
+      setSelectedPath(null);
     }
 
     setActiveView(view);
@@ -406,6 +494,7 @@ export default function App() {
           ? 'Statistics'
           : `${dossierReturnView.current[0]?.toUpperCase()}${dossierReturnView.current.slice(1)}`
       }
+      dossierOriginView={dossierReturnView.current}
       dropActive={dropActive}
       expandedDiaryEntryIds={expandedDiaryEntryIds}
       feedback={feedback}
@@ -414,6 +503,7 @@ export default function App() {
       filters={filters}
       loadError={loadError}
       loading={loading}
+      logFilmActiveIndex={Math.min(logFilmActiveIndex, Math.max(0, logFilmSearch.results.length - 1))}
       logFilmPending={logFilmSearch.pending}
       logFilmError={logFilmSearch.error}
       logFilmQuery={logFilmQuery}
@@ -439,7 +529,9 @@ export default function App() {
       onApplyFilterDraft={setFilters}
       onFilterDraftChange={setFilterDraft}
       onFilterSheetOpenChange={handleFilterSheetOpenChange}
-      onLogFilmQueryChange={setLogFilmQuery}
+      onLogFilmActiveIndexChange={setLogFilmActiveIndex}
+      onLogFilmQueryChange={handleLogFilmQueryChange}
+      onLogItem={handleLogItem}
       onLogReviewChange={setLogReview}
       onMatchFilm={handleMatchFilm}
       onOpenInFinder={handleOpenInFinder}
@@ -456,6 +548,7 @@ export default function App() {
       onSearchQueryChange={handleSearchQueryChange}
       onSelectLibraryPath={setSelectedLibraryPath}
       onSelectLogFilm={(film) => {
+        setLogFilmActiveIndex(0);
         setLogSelectedFilm(film);
 
         if (film === null) {

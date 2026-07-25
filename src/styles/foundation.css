@@ -735,6 +735,7 @@ h3 {
 .chart-panel > header,
 .activity-panel > header,
 .viewing-history > header,
+.dossier-unlogged > header,
 .annotation-panel > header {
   display: flex;
   align-items: end;
@@ -749,6 +750,7 @@ h3 {
 .chart-panel h2,
 .activity-panel h2,
 .viewing-history h3,
+.dossier-unlogged h3,
 .annotation-panel h3 {
   margin: 3px 0 0;
   font-size: 1.2rem;

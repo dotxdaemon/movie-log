@@ -8,6 +8,7 @@ import {
   readLocalCalendarParts,
   readLocalCalendarYear
 } from '../shared/local-calendar.js';
+import { readCatalogResultKey } from './catalog-result.js';
 import type { CatalogSearchResult, FilmRecord, MovieLogState, WatchEntry } from '../shared/types.js';
 
 export type ArchiveView = 'diary' | 'library' | 'search' | 'statistics' | 'settings' | 'detail';
@@ -207,6 +208,10 @@ function readLatestValue<T>(viewings: WatchEntry[], readValue: (entry: WatchEntr
   return undefined;
 }
 
+function isDiaryViewing(entry: WatchEntry): boolean {
+  return !entry.id.startsWith('library:');
+}
+
 export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
   const currentPaths = new Set(state.libraryItems.map((item) => item.sourcePath));
   const viewingsByPath = new Map<string, WatchEntry[]>();
@@ -268,18 +273,20 @@ export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
       const sortedSources = [...groupedSources].sort((left, right) =>
         right.latestViewing.watchedAt.localeCompare(left.latestViewing.watchedAt)
       );
-      const viewings = sortedSources
+      const sourceEntries = sortedSources
         .flatMap((source) => source.viewings)
         .sort((left, right) => right.watchedAt.localeCompare(left.watchedAt));
-      const latestViewing = viewings[0] as WatchEntry;
+      const viewings = sourceEntries.filter(isDiaryViewing);
+      const identityEntries = viewings.length > 0 ? viewings : sourceEntries;
+      const latestViewing = (viewings[0] ?? sourceEntries[0]) as WatchEntry;
       const parsed = parseFilmTitle(latestViewing.title);
       const film =
         sortedSources.find((source) => source.film?.status === 'matched')?.film ??
         sortedSources.find((source) => source.film)?.film ??
         null;
       const sourcePaths = sortedSources.map((source) => source.sourcePath);
-      const episodeCode = viewings.map((entry) => readEpisodeCode(entry.title)).find(Boolean) ?? null;
-      const mediaTypes = viewings.map((entry) => readEntryMediaType(entry, state.films));
+      const episodeCode = identityEntries.map((entry) => readEpisodeCode(entry.title)).find(Boolean) ?? null;
+      const mediaTypes = identityEntries.map((entry) => readEntryMediaType(entry, state.films));
       const mediaType: MediaType = mediaTypes.includes('series')
         ? 'series'
         : mediaTypes.includes('film')
@@ -407,22 +414,57 @@ const watchedDateFormatter = new Intl.DateTimeFormat(undefined, {
   year: 'numeric'
 });
 
+function normalizeSearchText(value: unknown): string {
+  return String(value ?? '')
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
+
 export function buildSearchResults(
   state: MovieLogState,
   query: string,
   catalogResults: CatalogSearchResult[]
 ): SearchGroups {
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = normalizeSearchText(query);
 
   if (!normalizedQuery) {
     return { catalog: [], diary: [], flat: [], library: [] };
   }
 
+  const queryTerms = normalizedQuery.split(' ');
   const items = buildArchiveItems(state);
   const matches = (item: ArchiveItem): boolean => {
-    const haystack =
-      `${item.displayTitle} ${item.title} ${item.sourcePath} ${(item.tags ?? []).join(' ')}`.toLowerCase();
-    return haystack.includes(normalizedQuery);
+    const film = item.film;
+    const viewingText = item.viewings.flatMap((entry) => [
+      entry.castNotes,
+      entry.location,
+      entry.review,
+      entry.tags?.join(' '),
+      entry.viewingFormat
+    ]);
+    const haystack = normalizeSearchText(
+      [
+        item.displayTitle,
+        item.title,
+        item.year,
+        item.sourcePaths.join(' '),
+        item.tags.join(' '),
+        film?.title,
+        film?.director.join(' '),
+        film?.cast.join(' '),
+        film?.genres.join(' '),
+        film?.country.join(' '),
+        film?.language.join(' '),
+        ...viewingText
+      ]
+        .filter((value) => value !== null && value !== undefined)
+        .join(' ')
+    );
+
+    return queryTerms.every((term) => haystack.includes(term));
   };
   const toResult = (item: ArchiveItem, kind: 'diary' | 'library'): SearchResultItem => ({
     catalogId: item.film?.catalogId,
@@ -444,9 +486,8 @@ export function buildSearchResults(
     year: item.year
   });
 
-  const diaryItems = items.filter((item) => !item.latestViewing.id.startsWith('library:') && matches(item));
-  const diaryPaths = new Set(diaryItems.map((item) => item.sourcePath));
-  const libraryItems = items.filter((item) => item.current && !diaryPaths.has(item.sourcePath) && matches(item));
+  const diaryItems = items.filter((item) => item.viewings.length > 0 && matches(item));
+  const libraryItems = items.filter((item) => item.current && item.viewings.length === 0 && matches(item));
   const localKeys = new Set(items.filter(matches).map((item) => item.filmKey));
   const catalog = catalogResults
     .filter((result) => !localKeys.has(readFilmKey({ title: result.title, year: result.year })))
@@ -458,7 +499,7 @@ export function buildSearchResults(
         catalogId: result.catalogId,
         catalogSource: result.catalogSource,
         director: [...(result.director ?? [])],
-        key: `catalog:${result.pageId}`,
+        key: `catalog:${readCatalogResultKey(result)}`,
         kind: 'catalog',
         mediaType,
         pageId: result.pageId,

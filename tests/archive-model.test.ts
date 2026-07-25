@@ -356,6 +356,39 @@ describe('archive model', () => {
     expect(groups.flat[0]?.key).toBeTruthy();
   });
 
+  it('matches local records across credits, metadata, reviews, punctuation, and multiple query terms', () => {
+    expect(buildSearchResults(state, 'gints adventure', []).diary.map((result) => result.title)).toEqual(['Flow']);
+    expect(buildSearchResults(state, 'unexpectedly, moving', []).diary.map((result) => result.title)).toEqual(['Flow']);
+    expect(buildSearchResults(state, 'a bird animation', []).diary.map((result) => result.title)).toEqual(['Flow']);
+  });
+
+  it('does not count an indexed copy as a second viewing or a Library search result', () => {
+    const mixedState: MovieLogState = {
+      ...state,
+      history: [{ ...state.history[0]!, rewatch: false }],
+      libraryItems: [
+        {
+          firstSeenAt: '2026-07-11T20:00:00.000Z',
+          folderId: 'archive',
+          folderPath: '/Archive',
+          id: 'dev:copy',
+          lastSeenAt: '2026-07-12T20:00:00.000Z',
+          sourceKind: 'file',
+          sourcePath: '/Archive/Flow.2024.mkv',
+          title: 'Flow.2024'
+        }
+      ]
+    };
+    const flow = buildArchiveItems(mixedState).find((item) => item.displayTitle === 'Flow');
+    const groups = buildSearchResults(mixedState, 'flow', []);
+
+    expect(flow?.viewings).toHaveLength(1);
+    expect(flow?.rewatched).toBe(false);
+    expect(flow?.localSourcePaths).toEqual(['/Archive/Flow.2024.mkv', '/Movies/Flow.2024.mkv']);
+    expect(groups.diary).toHaveLength(1);
+    expect(groups.library).toHaveLength(0);
+  });
+
   it('does not materialize the complete archive before Search has a query', () => {
     const groups = buildSearchResults(state, '', []);
 

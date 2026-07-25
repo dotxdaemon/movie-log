@@ -13,7 +13,7 @@ interface MovieCardProps {
 }
 
 export function MovieCard({ item, onOpen, onSelect, selected }: MovieCardProps) {
-  const hasDiary = !item.latestViewing.id.startsWith('library:');
+  const hasDiary = item.viewings.length > 0;
   const needsReview = hasDiary && !item.reviewed;
   const markers = [
     item.favorite ? 'favorite' : null,

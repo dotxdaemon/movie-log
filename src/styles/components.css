@@ -965,6 +965,7 @@
 .dossier-review,
 .dossier-tags,
 .viewing-history,
+.dossier-unlogged,
 .annotation-panel {
   grid-column: 2;
 }
@@ -1015,6 +1016,51 @@
   margin: 0;
   font-family: var(--body);
   font-size: 0.78rem;
+}
+
+.viewing-editor {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding-bottom: var(--space-3);
+}
+
+.viewing-editor summary {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.viewing-editor[open] summary {
+  color: var(--burgundy);
+}
+
+.viewing-editor-body {
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.viewing-editor-body .entry-form {
+  max-width: 680px;
+}
+
+.dossier-unlogged {
+  padding: var(--space-5);
+  border-top: 4px solid var(--structural);
+  background: var(--surface-lavender);
+}
+
+.dossier-unlogged > p {
+  max-width: 520px;
+  margin: var(--space-4) 0;
+  color: var(--ink-muted);
+  line-height: 1.65;
 }
 
 .dossier-review-body {
@@ -1086,6 +1132,12 @@
   min-height: 72px;
   border-bottom: 1px solid var(--border);
   text-align: left;
+}
+
+.film-search-results button:hover,
+.film-search-result-active {
+  background: var(--surface);
+  box-shadow: inset 4px 0 var(--active-red);
 }
 
 .film-search-copy {

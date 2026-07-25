@@ -36,6 +36,7 @@ export interface ArchiveApplicationProps {
   dossierMatchError: string | null;
   dossierMatchResults: CatalogSearchResult[];
   dossierOriginLabel: string;
+  dossierOriginView: Exclude<ArchiveView, 'detail'>;
   dropActive: boolean;
   expandedDiaryEntryIds: ReadonlySet<string>;
   feedback: WorkspaceFeedback | null;
@@ -44,6 +45,7 @@ export interface ArchiveApplicationProps {
   filters: ArchiveFilters;
   loadError: string | null;
   loading: boolean;
+  logFilmActiveIndex: number;
   logFilmError: string | null;
   logFilmPending: boolean;
   logFilmQuery: string;
@@ -69,7 +71,9 @@ export interface ArchiveApplicationProps {
   onApplyFilterDraft(filters: ArchiveFilters): void;
   onFilterDraftChange(filters: ArchiveFilters): void;
   onFilterSheetOpenChange(open: boolean): void;
+  onLogFilmActiveIndexChange(index: number): void;
   onLogFilmQueryChange(value: string): void;
+  onLogItem(item: ArchiveItem): void;
   onLogReviewChange(value: string): void;
   onMatchFilm(item: ArchiveItem, selection: CatalogSearchResult | null): void;
   onOpenInFinder(path: string): Promise<void>;
@@ -109,18 +113,19 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
   const filterOptions = buildFilterOptions(archiveItems);
   const latestEntry = props.state.history[0];
   const modalOpen = props.filterSheetOpen || props.logPanelOpen;
+  const navigationView = props.activeView === 'detail' ? props.dossierOriginView : props.activeView;
   const periodLabel = latestEntry ? periodFormatter.format(new Date(latestEntry.watchedAt)).toUpperCase() : 'EMPTY';
 
   const navigation = (
     <ArchiveNavigation
-      activeView={props.activeView}
+      activeView={navigationView}
       onOpenLogPanel={props.onOpenLogPanel}
       onViewChange={props.onViewChange}
     />
   );
   const mobileNavigation = (
     <MobileArchiveNavigation
-      activeView={props.activeView}
+      activeView={navigationView}
       onOpenLogPanel={props.onOpenLogPanel}
       onViewChange={props.onViewChange}
     />
@@ -192,6 +197,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
         originLabel={props.dossierOriginLabel}
         onCopyPath={props.onCopyPath}
         onBack={props.onDossierBack}
+        onLogItem={props.onLogItem}
         onMatchFilm={props.onMatchFilm}
         onOpenInFinder={props.onOpenInFinder}
         onOpenItem={props.onOpenItem}
@@ -253,6 +259,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
           onRetryMetadata={props.onRetryMetadata}
           onSearchQueryChange={props.onSearchQueryChange}
           onViewChange={props.onViewChange}
+          navigationView={navigationView}
           periodLabel={periodLabel}
           searchQuery={props.searchQuery}
         />
@@ -293,6 +300,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
       ) : null}
       {props.logPanelOpen ? (
         <LogPanel
+          filmActiveIndex={props.logFilmActiveIndex}
           filmPending={props.logFilmPending}
           filmError={props.logFilmError}
           filmQuery={props.logFilmQuery}
@@ -301,6 +309,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
           onClearLogPaths={props.onClearLogPaths}
           onClose={props.onCloseLogPanel}
           onCreateLog={props.onCreateLog}
+          onFilmActiveIndexChange={props.onLogFilmActiveIndexChange}
           onFilmQueryChange={props.onLogFilmQueryChange}
           onReviewChange={props.onLogReviewChange}
           onSelectFilm={props.onSelectLogFilm}

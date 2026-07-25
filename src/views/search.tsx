@@ -139,6 +139,7 @@ export function SearchView({
       <label className="archive-search">
         <span>Search the complete archive</span>
         <input
+          aria-autocomplete="list"
           aria-activedescendant={activeKey ? `search-option-${activeIndex}` : undefined}
           aria-controls="search-results"
           aria-expanded={flat.length > 0}

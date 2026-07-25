@@ -1,7 +1,7 @@
 // ABOUTME: Renders the shared archive page title, count line, search, filters, and logging action.
 // ABOUTME: Keeps every view's heading controls in one consistent character-sheet header.
 import type { ReactNode } from 'react';
-import { navigationItems, readNavigationView, readViewTitle } from './archive-navigation-data.js';
+import { navigationItems, readNavigationView, readViewTitle, type NavigationView } from './archive-navigation-data.js';
 import { MetadataStatus } from './metadata-status.js';
 import type { ArchiveCoverage, ArchiveView } from '../archive-model.js';
 
@@ -11,6 +11,7 @@ interface PageHeaderProps {
   coverage: ArchiveCoverage;
   diaryCount: number;
   libraryTools?: ReactNode;
+  navigationView: NavigationView;
   onOpenLogPanel(): void;
   onRetryMetadata(): Promise<void>;
   onSearchQueryChange(value: string): void;
@@ -25,6 +26,7 @@ export function PageHeader({
   coverage,
   diaryCount,
   libraryTools,
+  navigationView,
   onOpenLogPanel,
   onRetryMetadata,
   onSearchQueryChange,
@@ -32,7 +34,7 @@ export function PageHeader({
   periodLabel,
   searchQuery
 }: PageHeaderProps) {
-  const activeNavigationView = readNavigationView(activeView);
+  const activeNavigationView = readNavigationView(navigationView);
   const sectionIndex = navigationItems.find((item) => item.view === activeNavigationView)?.index ?? '02';
 
   return (
@@ -57,17 +59,25 @@ export function PageHeader({
               <path d="m9.4 9.4 3.1 3.1" stroke="currentColor" strokeLinecap="square" strokeWidth="1.4" />
             </svg>
             <input
+              aria-keyshortcuts="Meta+K Control+K"
               onChange={(event) => {
                 onSearchQueryChange(event.target.value);
                 onViewChange('search');
               }}
               placeholder="Search archive"
+              title="Search archive (Command or Control K)"
               type="search"
               value={searchQuery}
             />
           </label>
         )}
-        <button className="log-action header-log-action" onClick={onOpenLogPanel} type="button">
+        <button
+          aria-keyshortcuts="Meta+N Control+N"
+          className="log-action header-log-action"
+          onClick={onOpenLogPanel}
+          title="Log a film (Command or Control N)"
+          type="button"
+        >
           <span aria-hidden="true" className="log-action-plus">
             +
           </span>

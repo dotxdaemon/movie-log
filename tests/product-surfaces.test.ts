@@ -93,6 +93,7 @@ const baseProps: ArchiveApplicationProps = {
   dossierMatchError: null,
   dossierMatchResults: [],
   dossierOriginLabel: 'Library',
+  dossierOriginView: 'library',
   dropActive: false,
   expandedDiaryEntryIds: new Set(),
   feedback: null,
@@ -102,6 +103,7 @@ const baseProps: ArchiveApplicationProps = {
   loadError: null,
   loading: false,
   logFilmError: null,
+  logFilmActiveIndex: 0,
   logFilmPending: false,
   logFilmQuery: '',
   logFilmResults: [],
@@ -127,6 +129,8 @@ const baseProps: ArchiveApplicationProps = {
   onFilterDraftChange: noop,
   onFilterSheetOpenChange: noop,
   onLogFilmQueryChange: noop,
+  onLogFilmActiveIndexChange: noop,
+  onLogItem: noop,
   onLogReviewChange: noop,
   onMatchFilm: noop,
   onOpenInFinder: asyncNoop,
@@ -260,6 +264,21 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'movie-card-year')).toHaveLength(2);
     expect(findByClass(tree, 'movie-card-status')).toHaveLength(2);
     expect(readText(tree)).toContain('Gints Zilbalodis');
+  });
+
+  it('labels indexed-only cards without a watched date or review-pending marker', () => {
+    const indexedState: MovieLogState = {
+      films: { 'flow::2024': flowFilm },
+      history: [],
+      libraryItems: state.libraryItems,
+      watchedFolders: state.watchedFolders
+    };
+    const tree = renderSurface('library', { state: indexedState });
+    const status = findByClass(tree, 'movie-card-status')[0];
+
+    expect(status?.text).toBe('Indexed');
+    expect(findByClass(tree, 'card-mark-unreviewed')).toHaveLength(0);
+    expect(findByClass(tree, 'card-annotation-mono')).toHaveLength(1);
   });
 
   it('marks the selected library card structurally without opening it', () => {
@@ -590,6 +609,7 @@ describe('ArchiveApplication', () => {
   it('renders an explicit origin-aware Back action and media identity in the dossier', () => {
     const tree = renderSurface('detail', {
       dossierOriginLabel: 'Search',
+      dossierOriginView: 'search',
       selectedPath: '/Movies/Flow.2024.mkv'
     });
 
@@ -597,6 +617,71 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'dossier-from-search')).toHaveLength(1);
     expect(readText(tree)).toContain('Back to Search');
     expect(readText(tree)).toContain('Film');
+  });
+
+  it('keeps the dossier origin active in desktop and mobile navigation', () => {
+    const tree = renderSurface('detail', {
+      dossierOriginLabel: 'Statistics',
+      dossierOriginView: 'statistics',
+      selectedPath: '/Movies/Flow.2024.mkv'
+    });
+    const desktopStatistics = findByClass(tree, 'nav-item').find((item) => item.props['aria-label'] === 'Statistics');
+    const mobileStatistics = findByClass(tree, 'mobile-nav-item').find(
+      (item) => item.props['aria-label'] === 'Statistics'
+    );
+    const desktopLibrary = findByClass(tree, 'nav-item').find((item) => item.props['aria-label'] === 'Library');
+
+    expect(desktopStatistics?.props['aria-current']).toBe('page');
+    expect(mobileStatistics?.props['aria-current']).toBe('page');
+    expect(desktopLibrary?.props['aria-current']).toBeUndefined();
+  });
+
+  it('treats an indexed-only title as unlogged instead of creating a fake viewing and invalid edit form', () => {
+    const loggedItems: string[] = [];
+    const indexedState: MovieLogState = {
+      films: { 'flow::2024': flowFilm },
+      history: [],
+      libraryItems: state.libraryItems,
+      watchedFolders: state.watchedFolders
+    };
+    const tree = renderSurface('detail', {
+      onLogItem: (item) => loggedItems.push(item.displayTitle),
+      selectedPath: '/Movies/Flow.2024.mkv',
+      state: indexedState
+    });
+    const action = findByClass(tree, 'dossier-log-action')[0];
+
+    expect(findByClass(tree, 'dossier-unlogged')).toHaveLength(1);
+    expect(findByClass(tree, 'viewing-row')).toHaveLength(0);
+    expect(findByClass(tree, 'entry-form')).toHaveLength(0);
+    expect(readText(tree)).toContain('Not logged yet');
+    expect(readText(tree)).toContain('0');
+    (action?.props.onClick as () => void)();
+    expect(loggedItems).toEqual(['Flow']);
+  });
+
+  it('allows every real viewing in a dossier to be edited', () => {
+    const rewatchState: MovieLogState = {
+      ...state,
+      history: [
+        state.history[0]!,
+        {
+          ...state.history[0]!,
+          id: '2026-06-10T20:00:00.000Z:/Movies/Flow.2024.mkv',
+          rating: 4,
+          review: 'Earlier viewing.',
+          watchedAt: '2026-06-10T20:00:00.000Z'
+        },
+        state.history[1]!
+      ]
+    };
+    const tree = renderSurface('detail', {
+      selectedPath: '/Movies/Flow.2024.mkv',
+      state: rewatchState
+    });
+
+    expect(findByClass(tree, 'viewing-editor')).toHaveLength(2);
+    expect(findByClass(tree, 'entry-form')).toHaveLength(2);
   });
 
   it('renders sanitized dossier catalog-match failures inside the match study', () => {

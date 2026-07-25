@@ -1,7 +1,7 @@
 // ABOUTME: Converts global catalog search rows into the richer logging-sheet selection contract.
 // ABOUTME: Preserves provider identity, credits, and poster-quality metadata for catalog-only diary entries.
 import type { CatalogSearchResult } from '../shared/types.js';
-import type { SearchResultItem } from './archive-model.js';
+import type { ArchiveItem, SearchResultItem } from './archive-model.js';
 
 export function createCatalogLogSelection(result: SearchResultItem): CatalogSearchResult {
   return {
@@ -16,5 +16,28 @@ export function createCatalogLogSelection(result: SearchResultItem): CatalogSear
     posterWidth: result.posterWidth,
     title: result.title,
     year: result.year
+  };
+}
+
+export function createArchiveLogSelection(
+  item: Pick<ArchiveItem, 'current' | 'film' | 'mediaType'>
+): CatalogSearchResult | null {
+  const film = item.film;
+
+  if (!film || film.status !== 'matched' || film.pageId === null) {
+    return null;
+  }
+
+  return {
+    catalogId: film.catalogId,
+    catalogSource: film.catalogSource,
+    description: item.current ? 'From your Library' : 'From your Diary',
+    director: film.director.length > 0 ? [...film.director] : undefined,
+    mediaType: film.mediaType ?? (item.mediaType === 'unknown' ? undefined : item.mediaType),
+    pageId: film.pageId,
+    posterUrl: film.posterUrl,
+    posterWidth: film.posterWidth,
+    title: film.title,
+    year: film.year
   };
 }
