@@ -1,6 +1,6 @@
 // ABOUTME: Independently validates capture data and artifact paths inside the Electron runtime.
 // ABOUTME: Prevents direct launches from bypassing snapshot markers or writing into production Application Support.
-import { realpathSync, statSync } from 'node:fs';
+import { lstatSync, readlinkSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
@@ -27,7 +27,7 @@ export function readProductionApplicationSupportDirectory(homeDirectory = homedi
   return join(homeDirectory, 'Library', 'Application Support', 'Movie Log');
 }
 
-export function canonicalizeCapturePath(targetPath: string): string {
+export function canonicalizeCapturePath(targetPath: string, symlinkDepth = 0): string {
   let existingPath = resolve(targetPath);
   const missingSegments: string[] = [];
 
@@ -39,6 +39,28 @@ export function canonicalizeCapturePath(targetPath: string): string {
 
       if (code !== 'ENOENT' && code !== 'ENOTDIR') {
         throw error;
+      }
+
+      try {
+        const existingStats = lstatSync(existingPath);
+
+        if (existingStats.isSymbolicLink()) {
+          if (symlinkDepth >= 40) {
+            throw new Error(`Capture path contains too many symbolic links: ${targetPath}`);
+          }
+
+          const linkTarget = readlinkSync(existingPath);
+          return canonicalizeCapturePath(
+            resolve(dirname(existingPath), linkTarget, ...missingSegments.reverse()),
+            symlinkDepth + 1
+          );
+        }
+      } catch (lstatError) {
+        const lstatCode = (lstatError as NodeJS.ErrnoException).code;
+
+        if (lstatCode !== 'ENOENT' && lstatCode !== 'ENOTDIR') {
+          throw lstatError;
+        }
       }
 
       const parentPath = dirname(existingPath);

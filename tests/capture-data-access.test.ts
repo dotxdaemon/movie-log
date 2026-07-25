@@ -169,6 +169,27 @@ describe('installed capture data access', () => {
     await expect(isScriptPathInside(dataVolumeAlias, protectedPath)).resolves.toBe(true);
   });
 
+  it('resolves a dangling symlink to an absent production directory on a clean host', async () => {
+    const temporaryDirectory = mkdtempSync(join(tmpdir(), 'movie-log-clean-host-alias-'));
+    const absentProductionDirectory = join(
+      temporaryDirectory,
+      'missing-home',
+      'Library',
+      'Application Support',
+      'Movie Log'
+    );
+    const productionAlias = join(temporaryDirectory, 'movie-log-production');
+    const aliasedDataDirectory = join(productionAlias, 'movie-log');
+    symlinkSync(absentProductionDirectory, productionAlias);
+
+    try {
+      expect(isRuntimePathInside(aliasedDataDirectory, absentProductionDirectory)).toBe(true);
+      await expect(isScriptPathInside(aliasedDataDirectory, absentProductionDirectory)).resolves.toBe(true);
+    } finally {
+      rmSync(temporaryDirectory, { force: true, recursive: true });
+    }
+  });
+
   it('copies real data into a disposable snapshot and keeps a clean host clean', async () => {
     const temporaryDirectory = mkdtempSync(join(tmpdir(), 'movie-log-script-snapshot-'));
     const productionDataDirectory = join(temporaryDirectory, 'production', 'movie-log');

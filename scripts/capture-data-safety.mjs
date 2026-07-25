@@ -1,6 +1,6 @@
 // ABOUTME: Isolates capture data and rejects artifact paths that could overwrite Movie Log production files.
 // ABOUTME: Handles symlinks, missing descendants, case aliases, and the macOS Data-volume firmlink.
-import { cp, mkdir, mkdtemp, realpath, rm, stat } from 'node:fs/promises';
+import { cp, lstat, mkdir, mkdtemp, readlink, realpath, rm, stat } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 
@@ -14,7 +14,7 @@ export function readProductionDataDirectory(homeDirectory = homedir()) {
   return join(readProductionApplicationSupportDirectory(homeDirectory), 'movie-log');
 }
 
-export async function canonicalizeCapturePath(targetPath) {
+export async function canonicalizeCapturePath(targetPath, symlinkDepth = 0) {
   let existingPath = resolve(targetPath);
   const missingSegments = [];
 
@@ -25,6 +25,26 @@ export async function canonicalizeCapturePath(targetPath) {
     } catch (error) {
       if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') {
         throw error;
+      }
+
+      try {
+        const existingStats = await lstat(existingPath);
+
+        if (existingStats.isSymbolicLink()) {
+          if (symlinkDepth >= 40) {
+            throw new Error(`Capture path contains too many symbolic links: ${targetPath}`);
+          }
+
+          const linkTarget = await readlink(existingPath);
+          return canonicalizeCapturePath(
+            resolve(dirname(existingPath), linkTarget, ...missingSegments.reverse()),
+            symlinkDepth + 1
+          );
+        }
+      } catch (lstatError) {
+        if (lstatError?.code !== 'ENOENT' && lstatError?.code !== 'ENOTDIR') {
+          throw lstatError;
+        }
       }
 
       const parentPath = dirname(existingPath);
