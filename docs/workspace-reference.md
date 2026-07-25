@@ -1,75 +1,57 @@
 # Workspace Reference
 
-This document defines the Movie Log dossier workspace governed by Sean's supplied character design sheet, preserved in the repository at `docs/reference/movie-log-character-sheet.png`. Its original source was `/Users/seankim/Desktop/Screenshot 2026-07-12 at 4.37.01 PM.png`.
+This document defines the visual contract for Movie Log using Sean's supplied four-panel fashion illustration, preserved at `docs/reference/movie-log-pastel-fashion-grid.png`.
 
-The interface is original and uses only the sheet's visual language. It does not copy the character, clothing, pose, or illustration.
+The application translates the image's palette, balance, optical geometry, and contrast hierarchy into an original interface. It does not copy a depicted person, garment, pose, logo, or illustration into the product UI.
 
 ## Reference Evidence
 
-- Source dimensions: 388×527 PNG
-- SHA-256: `527248ec84e9dc7baf4d3495138adf2e7b4da2bc5a6ce37496f83c6d47b4e422`
-- Canonical repository asset: `docs/reference/movie-log-character-sheet.png`
-- Pale field: roughly four-fifths of the sheet remains open white around the figure studies.
-- Lavender subject mass: hair, jacket, and several inset studies use a cool blue-lavender rather than a warm neutral.
-- Graphite structure: the central harness, shorts, thigh plates, gloves, and boots form the strongest dark vertical system.
-- Burgundy placement: narrow neck and shoe details provide the only warm attention cuts.
-- Asymmetry: one full frontal figure, one turned figure, two head studies, and detached hand/boot studies carry unequal visual weight.
-- Narrow silhouette: long legs, boots, and the central harness create a tall disciplined body rather than a broad block.
-- Modular anatomy: detached hand and footwear details behave like annotations attached to the larger character study.
-
-Movie Log translates those exact traits into a predominantly pale working field, lavender grouping surfaces, a narrow graphite navigation/action structure, burgundy active seams, unequal workspace/inspector regions, vertically disciplined controls, and detached metadata annotations. It does not reproduce the depicted character or costume.
+- Source dimensions: 1542×2048 PNG
+- SHA-256: `3daa458e544ce6f962fa56032d13d5217445b504b1d62754d57a05171724745c`
+- Canonical repository asset: `docs/reference/movie-log-pastel-fashion-grid.png`
+- Pale volume: white hair and skin create luminous high-value masses against a cool gray-pink field.
+- Graphite anchor: black outerwear gives each panel a stable visual base.
+- Controlled accent field: coral, powder blue, muted tangerine, and floral fragments appear in concentrated patches.
+- Circular geometry: glasses, hair coils, and repeated rounded forms soften the dark structural clothing.
+- Four-panel balance: separate portraits form a regular matrix while each portrait remains compositionally different.
+- Air and texture: quiet backgrounds leave room for expressive color without reducing legibility.
 
 ## Required Markers
 
-- original interface: the design translates only the visual system and does not copy the character, clothing, pose, or illustration
-- 70 to 80 percent pale field: the viewport stays predominantly paper white and cool gray instead of surrounding a dark application card
-- icy lavender: secondary surfaces use controlled lavender-gray layers that give the pale field depth without gradients
-- graphite structural spine: the narrow desktop action edge and compact working bands translate the reference's dark garment structure
-- rare burgundy seam: the only attention color appears as narrow active, focus, drop, and selected-state cuts
-- tall diary focal body: the chronological arrival ledger is the largest continuous form and the emotional center of the first viewport
-- asymmetrical annotation studies: watched folders, current contents, and note access sit as smaller unboxed studies in the surrounding negative space
-- exposed seam lines: partial rules, dark leading edges, and row cuts organize content without enclosing every region
-- narrow silhouettes: the action spine, diary body, folder rows, and controls stay vertically disciplined and angular
-- modular panels: metadata extensions attach to their related working surface instead of becoming floating dashboard cards
-- disciplined negative space: the canvas keeps quiet open space around the diary and context studies
-- working-surface-first mapping: title band, search, folder actions, date groups, rows, menus, feedback, loading, empty, and drop states all carry the system directly
-- one authored top band: title, search, and primary actions share one hierarchy instead of reading as adjacent tool cards
-- readable diary rhythm: filename-stem titles stay scannable, dates retain day grouping, and metadata remains visually secondary
-- responsive control migration: the graphite action spine becomes a real bottom action bar at narrow widths while the diary remains first
-- real behavior only: every visible action maps to the existing note, folder, scan, search, drop, Finder, file-open, copy, or remove behavior
+- Original product interface with no direct reproduction of the supplied subjects or artwork
+- Soft gray-pink canvas with pale white and blush surface layers
+- Graphite navigation and high-contrast structural text
+- Coral primary accent, powder-blue secondary accent, and restrained tangerine support accent
+- Rounded optical geometry used for navigation, controls, cards, and status markers
+- Luminous top-level surfaces with translucent layering limited to shell, header, dialogs, and mobile navigation
+- Repeated content rows and cards kept blur-free for scrolling performance
+- Four-part visual rhythm expressed through balanced grids, paired metrics, and asymmetric detail regions
+- Poster artwork given primary visual weight without obscuring title, date, rating, or action state
+- Typography split between a characterful editorial heading face and a highly readable body face
+- Strong keyboard focus, twelve-pixel minimum text, forty-four-pixel interactive targets, and AA muted-text contrast
+- Responsive navigation synchronized with screenshot capture at 900 pixels
+- Compact library filters synchronized with screenshot capture at 1024 pixels
+- Every visible action connected to existing logging, search, filtering, file, folder, editing, or navigation behavior
 
-## Working Surface Map
+## Surface Map
 
-- Title band: compact off-axis name, monospaced section index, graphite leading seam
-- Search: full-width pale seam with a dark structural edge and burgundy focus cut
-- Primary action: graphite Add Folder block with a narrow red seam
-- Diary: continuous cool-gray focal body with a graphite shoulder and day-group rhythm
-- Rows: filename stem, technical metadata, partial dividers, burgundy hover/focus cut, compact action dossier
-- Folder context: detached route and inventory studies that remain subordinate to the diary
-- Feedback and states: dimensional skeletons, designed empty state, and pale full-canvas drop target
+- Application shell: graphite navigation beside a luminous archive field
+- Header: editorial title, count pills, metadata status, search, and the primary logging action
+- Library: poster-led cards with a persistent selected-title inspector on desktop
+- Diary: timeline, ledger, and poster-grid modes with separate usable geometries
+- Search: diary, library, and catalog lanes with one keyboard-active result
+- Dossier: poster-first identity, personal rating, metadata, viewing history, catalog match, and local-file actions
+- Statistics: compact metric plates, readable charts, and a horizontally contained 53-week activity calendar
+- Settings: watched folders, current indexed content, and durable local data paths
+- Dialogs: focused logging and filter workspaces that become safe-area-aware sheets on narrow screens
 
-## Disallowed Markers
+## Guardrails
 
-- warm porcelain
-- lamp accent
-- tailored-room
-- centered dark application slab
-- pill-shaped controls
-- dashboard cards
-- rail + slab + inspector
-- permanent right inspector
-- generic command palette
-- generic streaming dashboard
-- gaming launcher chrome
-- glassmorphism
-- bright gradients
-- glow borders
-- rainbow or cyan-magenta garnish
-- random prisms
-- decorative geometry with no product function
-- large rounded containers
-- oversized poster headline
-- helper-copy blocks
-- hidden-on-load workspace animation
-- fake routes, filters, ratings, posters, or metadata unsupported by the real data model
-- copied character artwork, pose, clothing, or illustration
+- No fake routes, ratings, filters, posters, metadata, or controls
+- No copied character artwork inside the application interface
+- No repeated backdrop blur on cards, list rows, search results, or statistics panels
+- No hover motion that shifts controls under the pointer
+- No text below twelve pixels
+- No horizontal document overflow
+- No screenshot selector breakpoint that disagrees with the rendered CSS breakpoint
+- No normal-motion importance overrides outside the reduced-motion block

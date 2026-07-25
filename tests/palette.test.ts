@@ -1,5 +1,5 @@
-// ABOUTME: Verifies that the renderer styles use the icy paper, graphite, and burgundy dossier palette.
-// ABOUTME: Reads the real stylesheet so the color token contract can regress without a browser.
+// ABOUTME: Verifies the renderer palette translated from the supplied pastel fashion reference.
+// ABOUTME: Reads the real stylesheet so color, contrast, and material hierarchy cannot drift silently.
 import { describe, expect, it } from 'vitest';
 import { readStyles } from './style-source.js';
 
@@ -20,53 +20,40 @@ function contrastRatio(first: string, second: string): number {
 }
 
 describe('renderer palette', () => {
-  it('keeps the pale lavender and graphite palette without the warm lamp or pill system', () => {
-    expect(stylesheet).toContain('--canvas: #f5f3f6');
-    expect(stylesheet).toContain('--surface: #eae8ee');
-    expect(stylesheet).toContain('--surface-lavender: #d7d3df');
-    expect(stylesheet).toContain('--ink:');
-    expect(stylesheet).toContain('--structural: #24232d');
-    expect(stylesheet).toContain('--burgundy: #741f32');
-    expect(stylesheet).toContain('--active-red: #a93246');
-    expect(stylesheet).toContain('--border: #c9c6cf');
-    expect(stylesheet).toContain('--border-strong: #74717c');
+  it('keeps the gray-pink, graphite, coral, blue, and tangerine reference palette', () => {
+    expect(stylesheet).toContain('--bg: #f7f1f4');
+    expect(stylesheet).toContain('--bg-2: #fbf6f8');
+    expect(stylesheet).toContain('--paper: #fffafb');
+    expect(stylesheet).toContain('--text: #1b1c21');
+    expect(stylesheet).toContain('--text-soft: #4f4b58');
+    expect(stylesheet).toContain('--text-muted: #6f6474');
+    expect(stylesheet).toContain('--accent: #f16f72');
+    expect(stylesheet).toContain('--accent-2: #8da4ff');
+    expect(stylesheet).toContain('--accent-3: #f7b85d');
     expect(stylesheet).not.toContain('--lamp:');
-    expect(stylesheet).not.toContain('--lamp-bright:');
-    expect(stylesheet).not.toContain('var(--lamp)');
-    expect(stylesheet).not.toContain('border-radius: 999px');
-    expect(stylesheet).not.toContain('backdrop-filter');
     expect(stylesheet).not.toContain('--prism-cyan:');
     expect(stylesheet).not.toContain('--prism-magenta:');
-    expect(stylesheet).not.toContain('--prism-violet:');
-    expect(stylesheet).not.toContain('--prism-gold:');
-    expect(stylesheet).not.toContain('--amber:');
   });
 
-  it('keeps pale separators subordinate while retaining a strong boundary token', () => {
-    const separator = '#c9c6cf';
-    const strongBoundary = '#74717c';
+  it('keeps graphite text readable across every pale base material', () => {
+    const graphite = '#1b1c21';
 
-    expect(contrastRatio(separator, '#f5f3f6')).toBeLessThan(2);
-    expect(contrastRatio(strongBoundary, '#f5f3f6')).toBeGreaterThanOrEqual(3);
-    expect(contrastRatio(strongBoundary, '#eae8ee')).toBeGreaterThanOrEqual(3);
-    expect(contrastRatio(strongBoundary, '#d7d3df')).toBeGreaterThanOrEqual(3);
-    expect(contrastRatio(strongBoundary, '#fbfafc')).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(graphite, '#f7f1f4')).toBeGreaterThanOrEqual(12);
+    expect(contrastRatio(graphite, '#fbf6f8')).toBeGreaterThanOrEqual(12);
+    expect(contrastRatio(graphite, '#fffafb')).toBeGreaterThanOrEqual(12);
   });
 
-  it('uses the strong boundary token for controls while reserving the pale token for separators', () => {
-    expect(stylesheet).toMatch(/\.filter-field select\s*\{[^}]*border:\s*1px solid var\(--border-strong\)/s);
-    expect(stylesheet).toMatch(
-      /\.field-block input,\s*\.field-block textarea\s*\{[^}]*border:\s*1px solid var\(--border-strong\)/s
-    );
-    expect(stylesheet).toMatch(/\.rating-segment-mark\s*\{[^}]*border:\s*1px solid var\(--border-strong\)/s);
-    expect(stylesheet).toMatch(/\.command-block\s*\{[^}]*border:\s*1px solid var\(--border-strong\)/s);
-    expect(stylesheet).toMatch(
-      /\.filter-toolbar \.filter-field select\s*\{[^}]*border-top:\s*1px solid var\(--border-strong\)/s
-    );
-    expect(stylesheet).toMatch(/\.month-metrics\s*\{[^}]*border-top:\s*1px solid var\(--border\)/s);
+  it('limits translucent blur to high-level shell and dialog surfaces', () => {
+    expect(stylesheet).toMatch(/\.archive-background\s*\{[^}]*backdrop-filter:/s);
+    expect(stylesheet).toMatch(/\.filter-sheet,\s*\.log-sheet\s*\{[^}]*backdrop-filter:/s);
+    expect(stylesheet).toMatch(/\.mobile-nav\s*\{[^}]*backdrop-filter:/s);
+    expect(stylesheet).not.toMatch(/\.movie-card-face\s*\{[^}]*backdrop-filter:/s);
+    expect(stylesheet).not.toMatch(/\.diary-entry\s*\{[^}]*backdrop-filter:/s);
+    expect(stylesheet).not.toMatch(/\.search-result[^{]*\{[^}]*backdrop-filter:/s);
+    expect(stylesheet).not.toMatch(/\.chart-panel\s*\{[^}]*backdrop-filter:/s);
   });
 
-  it('does not paint a decorative X across the framed wall panel', () => {
+  it('does not paint decorative crosshatching over the workspace', () => {
     expect(stylesheet).not.toContain('linear-gradient(45deg, transparent 37%');
     expect(stylesheet).not.toContain('linear-gradient(-45deg, transparent 37%');
   });

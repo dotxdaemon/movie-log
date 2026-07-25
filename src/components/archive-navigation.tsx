@@ -68,8 +68,8 @@ export function ArchiveNavigation({ activeView, onOpenLogPanel, onViewChange }: 
   return (
     <>
       <div className="brand-mark">
-        <span>ML</span>
-        <small>Archive</small>
+        <span>Movie Log</span>
+        <small>Private archive</small>
       </div>
       <nav aria-label="Primary" className="primary-navigation">
         {navigationItems.map((item) => (

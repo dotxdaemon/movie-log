@@ -16,6 +16,9 @@ interface CaptureControllerOptions {
 
 export type CaptureDataMode = 'real' | 'scratch';
 
+const captureMobileNavigationBreakpoint = 900;
+const captureCompactFilterBreakpoint = 1024;
+
 export function resolveCaptureDataMode(captureRequested: boolean, value: string | undefined): CaptureDataMode | null {
   if (!captureRequested) {
     return null;
@@ -322,9 +325,10 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       return;
     }
 
-    const logActionSelector = captureWidth <= 700 ? '.header-log-action' : '.archive-spine .log-action';
+    const logActionSelector =
+      captureWidth <= captureMobileNavigationBreakpoint ? '.header-log-action' : '.archive-spine .log-action';
     const initialRawHistoryCount = (await historyStore.readState()).history.length;
-    const navigationSelector = captureWidth <= 700 ? '.mobile-nav-item' : '.nav-item';
+    const navigationSelector = captureWidth <= captureMobileNavigationBreakpoint ? '.mobile-nav-item' : '.nav-item';
     const selected = (await mainWindow.webContents.executeJavaScript(`
       (() => {
         const requestedView = ${JSON.stringify(captureRequestedView)};
@@ -797,7 +801,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
                   ? [(element.textContent?.trim().slice(0, 80) ?? '') + ':' + ratio.toFixed(2)]
                   : [];
               });
-            const undersizedMajorTargets = window.innerWidth > 700
+            const undersizedMajorTargets = window.innerWidth > ${captureMobileNavigationBreakpoint}
               ? []
               : [...document.querySelectorAll('.mobile-nav-item, .header-log-action, .filter-sheet-trigger, .sheet-close')]
                   .filter(isVisible)
@@ -898,9 +902,9 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     }
 
     if (captureRequestedView === 'library-filtered' || captureRequestedView === 'library-empty') {
-      const filterSurface = captureWidth <= 1040 ? '.filter-sheet' : '.filter-toolbar';
+      const filterSurface = captureWidth <= captureCompactFilterBreakpoint ? '.filter-sheet' : '.filter-toolbar';
 
-      if (captureWidth <= 1040) {
+      if (captureWidth <= captureCompactFilterBreakpoint) {
         await mainWindow.webContents.executeJavaScript(`document.querySelector('.filter-sheet-trigger')?.click()`);
       }
 
@@ -937,7 +941,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         throw new Error(`Capture view did not apply filters: ${captureRequestedView}.`);
       }
 
-      if (captureWidth <= 1040) {
+      if (captureWidth <= captureCompactFilterBreakpoint) {
         await waitForCaptureSelector('.filter-sheet', false);
       }
 
@@ -945,7 +949,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         await waitForCaptureSelector('.library-film-field .blank-slate');
       }
 
-      if (captureRequestedView === 'library-filtered' && captureWidth > 1040) {
+      if (captureRequestedView === 'library-filtered' && captureWidth > captureCompactFilterBreakpoint) {
         await waitForCaptureSelector('.filter-chip');
         await mainWindow.webContents.executeJavaScript(`document.querySelector('.filter-chip')?.click()`);
         await waitForCaptureSelector('.filter-chip', false);
@@ -1078,7 +1082,10 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       await verifyLogDialogKeyboard(logActionSelector);
     }
 
-    if (captureWidth <= 700 && (captureRequestedView === 'log' || captureRequestedView === 'log-selected')) {
+    if (
+      captureWidth <= captureMobileNavigationBreakpoint &&
+      (captureRequestedView === 'log' || captureRequestedView === 'log-selected')
+    ) {
       await verifyMobileSheetLifecycle({
         backdropSelector: '.log-backdrop',
         bodySelector: '.log-sheet-body',
@@ -2019,7 +2026,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         const backdrop = document.querySelector(${JSON.stringify(backdropSelector)});
         const body = document.querySelector(${JSON.stringify(bodySelector)});
         const input = document.querySelector(${JSON.stringify(inputSelector)});
-        const navigationSelector = window.innerWidth <= 700 ? '.mobile-nav' : '.archive-spine';
+        const navigationSelector = window.innerWidth <= ${captureMobileNavigationBreakpoint} ? '.mobile-nav' : '.archive-spine';
         const navigation = document.querySelector(navigationSelector);
         const navigationBounds = navigation?.getBoundingClientRect();
         const navigationTarget = navigationBounds
@@ -2225,11 +2232,17 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       );
     }
 
-    if (captureWidth <= 700 && (layout.archiveSpineDisplay !== 'none' || layout.mobileNavigationDisplay === 'none')) {
+    if (
+      captureWidth <= captureMobileNavigationBreakpoint &&
+      (layout.archiveSpineDisplay !== 'none' || layout.mobileNavigationDisplay === 'none')
+    ) {
       throw new Error('Mobile capture did not replace the desktop spine with the mobile navigation.');
     }
 
-    if (captureWidth > 700 && (layout.archiveSpineDisplay === 'none' || layout.mobileNavigationDisplay !== 'none')) {
+    if (
+      captureWidth > captureMobileNavigationBreakpoint &&
+      (layout.archiveSpineDisplay === 'none' || layout.mobileNavigationDisplay !== 'none')
+    ) {
       throw new Error('Desktop capture did not keep the structural spine visible and mobile navigation hidden.');
     }
 

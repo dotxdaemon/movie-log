@@ -45,7 +45,9 @@ export function PageHeader({
         </p>
         <h1>{readViewTitle(activeView)}</h1>
         <p className="header-count-line">
-          {diaryCount} diary entries · {archiveCount} titles
+          <span>{diaryCount} diary entries</span>
+          {' · '}
+          <span>{archiveCount} titles</span>
         </p>
         <MetadataStatus coverage={coverage} onRetry={onRetryMetadata} />
         <span aria-hidden="true" className="header-rule" />

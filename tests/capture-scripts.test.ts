@@ -206,11 +206,21 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain("waitForCaptureSelector('.log-sheet', false)");
   });
 
+  it('keeps capture selectors synchronized with the renderer responsive breakpoints', () => {
+    expect(captureProcess).toContain('const captureMobileNavigationBreakpoint = 900');
+    expect(captureProcess).toContain('const captureCompactFilterBreakpoint = 1024');
+    expect(captureProcess).toContain('captureWidth <= captureMobileNavigationBreakpoint');
+    expect(captureProcess).toContain('captureWidth <= captureCompactFilterBreakpoint');
+    expect(captureProcess).toContain('window.innerWidth <= ${captureMobileNavigationBreakpoint}');
+  });
+
   it('replays log dialog focus trapping, Escape restoration, and rating selection before proof', () => {
     expect(captureProcess).toContain('verifyLogDialogKeyboard');
     expect(captureProcess).toContain("keyCode: 'Tab'");
     expect(captureProcess).toContain("keyCode: 'Escape'");
-    expect(captureProcess).toContain("captureWidth <= 700 ? '.header-log-action' : '.archive-spine .log-action'");
+    expect(captureProcess).toContain(
+      "captureWidth <= captureMobileNavigationBreakpoint ? '.header-log-action' : '.archive-spine .log-action'"
+    );
     expect(captureProcess).toContain('document.querySelector(logActionSelector) === document.activeElement');
     expect(captureProcess).toContain("const input = document.querySelectorAll('.log-sheet .rating-segment input')[7]");
     expect(captureProcess).toContain('input?.click()');

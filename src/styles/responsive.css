@@ -1,81 +1,136 @@
 @media (min-width: 1180px) {
   .library-workspace-selected {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 238px;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 1rem;
     align-items: start;
-    gap: var(--space-7);
-  }
-
-  .library-workspace-selected .movie-grid {
-    grid-template-columns: repeat(auto-fill, minmax(142px, 1fr));
   }
 
   .library-inspector {
     position: sticky;
-    top: var(--space-5);
+    top: 1rem;
     display: grid;
-    gap: var(--space-3);
-    padding: var(--space-4) 0 var(--space-5) var(--space-4);
-    border-top: 5px solid var(--structural);
-    border-left: 1px solid var(--border);
-  }
-
-  .library-inspector-poster {
-    width: 148px;
-  }
-
-  .library-inspector h2 {
-    margin: 0;
-    font-size: 1.8rem;
-    line-height: 1;
-  }
-
-  .library-inspector-line {
-    margin: 0;
-    color: var(--ink-muted);
-    font-size: 0.82rem;
-  }
-
-  .movie-card-open-action {
-    display: none;
   }
 }
 
 @media (max-width: 900px) {
-  .month-summary {
-    grid-template-columns: minmax(170px, 0.62fr) minmax(0, 1.9fr);
-    gap: var(--space-5);
+  .dossier-shell {
+    display: block;
+    max-width: calc(100vw - 20px);
+    min-height: 100dvh;
+    padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 1.1rem);
   }
 
-  .month-metrics {
-    min-width: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0;
+  .archive-spine {
+    display: none;
   }
 
-  .month-metrics > div {
-    min-width: 0;
+  .archive-canvas,
+  .archive-background {
+    min-height: auto;
+  }
+
+  .archive-background {
+    padding: 1rem;
+    border-radius: 26px;
+  }
+
+  .header-log-action {
+    display: flex;
+  }
+
+  .mobile-nav {
+    position: fixed;
+    right: 0.75rem;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    left: 0.75rem;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.5rem;
+    padding: 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 24px;
+    color: rgba(255, 255, 255, 0.88);
+    background: rgba(27, 28, 33, 0.92);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(18px) saturate(120%);
+  }
+
+  .mobile-nav-item {
+    justify-items: center;
+    align-content: center;
+    gap: 0.4rem;
+    min-height: 64px;
+    padding: 0.45rem;
+    color: inherit;
+    font-size: 0.75rem;
+  }
+
+  .mobile-nav-item span {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .movie-grid,
+  .diary-poster-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .month-metrics,
+  .metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .diary-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .entry-body,
+  .selected-film,
+  .dossier-source-actions,
+  .match-search {
+    grid-template-columns: 1fr;
+  }
+
+  .diary-ledger-row > button {
+    grid-template-columns: 92px minmax(0, 1fr) auto;
+  }
+
+  .diary-ledger-row .ledger-rating,
+  .diary-ledger-row .ledger-marks {
+    justify-self: end;
   }
 
   .viewing-row {
-    grid-template-columns: 84px 34px 64px minmax(0, 0.9fr) minmax(0, 1fr);
-    gap: var(--space-2);
+    grid-template-columns: 1fr 1fr;
   }
 
-  .viewing-row > * {
-    min-width: 0;
-    overflow-wrap: anywhere;
+  .filter-sheet-backdrop,
+  .log-backdrop {
+    align-items: end;
+    padding: 0.5rem;
   }
 
-  .statistics-panels {
-    grid-template-columns: minmax(0, 1fr);
+  .filter-sheet,
+  .log-sheet {
+    width: calc(100vw - 1rem);
+    animation-name: sheet-rise;
+    max-height: calc(100dvh - 0.5rem - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    border-radius: 28px 28px 18px 18px;
   }
 
-  .statistics-panels > .chart-panel {
-    grid-row: auto;
-    grid-column: 1;
-    width: 100%;
-    margin-top: 0;
+  .log-sheet-body {
+    grid-template-columns: 1fr;
+  }
+
+  .skeleton-statistics-panels,
+  .skeleton-statistics-coverage,
+  .detail-loading .skeleton-dossier {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -84,124 +139,119 @@
     font-size: 16px;
   }
 
-  .dossier-shell {
-    display: block;
-    min-height: 100dvh;
-    padding-bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
+  .archive-background,
+  .archive-header,
+  .blank-slate,
+  .error-state,
+  .month-summary,
+  .search-group,
+  .archive-search,
+  .settings-section,
+  .chart-panel,
+  .activity-panel,
+  .movie-dossier > section,
+  .dossier-copy,
+  .library-inspector {
+    border-radius: 22px;
   }
 
-  .archive-spine {
-    display: none;
+  .archive-header {
+    padding: 1rem;
   }
 
-  .archive-canvas {
-    min-height: calc(100dvh - var(--mobile-nav-height));
-    background: var(--canvas);
+  .header-title-block h1 {
+    font-size: clamp(2rem, 8vw, 3rem);
   }
 
-  .archive-header > div {
-    padding-bottom: 12px;
-  }
-
-  .archive-header > p {
-    margin: 0;
-    text-align: left;
-  }
-
-  .status-banner {
-    margin: 0 18px 18px;
-  }
-
-  .view-switcher button {
-    min-width: 0;
-    flex: 1;
-  }
-
-  .diary-list::before {
-    left: 37px;
-  }
-
-  .diary-entry {
-    grid-template-columns: 38px minmax(0, 1fr);
-    min-height: 170px;
-  }
-
-  .diary-entry::before {
-    top: 30px;
-    left: 34px;
-  }
-
-  .entry-date {
-    padding: 21px 0 0;
-  }
-
-  .entry-date > span {
-    font-size: 1.35rem;
-  }
-
-  .entry-date small {
-    display: none;
-  }
-
-  .entry-body h3 {
-    font-size: 1.35rem;
-  }
-
-  .diary-ledger .diary-entry {
-    grid-template-columns: 38px minmax(0, 1fr);
-  }
-
-  .diary-ledger .entry-date {
-    padding-top: 17px;
-  }
-
-  .diary-ledger .entry-body {
-    display: block;
-    min-height: 72px;
-    margin-left: 15px;
-  }
-
-  .diary-grid .diary-entry {
-    display: block;
-  }
-
-  .diary-grid .entry-date {
-    display: flex;
-    padding-bottom: 7px;
-  }
-
-  .diary-grid .entry-body {
-    padding: 0 0 12px;
-    margin: 0;
-  }
-
-  .diary-grid .entry-body h3 {
-    font-size: 0.92rem;
-  }
-
-  .movie-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 28px 14px;
-  }
-
-  .search-groups,
-  .statistics-panels,
-  .settings-view {
+  .header-actions {
     grid-template-columns: 1fr;
-    gap: 34px;
   }
 
-  .archive-search {
-    padding: 18px;
+  .header-search,
+  .header-log-action {
+    width: 100%;
   }
 
   .archive-search input {
     font-size: 1rem;
   }
 
+  .search-initial {
+    grid-template-columns: 1fr;
+  }
+
+  .statistics-coverage,
+  .search-groups,
+  .settings-view,
   .statistics-panels,
-  .activity-panel {
-    margin-top: 36px;
+  .field-pair,
+  .check-row {
+    grid-template-columns: 1fr;
+  }
+
+  .movie-grid,
+  .diary-poster-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .entry-body {
+    grid-template-columns: 1fr;
+  }
+
+  .film-poster-entry {
+    width: 100px;
+  }
+
+  .diary-ledger-row > button,
+  .viewing-row,
+  .watched-folder-row {
+    grid-template-columns: 1fr;
+  }
+
+  .diary-ledger-row .ledger-rating,
+  .diary-ledger-row .ledger-marks {
+    justify-self: start;
+  }
+
+  .metric-strip,
+  .month-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .bar-list-row,
+  .rating-bar-row,
+  .decade-row {
+    grid-template-columns: minmax(70px, 100px) minmax(0, 1fr) 30px;
+  }
+
+  .decade-rating {
+    grid-column: 2 / -1;
+    text-align: left;
+  }
+
+  .filter-sheet-actions {
+    flex-direction: column;
+  }
+
+  .dossier-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .dossier-identity > .dossier-poster-col {
+    order: 0;
+    width: min(64vw, 240px);
+    align-self: center;
+  }
+
+  .dossier-identity > .dossier-copy {
+    order: 1;
+    width: 100%;
+  }
+
+  .dossier-backdrop {
+    display: none;
   }
 
   .statistics-view,
@@ -212,498 +262,35 @@
     max-width: 100%;
   }
 
-  .movie-dossier {
-    display: flex;
-    flex-direction: column;
-    gap: 34px;
-  }
-
-  .dossier-identity > .poster-plate {
-    order: 0;
-    width: min(74vw, 300px);
-    align-self: center;
-  }
-
-  .dossier-identity > div {
-    order: 1;
-    padding: 22px 0;
-  }
-
-  .viewing-history article {
-    grid-template-columns: 92px minmax(0, 1fr);
-  }
-
-  .field-pair {
-    grid-template-columns: 1fr;
-  }
-
-  .log-backdrop {
-    display: block;
-    background: var(--canvas);
-  }
-
-  .drop-overlay {
-    inset: 12px 12px calc(var(--mobile-nav-height) + 12px) 12px;
-    text-align: center;
-  }
-
-  .mobile-nav-item {
-    position: relative;
-    display: grid;
-    place-items: center;
-    align-content: center;
-    gap: 3px;
-    min-width: 44px;
-    min-height: 64px;
-    color: rgba(245, 243, 246, 0.62);
-    font-family: var(--heading);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-  }
-
-  .mobile-nav-item span {
-    font-family: var(--mono);
-    font-size: 0.75rem;
-  }
-
-  .mobile-nav-item[aria-current='page'] {
-    color: var(--paper);
-  }
-
-  .mobile-nav-item[aria-current='page']::before {
-    position: absolute;
-    top: 0;
-    right: 18%;
-    left: 18%;
-    height: 3px;
-    background: var(--active);
-    content: '';
-  }
-
-  .blank-slate {
-    min-height: 330px;
-    padding: 36px 24px;
-  }
-
-  .blank-slate::after {
-    right: -20px;
-    opacity: 0.45;
-  }
-
-  .header-actions {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .header-search {
-    grid-column: 1;
-  }
-
-  .header-search input {
-    font-size: 1rem;
-  }
-
-  .film-poster-entry {
-    position: relative;
-    top: auto;
-    left: auto;
-    width: 68px;
-    margin-bottom: var(--space-3);
-  }
-
-  .entry-body {
-    margin: 0 0 22px 15px;
-    background: var(--surface);
-    padding: var(--space-4);
-  }
-
-  .rating-input {
-    grid-template-columns: 1fr;
-  }
-
-  .rating-segments {
-    grid-template-columns: repeat(5, 1fr);
-  }
-
-  .rating-none {
-    width: 100%;
-  }
-
-  .diary-grid .diary-list {
-    gap: 24px 12px;
+  .skeleton-month-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .diary-ledger-row > button {
-    grid-template-columns: 58px minmax(0, 1fr) 32px;
-  }
-
-  .ledger-year,
-  .ledger-marks {
-    display: none;
-  }
-
-  .filter-toolbar {
-    grid-template-columns: repeat(2, 1fr);
-    max-height: 44dvh;
-    overflow-y: auto;
-    display: none;
-  }
-
-  .filter-panel {
-    border-top: 0;
-  }
-
-  .filter-sheet {
-    width: 100%;
-  }
-
-  .filter-sheet-head,
-  .log-sheet-head {
-    padding: var(--space-4) 18px;
-  }
-
-  .filter-sheet-body {
-    padding: var(--space-3) 18px;
-  }
-
-  .filter-sheet-actions {
-    padding: var(--space-3) 18px calc(var(--space-3) + env(safe-area-inset-bottom));
-  }
-
-  .movie-card-face:hover .card-annotation {
-    opacity: 0;
-  }
-
-  .movie-card-face:focus-visible .card-annotation,
-  .movie-card-face:active .card-annotation {
-    opacity: 1;
-  }
-
-  .search-groups,
-  .search-group-catalog {
-    grid-template-columns: 1fr;
-    grid-column: auto;
-  }
-
-  .meta-list {
-    grid-template-columns: 1fr;
-  }
-
-  .dossier-identity {
-    display: contents;
-  }
-
-  .dossier-cast {
-    order: 2;
-  }
-
-  .viewing-history {
-    order: 3;
-  }
-
-  .dossier-unlogged {
-    order: 3;
-  }
-
-  .dossier-review {
-    order: 4;
-  }
-
-  .dossier-tags {
-    order: 5;
-  }
-
-  .annotation-panel {
-    order: 6;
-  }
-
-  .dossier-cast,
-  .dossier-review,
-  .dossier-tags,
-  .viewing-history,
-  .dossier-unlogged,
-  .annotation-panel {
-    grid-column: auto;
-  }
-
-  .cast-list {
-    grid-template-columns: 1fr;
-  }
-
-  .viewing-row {
-    grid-template-columns: 86px 36px minmax(0, 1fr);
-  }
-
-  .viewing-format,
-  .viewing-location {
-    grid-column: 3;
-  }
-
-  .viewing-note {
-    grid-column: 1 / -1;
-  }
-
-  .log-sheet {
-    height: 100dvh;
-    padding: 22px 18px calc(38px + env(safe-area-inset-bottom));
-    border-left: 0;
-    border-top: 5px solid var(--structural);
-    box-shadow: none;
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    width: 100%;
-  }
-
-  .log-sheet-body {
-    padding: var(--space-4) 18px 0;
-  }
-
-  .selected-film {
-    grid-template-columns: 70px minmax(0, 1fr) 44px;
-  }
-
-  .statistics-panels {
-    grid-template-columns: 1fr;
-  }
-
-  .activity-grid {
-    gap: 3px;
-    grid-template-columns: repeat(18, minmax(5px, 1fr));
-  }
-
-  .screen-loading .movie-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .skeleton-dossier,
-  .skeleton-panel-row {
-    grid-template-columns: 1fr;
-  }
-
-  .error-state {
-    min-height: 330px;
-    padding: var(--space-6);
-  }
-  :root {
-    font-size: 16px;
-  }
-
-  .archive-header {
-    gap: 8px;
-    grid-template-columns: 1fr;
-    min-height: 0;
-    padding: 12px 18px 10px;
-  }
-
-  .archive-header > .header-library-tools {
-    padding-bottom: 0;
-    border-bottom: 0;
-  }
-
-  .archive-header h1 {
-    font-size: 1.9rem;
-  }
-
-  .header-count-line {
-    display: none;
-  }
-
-  .metadata-status {
-    margin-top: var(--space-1);
-  }
-
-  .metadata-status summary {
-    min-height: 24px;
-  }
-
-  .metadata-status-details {
-    padding: var(--space-2);
-    background: var(--surface-lavender);
-  }
-
-  .search-view .archive-search {
-    padding-top: var(--space-3);
-  }
-
-  .dossier-back-action {
-    order: -1;
-  }
-
-  .archive-content {
-    padding: 0 18px 40px;
-    min-height: calc(100dvh - 92px - var(--mobile-nav-height));
-  }
-
-  .month-summary {
-    grid-template-columns: 1fr;
-    gap: var(--space-2);
-    padding: 12px 0 10px;
-  }
-
-  .month-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .month-metrics > div:first-child {
-    grid-row: auto;
-    grid-column: auto;
-  }
-
-  .month-metrics > .summary-wide {
-    grid-column: 1 / -1;
-  }
-
-  .month-metrics > div {
-    min-height: 42px;
-    padding: 5px var(--space-2);
-  }
-
-  .month-metrics dd,
-  .month-metrics > div:first-child dd {
-    margin-top: 2px;
-    font-size: 1.15rem;
-  }
-
-  .month-metrics .summary-wide dd {
-    font-size: 0.88rem;
-  }
-
-  .view-switcher {
-    margin: var(--space-2) 0 var(--space-3);
-  }
-
-  .header-log-action {
-    display: flex;
-    min-height: 44px;
-    margin: 0;
-  }
-
-  .mobile-nav {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 80;
-    display: grid;
-    min-height: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
-    padding: 0 4px env(safe-area-inset-bottom);
-    border-top: 1px solid rgba(245, 243, 246, 0.17);
-    color: var(--paper);
-    background: var(--structural);
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
-  .search-group {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .search-initial {
-    grid-template-columns: 1fr;
-    min-height: 180px;
-    padding: var(--space-6) 0;
-  }
-
-  .search-group > header,
-  .search-group > :not(header) {
-    grid-row: auto;
-    grid-column: 1;
-  }
-
-  .search-group > header {
-    display: flex;
-    align-items: end;
-    justify-content: space-between;
-  }
-
-  .metric-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .statistics-coverage {
-    grid-template-columns: 1fr;
-    gap: var(--space-2);
-  }
-
-  .metric-strip > div:last-child {
-    grid-column: 1 / -1;
-  }
-
-  .activity-calendar {
-    grid-template-columns: 38px 760px;
-  }
-
-  .dossier-identity > .dossier-poster-col {
-    order: 0;
-    width: min(34vw, 130px);
-    margin: 0 auto;
-    align-self: center;
-  }
-
-  .dossier-identity > .dossier-copy {
-    order: 1;
-    padding: var(--space-4) 0 0;
-  }
-
-  .dossier-backdrop {
-    display: none;
-  }
-
-  .dossier-copy h2 {
-    font-size: clamp(2rem, 11vw, 3rem);
-  }
-
-  .dossier-rating {
-    grid-row: auto;
-    gap: var(--space-3);
-    padding: var(--space-3);
-    margin-top: var(--space-3);
-  }
-
-  .dossier-meta {
-    margin-top: var(--space-4);
-  }
-
-  .filter-sheet,
-  .log-sheet {
-    animation-name: sheet-rise;
   }
 }
 
 @media (min-width: 520px) and (max-width: 700px) {
-  .movie-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .screen-loading .movie-grid {
+  .movie-grid,
+  .diary-poster-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 360px) {
-  .movie-dossier {
-    gap: var(--space-4);
+@media (max-width: 480px) {
+  .dossier-shell {
+    max-width: calc(100vw - 10px);
+    padding: 0.35rem 0.35rem calc(var(--mobile-nav-height) + env(safe-area-inset-bottom) + 1rem);
   }
 
-  .dossier-identity > .dossier-poster-col {
-    width: 90px;
+  .archive-background {
+    padding: 0.7rem;
   }
 
-  .dossier-identity > .dossier-copy {
-    padding-top: var(--space-2);
+  .movie-card-face,
+  .diary-grid-card {
+    padding: 0.65rem;
+    border-radius: 20px;
   }
 
-  .dossier-copy h2 {
-    font-size: 2rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  .card-annotation {
+    inset: auto 0.55rem 0.55rem 0.55rem;
   }
 }

@@ -1,54 +1,40 @@
-@media (max-width: 1040px) {
+@media (max-width: 1180px) {
   :root {
-    --rail-width: 78px;
+    --rail-width: 94px;
   }
 
-  .archive-spine {
-    padding: 18px 8px;
-  }
-
-  .brand-mark {
-    place-items: center;
-    padding: 0 0 18px;
-  }
-
-  .brand-mark small,
-  .nav-item:not([aria-current='page'])::after,
-  .rail-caption {
+  .brand-mark,
+  .rail-caption,
+  .nav-item-label,
+  .nav-item-index {
     display: none;
   }
 
+  .archive-spine {
+    padding: 1rem 0.75rem;
+  }
+
   .primary-navigation {
-    gap: 5px;
+    justify-items: center;
   }
 
-  .nav-item span {
-    font-size: 0.75rem;
-  }
-
-  .nav-item[aria-current='page']::after {
-    display: block;
-    font-size: 0.75rem;
-    content: 'ACTIVE';
-  }
-
-  .archive-spine .log-action {
-    justify-content: center;
-    min-height: 48px;
+  .nav-item {
+    width: 58px;
+    min-height: 58px;
     padding: 0;
-    font-size: 0;
+    grid-template-columns: 1fr;
+    justify-items: center;
   }
+}
 
-  .archive-spine .log-action span {
-    font-size: 1.1rem;
-  }
-
-  .settings-view {
+@media (max-width: 1024px) {
+  .archive-header {
     grid-template-columns: 1fr;
   }
 
-  .settings-section:first-child {
-    grid-row: auto;
+  .header-actions {
+    justify-content: start;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .filter-toolbar {
@@ -56,57 +42,54 @@
   }
 
   .filter-sheet-trigger {
-    display: block;
+    display: inline-flex;
   }
 
-  .movie-dossier {
-    grid-template-columns: minmax(190px, 0.62fr) minmax(320px, 1.3fr);
-    gap: 40px;
-  }
-  .nav-item {
-    justify-items: center;
-    min-height: 50px;
-    padding: 0;
-    font-size: 0;
-    grid-template-columns: 1fr;
-    gap: 2px;
-  }
-
-  .nav-item-label {
-    display: none;
-  }
-
-  .nav-icon {
-    width: 17px;
-    height: 17px;
-  }
-
-  .header-actions {
-    grid-template-columns: minmax(130px, 1fr) auto auto;
-  }
-
-  .search-groups {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .search-group-catalog {
-    grid-column: 1 / -1;
-  }
-
-  .activity-grid {
-    grid-template-columns: repeat(27, minmax(6px, 1fr));
-  }
-
-  .log-sheet {
-    width: min(640px, calc(100vw - var(--rail-width)));
-  }
-
+  .search-groups,
+  .statistics-panels,
+  .settings-view,
+  .statistics-coverage,
   .log-sheet-body {
     grid-template-columns: 1fr;
   }
 
-  .log-sheet-body > .entry-form {
-    padding-left: 0;
-    border-left: 0;
+  .metric-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dossier-identity,
+  .month-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .month-metrics {
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .viewing-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .viewing-row > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .viewing-note,
+  .viewing-editor {
+    grid-column: 1 / -1;
+  }
+
+  .log-sheet .rating-input {
+    grid-template-columns: 1fr;
+  }
+
+  .log-sheet .rating-segments {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .log-sheet .rating-none {
+    width: 100%;
   }
 }
