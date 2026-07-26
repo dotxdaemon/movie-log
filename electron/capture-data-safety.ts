@@ -46,7 +46,7 @@ export function canonicalizeCapturePath(targetPath: string, symlinkDepth = 0): s
 
         if (existingStats.isSymbolicLink()) {
           if (symlinkDepth >= 40) {
-            throw new Error(`Capture path contains too many symbolic links: ${targetPath}`);
+            throw new Error(`Capture path contains too many symbolic links: ${targetPath}`, { cause: error });
           }
 
           const linkTarget = readlinkSync(existingPath);

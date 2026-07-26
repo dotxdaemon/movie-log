@@ -1,6 +1,7 @@
 // ABOUTME: Scans a chosen folder and returns the current top-level media items that should populate the app.
 // ABOUTME: Keeps folder population deterministic for startup scans, manual adds, and scheduled refreshes.
 import { execFile } from 'node:child_process';
+import type { Stats } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -40,7 +41,7 @@ export interface ScannedFolderItem {
   title: string;
 }
 
-function readFilesystemAddedAt(itemStats: Awaited<ReturnType<typeof stat>>): string {
+function readFilesystemAddedAt(itemStats: Stats): string {
   if (itemStats.birthtimeMs > 0) {
     return itemStats.birthtime.toISOString();
   }
@@ -85,7 +86,13 @@ async function readAddedAtValues(sourcePaths: string[]): Promise<Map<string, str
   }
 
   try {
-    const { stdout } = await execFileAsync('osascript', ['-l', 'AppleScript', '-e', finderAddedAtScript, ...sourcePaths]);
+    const { stdout } = await execFileAsync('osascript', [
+      '-l',
+      'AppleScript',
+      '-e',
+      finderAddedAtScript,
+      ...sourcePaths
+    ]);
     return parseAddedAtValues(sourcePaths, stdout);
   } catch {
     return new Map(sourcePaths.map((sourcePath) => [sourcePath, null]));

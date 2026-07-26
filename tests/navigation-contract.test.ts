@@ -20,7 +20,8 @@ describe('desktop navigation contract', () => {
 
   it('keeps application-owned view and dossier-origin state in the renderer', () => {
     expect(appSource).toContain("useState<ArchiveView>('diary')");
-    expect(appSource).toContain('dossierReturnView.current = activeView');
+    expect(appSource).toContain('const [dossierReturnView, setDossierReturnView] = useState');
+    expect(appSource).toContain('setDossierReturnView(activeView)');
     expect(appSource).toContain('handleDossierBack');
     expect(appSource).toContain('focusDossierReturnTarget');
   });

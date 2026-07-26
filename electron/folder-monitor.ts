@@ -130,13 +130,12 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
     syncVersion: number,
     expectedWatchGeneration: number
   ): Promise<void> {
-    let currentPaths: string[] = [];
     let folderIsMissing = false;
 
     try {
       await stat(folderPath);
       const knownPaths = await options.loadKnownPaths(folderPath);
-      currentPaths = (await scanFolderContents(folderPath)).map((item) => item.sourcePath);
+      const currentPaths = (await scanFolderContents(folderPath)).map((item) => item.sourcePath);
 
       if (readSyncVersion(folderPath) !== syncVersion || watchGeneration !== expectedWatchGeneration) {
         return;
@@ -160,7 +159,6 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
 
       if (code === 'ENOENT') {
         folderIsMissing = true;
-        currentPaths = [];
       } else {
         throw error;
       }
@@ -176,6 +174,7 @@ export function createFolderMonitor(options: FolderMonitorOptions) {
 
     clearScheduledSync(folderPath);
     const knownPaths = await options.loadKnownPaths(folderPath);
+    const currentPaths: string[] = [];
 
     if (!sameValues(knownPaths, currentPaths)) {
       await options.saveKnownPaths(folderPath, currentPaths);

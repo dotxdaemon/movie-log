@@ -56,7 +56,7 @@ export default function App() {
   const [selectedLibraryPath, setSelectedLibraryPath] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const dossierReturnFocus = useRef<HTMLElement | null>(null);
-  const dossierReturnView = useRef<Exclude<ArchiveView, 'detail'>>('library');
+  const [dossierReturnView, setDossierReturnView] = useState<Exclude<ArchiveView, 'detail'>>('library');
   const searchReturnFocus = useRef<HTMLElement | null>(null);
   const searchReturnView = useRef<Exclude<ArchiveView, 'detail' | 'search'>>('diary');
   const rememberDialogOpener = useDialogSurface({
@@ -100,10 +100,10 @@ export default function App() {
         return;
       }
 
-      const returningToExistingSearch = activeView === 'detail' && dossierReturnView.current === 'search';
+      const returningToExistingSearch = activeView === 'detail' && dossierReturnView === 'search';
 
       if (!returningToExistingSearch) {
-        searchReturnView.current = readSearchReturnView(activeView, dossierReturnView.current);
+        searchReturnView.current = readSearchReturnView(activeView, dossierReturnView);
         searchReturnFocus.current = document.activeElement as HTMLElement | null;
       }
 
@@ -116,7 +116,7 @@ export default function App() {
 
     document.addEventListener('keydown', handleAppKeyDown);
     return () => document.removeEventListener('keydown', handleAppKeyDown);
-  }, [activeView, filterSheetOpen, logPanelOpen, rememberDialogOpener]);
+  }, [activeView, dossierReturnView, filterSheetOpen, logPanelOpen, rememberDialogOpener]);
 
   const runAction = async (action: () => Promise<void>, context: ActionFailureContext) => {
     setFeedback(null);
@@ -344,7 +344,7 @@ export default function App() {
 
   const handleSelectPath = (path: string) => {
     if (activeView !== 'detail') {
-      dossierReturnView.current = activeView;
+      setDossierReturnView(activeView);
       dossierReturnFocus.current = document.activeElement as HTMLElement | null;
     }
     setSelectedPath(path);
@@ -356,7 +356,7 @@ export default function App() {
   const handleDossierBack = () => {
     const returnTarget = dossierReturnFocus.current;
     const returnPath = selectedPath;
-    setActiveView(dossierReturnView.current);
+    setActiveView(dossierReturnView);
     setSelectedPath(null);
     window.setTimeout(() => focusDossierReturnTarget(returnTarget, returnPath), 0);
   };
@@ -454,15 +454,15 @@ export default function App() {
 
   const handleViewChange = (view: ArchiveView) => {
     if (view === 'search' && activeView !== 'search') {
-      const returningToExistingSearch = activeView === 'detail' && dossierReturnView.current === 'search';
+      const returningToExistingSearch = activeView === 'detail' && dossierReturnView === 'search';
 
       if (!returningToExistingSearch) {
-        searchReturnView.current = readSearchReturnView(activeView, dossierReturnView.current);
+        searchReturnView.current = readSearchReturnView(activeView, dossierReturnView);
         searchReturnFocus.current = document.activeElement as HTMLElement | null;
       }
     }
 
-    const leavingSearchContext = isSearchContext(activeView, dossierReturnView.current) && view !== 'search';
+    const leavingSearchContext = isSearchContext(activeView, dossierReturnView) && view !== 'search';
 
     if (leavingSearchContext) {
       setSearchQuery('');
@@ -490,11 +490,11 @@ export default function App() {
       dossierMatchPending={dossierMatchPending}
       dossierMatchResults={dossierMatchResults}
       dossierOriginLabel={
-        dossierReturnView.current === 'statistics'
+        dossierReturnView === 'statistics'
           ? 'Statistics'
-          : `${dossierReturnView.current[0]?.toUpperCase()}${dossierReturnView.current.slice(1)}`
+          : `${dossierReturnView[0]?.toUpperCase()}${dossierReturnView.slice(1)}`
       }
-      dossierOriginView={dossierReturnView.current}
+      dossierOriginView={dossierReturnView}
       dropActive={dropActive}
       expandedDiaryEntryIds={expandedDiaryEntryIds}
       feedback={feedback}

@@ -312,7 +312,9 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         url: string;
       };
     } catch (error) {
-      throw new Error(`Could not complete the installed poster slow-network profile: ${String(error)}`);
+      throw new Error(`Could not complete the installed poster slow-network profile: ${String(error)}`, {
+        cause: error
+      });
     } finally {
       if (debugTarget.isAttached()) {
         debugTarget.detach();
