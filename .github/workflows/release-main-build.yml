@@ -22,12 +22,12 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
@@ -69,7 +69,7 @@ jobs:
           Version: ${PACKAGE_VERSION}
           Commit: ${GITHUB_SHA}
 
-          This macOS app is unsigned. macOS may require manual approval on first open.
+          This macOS app is ad hoc signed for bundle integrity. macOS may require manual approval on first open.
           EOF
 
       - name: Create or update release
