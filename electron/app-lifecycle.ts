@@ -4,9 +4,12 @@ interface ShowMovieLogActionOptions {
   hasWindow: boolean;
 }
 
+export type WindowActivation = 'active' | 'inactive';
+
 interface ShowMovieLogOptions extends ShowMovieLogActionOptions {
-  createWindow(): Promise<void>;
-  revealWindow(): void;
+  activation: WindowActivation;
+  createWindow(activation: WindowActivation): Promise<void>;
+  revealWindow(activation: WindowActivation): void;
   startBackgroundWork(): Promise<void>;
 }
 
@@ -22,6 +25,7 @@ export function readShowMovieLogAction({ hasWindow }: ShowMovieLogActionOptions)
 }
 
 export async function showMovieLog({
+  activation,
   createWindow,
   hasWindow,
   revealWindow,
@@ -30,11 +34,11 @@ export async function showMovieLog({
   await startBackgroundWork();
 
   if (readShowMovieLogAction({ hasWindow }) === 'create-window') {
-    await createWindow();
+    await createWindow(activation);
     return;
   }
 
-  revealWindow();
+  revealWindow(activation);
 }
 
 export async function handleMovieLogWindowsClosed({

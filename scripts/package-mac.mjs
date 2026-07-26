@@ -115,9 +115,12 @@ await cp(join(projectDirectory, 'electron', 'preload.cjs'), join(bundleAppPath, 
   recursive: false
 });
 await writeFile(join(bundleAppPath, 'package.json'), `${JSON.stringify(bundlePackage, null, 2)}\n`, 'utf8');
+await runCommand('codesign', ['--force', '--deep', '--sign', '-', '--timestamp=none', bundlePath]);
+await runCommand('codesign', ['--verify', '--deep', '--strict', bundlePath]);
 
 await rm(installedAppPath, { recursive: true, force: true });
 await mkdir(dirname(installedAppPath), { recursive: true });
 await runCommand('ditto', [bundlePath, installedAppPath]);
+await runCommand('codesign', ['--verify', '--deep', '--strict', installedAppPath]);
 
 process.stdout.write(`${installedAppPath}\n`);

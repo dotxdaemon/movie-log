@@ -4,8 +4,10 @@ import { BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import type { CaptureController } from './capture.js';
 import { handleWindowCloseRequest } from './window-close.js';
+import type { WindowActivation } from './app-lifecycle.js';
 
 interface CreateMovieLogWindowOptions {
+  activation: WindowActivation;
   broadcastState(): Promise<void>;
   capture: CaptureController;
   currentDirectory: string;
@@ -25,6 +27,7 @@ export async function createMovieLogWindow(options: CreateMovieLogWindowOptions)
     minHeight: 640,
     useContentSize: capture.isRequested,
     backgroundColor: '#f5f3f6',
+    show: options.activation === 'active',
     title: 'Movie Log',
     webPreferences: { preload: join(currentDirectory, 'preload.cjs') }
   });

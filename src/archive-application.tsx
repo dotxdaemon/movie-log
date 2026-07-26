@@ -244,6 +244,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
           archiveCount={archiveItems.length}
           coverage={coverage}
           diaryCount={props.state.history.length}
+          loading={props.loading}
           libraryTools={
             props.activeView === 'library' && !props.loading && !props.loadError && archiveItems.length > 0 ? (
               <FilterPanel

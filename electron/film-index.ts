@@ -1,7 +1,7 @@
 // ABOUTME: Caches bounded film catalog work beside the guarded append-only history store.
 // ABOUTME: Persists identity-safe matches, durable retry scheduling, and batched enrichment progress across launches.
-import { mkdir, open, readFile, rename } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, open, readFile, readdir, rename, rm, stat } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { chooseFilmMatch, type FilmCatalog } from './film-catalog.js';
 import { dossierPosterMinimumWidth } from '../shared/poster-policy.js';
 import type { CatalogSearchResult, FilmDetails, FilmRecord } from '../shared/types.js';
@@ -38,6 +38,84 @@ export interface EnrichFilmOptions {
 
 interface PersistedFilms {
   films: Record<string, FilmRecord>;
+}
+
+interface FilmCacheFileHandle {
+  close(): Promise<void>;
+  sync(): Promise<void>;
+  writeFile(contents: string, encoding: BufferEncoding): Promise<void>;
+}
+
+interface FilmCacheWriteOperations {
+  createDirectory(path: string, options: { recursive: true }): Promise<unknown>;
+  openFile(path: string, flags: 'w'): Promise<FilmCacheFileHandle>;
+  removeFile(path: string, options: { force: true }): Promise<void>;
+  renameFile(source: string, destination: string): Promise<void>;
+  temporarySuffix(): string;
+}
+
+const defaultFilmCacheWriteOperations: FilmCacheWriteOperations = {
+  createDirectory: mkdir,
+  openFile: open,
+  removeFile: rm,
+  renameFile: rename,
+  temporarySuffix: () => `${process.pid}-${Date.now()}`
+};
+const filmCacheTemporaryFilePattern = /^movie-log-films\.json\.tmp-\d+(?:-\d+)?$/;
+const staleFilmCacheAgeMs = 24 * 60 * 60_000;
+
+export async function writeFilmCacheAtomically(
+  filmsFilePath: string,
+  films: Record<string, FilmRecord>,
+  operations: FilmCacheWriteOperations = defaultFilmCacheWriteOperations
+): Promise<void> {
+  await operations.createDirectory(dirname(filmsFilePath), { recursive: true });
+  const temporaryPath = `${filmsFilePath}.tmp-${operations.temporarySuffix()}`;
+  let fileHandle: FilmCacheFileHandle | null = null;
+  let fileHandleClosed = false;
+
+  try {
+    fileHandle = await operations.openFile(temporaryPath, 'w');
+    await fileHandle.writeFile(`${JSON.stringify({ films }, null, 2)}\n`, 'utf8');
+    await fileHandle.sync();
+    await fileHandle.close();
+    fileHandleClosed = true;
+    await operations.renameFile(temporaryPath, filmsFilePath);
+  } catch (error) {
+    if (fileHandle && !fileHandleClosed) {
+      await fileHandle.close().catch(() => undefined);
+    }
+
+    await operations.removeFile(temporaryPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function cleanupStaleFilmCacheFiles(dataDirectory: string, nowMilliseconds = Date.now()): Promise<void> {
+  let entries;
+
+  try {
+    entries = await readdir(dataDirectory, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return;
+    }
+
+    throw error;
+  }
+
+  await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && filmCacheTemporaryFilePattern.test(entry.name))
+      .map(async (entry) => {
+        const temporaryPath = join(dataDirectory, entry.name);
+        const fileStats = await stat(temporaryPath).catch(() => null);
+
+        if (fileStats && nowMilliseconds - fileStats.mtimeMs >= staleFilmCacheAgeMs) {
+          await rm(temporaryPath, { force: true });
+        }
+      })
+  );
 }
 
 class EnrichmentCancelledError extends Error {
@@ -246,6 +324,8 @@ export function createFilmIndex({
   }
 
   async function readPersistedFilms(): Promise<Record<string, FilmRecord>> {
+    await cleanupStaleFilmCacheFiles(dataDirectory);
+
     try {
       const parsed = JSON.parse(await readFile(filmsFilePath, 'utf8')) as Partial<PersistedFilms>;
       return parsed.films ?? {};
@@ -259,18 +339,7 @@ export function createFilmIndex({
   }
 
   async function writePersistedFilms(films: Record<string, FilmRecord>): Promise<void> {
-    await mkdir(dataDirectory, { recursive: true });
-    const temporaryPath = `${filmsFilePath}.tmp-${process.pid}`;
-    const fileHandle = await open(temporaryPath, 'w');
-
-    try {
-      await fileHandle.writeFile(`${JSON.stringify({ films }, null, 2)}\n`, 'utf8');
-      await fileHandle.sync();
-    } finally {
-      await fileHandle.close();
-    }
-
-    await rename(temporaryPath, filmsFilePath);
+    await writeFilmCacheAtomically(filmsFilePath, films);
   }
 
   async function persistRecords(

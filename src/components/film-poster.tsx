@@ -36,7 +36,11 @@ export function FilmPoster({
   };
 
   return (
-    <span className={`film-poster film-poster-${size}`} data-poster={posterUrl ? 'art' : 'plate'}>
+    <span
+      className={`film-poster film-poster-${size}`}
+      data-poster={posterUrl ? 'art' : 'plate'}
+      data-poster-source-width={film?.posterWidth}
+    >
       <span aria-hidden="true" className="poster-plate">
         <span className="poster-plate-year">{year ?? '—'}</span>
         <span className="poster-plate-mark">{displayTitle.slice(0, 2).toUpperCase()}</span>

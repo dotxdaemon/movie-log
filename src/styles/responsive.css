@@ -74,14 +74,12 @@
     text-transform: uppercase;
   }
 
-  .movie-grid,
-  .diary-poster-grid {
+  .metric-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .month-metrics,
-  .metric-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .month-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .diary-entry {
@@ -132,6 +130,10 @@
   .detail-loading .skeleton-dossier {
     grid-template-columns: 1fr;
   }
+
+  .movie-grid .card-annotation {
+    display: none;
+  }
 }
 
 @media (max-width: 700px) {
@@ -156,19 +158,68 @@
   }
 
   .archive-header {
-    padding: 1rem;
+    gap: 0.75rem;
+    padding: 0.85rem;
   }
 
   .header-title-block h1 {
-    font-size: clamp(2rem, 8vw, 3rem);
+    grid-column: 1 / -1;
+    grid-row: 2;
+    font-size: clamp(1.65rem, 6.5vw, 2.35rem);
+  }
+
+  .header-title-block {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.45rem 0.7rem;
+    align-items: center;
+  }
+
+  .header-title-block .section-index {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .header-title-block .metadata-status {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .header-count-line {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    gap: 0.4rem;
+  }
+
+  .header-count-line span {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .header-rule {
+    display: none;
+  }
+
+  .metadata-status summary {
+    min-height: 32px;
+    padding: 0.35rem 0.55rem;
+    font-size: 0.75rem;
+  }
+
+  .metadata-status-placeholder {
+    width: 166px;
+    height: 32px;
   }
 
   .header-actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .header-search,
-  .header-log-action {
+  .header-search {
     width: 100%;
   }
 
@@ -213,9 +264,31 @@
     justify-self: start;
   }
 
-  .metric-strip,
-  .month-metrics {
+  .metric-strip {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .month-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 0.35rem;
+  }
+
+  .month-summary-title {
+    padding: 0.8rem 0.95rem;
+  }
+
+  .month-metrics > div {
+    min-height: 52px;
+    padding: 0.45rem 0.55rem;
+  }
+
+  .month-metrics > div:nth-child(3n + 1) {
+    border-left: 0;
+  }
+
+  .month-metrics .summary-wide {
+    grid-column: span 1;
+    border-top: 1px solid var(--line);
   }
 
   .bar-list-row,
@@ -267,7 +340,7 @@
   }
 }
 
-@media (min-width: 520px) and (max-width: 700px) {
+@media (min-width: 520px) and (max-width: 900px) {
   .movie-grid,
   .diary-poster-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -282,6 +355,20 @@
 
   .archive-background {
     padding: 0.7rem;
+  }
+
+  .mobile-nav {
+    gap: 0.2rem;
+    padding: 0.45rem;
+  }
+
+  .mobile-nav-item {
+    padding: 0.3rem 0.15rem;
+  }
+
+  .mobile-nav-item span {
+    font-size: 0.75rem;
+    letter-spacing: 0.01em;
   }
 
   .movie-card-face,

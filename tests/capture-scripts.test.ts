@@ -195,8 +195,12 @@ describe('capture pipeline', () => {
 
   it('replays touch dismissal in mobile sheets before taking proof', () => {
     expect(captureProcess).toContain('verifyMobileSheetLifecycle');
-    expect(captureProcess).toContain('body.scrollHeight > body.clientHeight');
+    expect(captureProcess).toContain('scroll.scrollHeight > scroll.clientHeight');
+    expect(captureProcess).toContain("scrollSelector: '.filter-sheet'");
+    expect(captureProcess).toContain("scrollSelector: '.log-sheet'");
+    expect(captureProcess).toContain('actionReachable');
     expect(captureProcess).toContain('mobileNavigationBlocked');
+    expect(captureProcess).toContain('Number.parseFloat(getComputedStyle(navigation).zIndex) || 0');
     expect(captureProcess).toContain('focusLayoutStable');
     expect(captureProcess).toContain('document.querySelector(backdropSelector)?.click()');
     expect(captureProcess).toContain("typeof TouchEvent !== 'function'");
@@ -226,6 +230,8 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain('input?.click()');
     expect(captureProcess).toContain('ratingSelectionVisible');
     expect(captureProcess).toContain("'.log-sheet .rating-current-value'");
+    expect(captureProcess).toContain('ratingSelectionState.contrast >= 4.5');
+    expect(captureProcess).not.toContain('high-contrast selection plate');
   });
 
   it('captures the remaining audit states through real installed-app interactions', () => {
@@ -310,6 +316,7 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain('installed layout stability:');
     expect(captureProcess).toContain('installed live catalog:');
     expect(captureProcess).toContain('installed dossier poster:');
+    expect(captureProcess).toContain('installed dossier fallback:');
     expect(captureProcess).toContain('installed log action flow:');
     expect(captureProcess).toContain('installed mobile diary viewport:');
     expect(captureProcess).toContain('installed slow catalog:');
@@ -328,6 +335,7 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain('debugTarget.detach');
     expect(captureProcess).toContain('const throttledPosterResource = await measureThrottledPosterResource()');
     expect(captureProcess).toContain('measurements.slowestResourceMilliseconds < 350');
+    expect(captureProcess).toContain('stability.cumulativeLayoutShift > 0.01');
   });
 
   it('audits installed accessibility names, alternatives, focus visibility, and mobile target sizes', () => {

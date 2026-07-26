@@ -11,6 +11,7 @@ interface PageHeaderProps {
   coverage: ArchiveCoverage;
   diaryCount: number;
   libraryTools?: ReactNode;
+  loading: boolean;
   navigationView: NavigationView;
   onOpenLogPanel(): void;
   onRetryMetadata(): Promise<void>;
@@ -26,6 +27,7 @@ export function PageHeader({
   coverage,
   diaryCount,
   libraryTools,
+  loading,
   navigationView,
   onOpenLogPanel,
   onRetryMetadata,
@@ -49,7 +51,11 @@ export function PageHeader({
           {' · '}
           <span>{archiveCount} titles</span>
         </p>
-        <MetadataStatus coverage={coverage} onRetry={onRetryMetadata} />
+        {loading ? (
+          <span aria-hidden="true" className="metadata-status metadata-status-placeholder" />
+        ) : (
+          <MetadataStatus coverage={coverage} onRetry={onRetryMetadata} />
+        )}
         <span aria-hidden="true" className="header-rule" />
       </div>
       <div className="header-actions">

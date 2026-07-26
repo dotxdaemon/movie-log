@@ -187,10 +187,27 @@ describe('styles.css', () => {
   });
 
   it('keeps navigation and filter migration on explicit product breakpoints', () => {
+    expectDeclaration('.filter-toolbar', 'grid-template-columns', 'minmax(6.75rem, 1.25fr) repeat(8, minmax(0, 1fr))');
     expectDeclaration('.archive-spine', 'display', 'none', '(max-width: 900px)');
     expectDeclaration('.mobile-nav', 'display', 'grid', '(max-width: 900px)');
     expectDeclaration('.filter-toolbar', 'display', 'none', '(max-width: 1024px)');
     expectDeclaration('.filter-sheet-trigger', 'display', 'inline-flex', '(max-width: 1024px)');
+    expectDeclaration('.filter-sheet-backdrop', 'z-index', '50');
+  });
+
+  it('uses an unclipped icon action in the compact desktop rail', () => {
+    expectDeclaration('.archive-spine .log-action', 'width', '58px', '(max-width: 1180px)');
+    expectDeclaration('.archive-spine .log-action', 'min-height', '58px', '(max-width: 1180px)');
+    expectDeclaration('.archive-spine .log-action-label', 'display', 'none', '(max-width: 1180px)');
+  });
+
+  it('keeps medium-width Library posters within truthful source resolution', () => {
+    expectDeclaration(
+      '.movie-grid',
+      'grid-template-columns',
+      'repeat(3, minmax(0, 1fr))',
+      '(min-width: 520px) and (max-width: 900px)'
+    );
   });
 
   it('shows the selected Library inspector at standard desktop widths', () => {
@@ -210,14 +227,23 @@ describe('styles.css', () => {
     expectDeclaration('.dossier-backdrop', 'display', 'none', '(max-width: 700px)');
   });
 
-  it('shows three poster columns on wider phones and two on narrower phones', () => {
+  it('shows three poster columns from wider phones through tablets and two on narrower phones', () => {
     expectDeclaration(
       '.movie-grid',
       'grid-template-columns',
       'repeat(3, minmax(0, 1fr))',
-      '(min-width: 520px) and (max-width: 700px)'
+      '(min-width: 520px) and (max-width: 900px)'
     );
     expectDeclaration('.movie-grid', 'grid-template-columns', 'repeat(2, minmax(0, 1fr))', '(max-width: 700px)');
+    expectDeclaration('.movie-grid .card-annotation', 'display', 'none', '(max-width: 900px)');
+  });
+
+  it('keeps compact page titles separate from metadata status', () => {
+    expectDeclaration('.header-title-block h1', 'grid-column', '1 / -1', '(max-width: 700px)');
+    expectDeclaration('.header-title-block h1', 'grid-row', '2', '(max-width: 700px)');
+    expectDeclaration('.header-title-block .section-index', 'white-space', 'nowrap', '(max-width: 700px)');
+    expectDeclaration('.header-title-block .metadata-status', 'grid-row', '1', '(max-width: 700px)');
+    expectDeclaration('.header-count-line', 'grid-row', '3', '(max-width: 700px)');
   });
 
   it('keeps all major interactive surfaces at comfortable target sizes', () => {

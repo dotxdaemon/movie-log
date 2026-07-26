@@ -4,7 +4,7 @@ import { BrowserWindow, Menu, Tray, app, nativeImage, screen } from 'electron';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { MovieLogState } from '../shared/types.js';
-import { handleMovieLogWindowsClosed, showMovieLog } from './app-lifecycle.js';
+import { handleMovieLogWindowsClosed, showMovieLog, type WindowActivation } from './app-lifecycle.js';
 import { createCaptureController } from './capture.js';
 import { createCatalogOrchestrator } from './catalog-orchestrator.js';
 import { createFilmCatalog } from './film-catalog.js';
@@ -50,7 +50,7 @@ const catalogOrchestrator = createCatalogOrchestrator({
 
 prepareAppRuntime(app, {
   showWindow: () => {
-    void showMainWindow();
+    void showMainWindow('active');
   }
 });
 
@@ -73,8 +73,9 @@ async function broadcastState(): Promise<void> {
   }
 }
 
-async function createWindow(): Promise<void> {
+async function createWindow(activation: WindowActivation = 'active'): Promise<void> {
   await createMovieLogWindow({
+    activation,
     broadcastState,
     capture,
     currentDirectory,
@@ -88,6 +89,11 @@ async function createWindow(): Promise<void> {
       mainWindow = window;
     }
   });
+
+  if (activation === 'inactive' && mainWindow) {
+    const activeDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+    revealWindow(mainWindow, activeDisplay.workArea, activation);
+  }
 }
 
 async function startBackgroundWork(): Promise<void> {
@@ -109,14 +115,15 @@ async function pauseBackgroundWork(): Promise<void> {
   backgroundWorkRunning = false;
 }
 
-async function showMainWindow(): Promise<void> {
+async function showMainWindow(activation: WindowActivation): Promise<void> {
   await showMovieLog({
+    activation,
     createWindow,
     hasWindow: mainWindow !== null,
     revealWindow: () => {
       if (mainWindow) {
         const activeDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-        revealWindow(mainWindow, activeDisplay.workArea);
+        revealWindow(mainWindow, activeDisplay.workArea, activation);
       }
     },
     startBackgroundWork
@@ -157,16 +164,16 @@ app.whenReady().then(async () => {
       menu: Menu,
       quitApp: () => app.quit(),
       showWindow: () => {
-        void showMainWindow();
+        void showMainWindow('inactive');
       }
     });
   }
 
-  await createWindow();
+  await createWindow('active');
 });
 
 app.on('activate', () => {
-  void showMainWindow();
+  void showMainWindow('active');
 });
 
 app.on('before-quit', () => {

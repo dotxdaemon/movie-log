@@ -1,10 +1,10 @@
 // ABOUTME: Verifies the film metadata cache enriches, persists, and rematches without touching the history store.
 // ABOUTME: Uses a stub catalog and temp directories so cache behavior stays deterministic and offline.
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createFilmIndex } from '../electron/film-index.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanupStaleFilmCacheFiles, createFilmIndex, writeFilmCacheAtomically } from '../electron/film-index.js';
 import type { CatalogSearchResult, FilmDetails } from '../shared/types.js';
 
 let dataDirectory: string;
@@ -57,6 +57,65 @@ function createStubCatalog() {
 }
 
 describe('createFilmIndex', () => {
+  it('removes its temporary cache file after every failed atomic-write stage', async () => {
+    const failures = ['open', 'write', 'sync', 'close', 'rename'] as const;
+
+    for (const failure of failures) {
+      const removeFile = vi.fn().mockResolvedValue(undefined);
+      const fileHandle = {
+        close: vi.fn().mockImplementation(async () => {
+          if (failure === 'close') throw new Error('close failed');
+        }),
+        sync: vi.fn().mockImplementation(async () => {
+          if (failure === 'sync') throw new Error('sync failed');
+        }),
+        writeFile: vi.fn().mockImplementation(async () => {
+          if (failure === 'write') throw new Error('write failed');
+        })
+      };
+      const openFile = vi.fn().mockImplementation(async () => {
+        if (failure === 'open') throw new Error('open failed');
+        return fileHandle;
+      });
+      const renameFile = vi.fn().mockImplementation(async () => {
+        if (failure === 'rename') throw new Error('rename failed');
+      });
+
+      await expect(
+        writeFilmCacheAtomically(
+          join(dataDirectory, 'movie-log-films.json'),
+          {},
+          {
+            createDirectory: vi.fn().mockResolvedValue(undefined),
+            openFile,
+            removeFile,
+            renameFile,
+            temporarySuffix: () => 'test'
+          }
+        )
+      ).rejects.toThrow(`${failure} failed`);
+
+      expect(removeFile).toHaveBeenCalledWith(join(dataDirectory, 'movie-log-films.json.tmp-test'), { force: true });
+    }
+  });
+
+  it('cleans only recognized old film-cache temporary files', async () => {
+    const oldTemporaryFile = join(dataDirectory, 'movie-log-films.json.tmp-36501');
+    const freshTemporaryFile = join(dataDirectory, 'movie-log-films.json.tmp-42-123');
+    const unrelatedFile = join(dataDirectory, 'movie-log-films.json.backup');
+    await Promise.all([
+      writeFile(oldTemporaryFile, 'old', 'utf8'),
+      writeFile(freshTemporaryFile, 'fresh', 'utf8'),
+      writeFile(unrelatedFile, 'keep', 'utf8')
+    ]);
+    const oldDate = new Date('2026-07-20T00:00:00.000Z');
+    await utimes(oldTemporaryFile, oldDate, oldDate);
+
+    await cleanupStaleFilmCacheFiles(dataDirectory, Date.parse('2026-07-26T00:00:00.000Z'));
+
+    expect(await readdir(dataDirectory)).toEqual(['movie-log-films.json.backup', 'movie-log-films.json.tmp-42-123']);
+  });
+
   it('enriches unknown films, persists them, and skips already-cached keys', async () => {
     const { calls, catalog } = createStubCatalog();
     const index = createFilmIndex({ catalog, dataDirectory, now: () => '2026-07-12T10:00:00.000Z' });

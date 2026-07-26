@@ -541,6 +541,16 @@ h3,
   grid-template-columns: minmax(0, 1fr) minmax(320px, 460px);
   gap: 1.2rem;
   margin-bottom: 1rem;
+  border-color: rgba(27, 28, 33, 0.12);
+  border-left: 6px solid var(--accent);
+  border-radius: 28px;
+  background: linear-gradient(
+    115deg,
+    rgba(255, 251, 252, 0.98),
+    rgba(141, 164, 255, 0.1) 66%,
+    rgba(241, 111, 114, 0.1)
+  );
+  box-shadow: var(--shadow-xs);
 }
 
 .header-title-block,
@@ -554,7 +564,7 @@ h3,
 
 .header-title-block h1 {
   margin: 0;
-  font-size: clamp(2.35rem, 4vw, 4.3rem);
+  font-size: clamp(2.2rem, 3.4vw, 3.6rem);
   line-height: 0.95;
   letter-spacing: -0.06em;
 }
@@ -1123,7 +1133,7 @@ h3,
 .log-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: 50;
   display: grid;
   place-items: center;
   padding: 1rem;

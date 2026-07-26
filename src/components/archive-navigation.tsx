@@ -92,7 +92,7 @@ export function ArchiveNavigation({ activeView, onOpenLogPanel, onViewChange }: 
         <span aria-hidden="true" className="log-action-plus">
           +
         </span>
-        Log a Film
+        <span className="log-action-label">Log a Film</span>
       </button>
       <p className="rail-caption">A private register of watched things.</p>
     </>

@@ -4,6 +4,7 @@ import type { BrowserWindow } from 'electron';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { parseFilmTitle, readFilmKey } from '../shared/film-title.js';
+import { dossierPosterMinimumWidth } from '../shared/poster-policy.js';
 import type { FilmRecord, MovieLogState, WatchEntry } from '../shared/types.js';
 import { captureSnapshotMarkerName, validateCaptureRuntimePaths } from './capture-data-safety.js';
 
@@ -563,7 +564,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       process.stdout.write(`installed large diary: ${JSON.stringify(measurements)}\n`);
     }
 
-    if (captureRequestedView === 'diary' && captureWidth <= 700) {
+    if (captureRequestedView === 'diary' && captureWidth <= captureMobileNavigationBreakpoint) {
       const viewport = (await mainWindow.webContents.executeJavaScript(`
         (() => {
           const firstEntry = document.querySelector('.diary-entry');
@@ -1089,9 +1090,10 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       (captureRequestedView === 'log' || captureRequestedView === 'log-selected')
     ) {
       await verifyMobileSheetLifecycle({
+        actionSelector: '.log-sheet .entry-form-footer button[type="submit"]',
         backdropSelector: '.log-backdrop',
-        bodySelector: '.log-sheet-body',
         inputSelector: '.film-search-block input, .log-sheet input',
+        scrollSelector: '.log-sheet',
         sheetSelector: '.log-sheet',
         triggerSelector: logActionSelector
       });
@@ -1283,9 +1285,10 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       `);
       await waitForCaptureSelector('.filter-sheet');
       await verifyMobileSheetLifecycle({
+        actionSelector: '.filter-sheet-actions button:last-child',
         backdropSelector: '.filter-sheet-backdrop',
-        bodySelector: '.filter-sheet-body',
         inputSelector: '.filter-sheet select',
+        scrollSelector: '.filter-sheet',
         sheetSelector: '.filter-sheet',
         triggerSelector: '.filter-sheet-trigger'
       });
@@ -1379,14 +1382,32 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       captureRequestedView === 'detail-missing' ||
       captureRequestedView === 'detail-outage'
     ) {
-      const movieSelector = '.movie-card:has(.poster-art) .movie-card-face';
       const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
-        (() => {
-          const face =
-            ${JSON.stringify(captureRequestedView)} === 'detail-missing'
-              ? [...document.querySelectorAll('.movie-card:not(:has(.poster-art)) .movie-card-face')]
-                  .sort((left, right) => (right.textContent?.length ?? 0) - (left.textContent?.length ?? 0))[0]
-              : document.querySelector(${JSON.stringify(movieSelector)});
+        (async () => {
+          const requestedView = ${JSON.stringify(captureRequestedView)};
+          let face;
+
+          if (requestedView === 'detail-missing') {
+            face = [...document.querySelectorAll('.movie-card:not(:has(.poster-art)) .movie-card-face')]
+              .sort((left, right) => (right.textContent?.length ?? 0) - (left.textContent?.length ?? 0))[0];
+          } else if (requestedView === 'detail') {
+            const qualifiedPoster = [...document.querySelectorAll(
+              '.movie-card .film-poster[data-poster-source-width]'
+            )]
+              .filter(
+                (poster) =>
+                  Number(poster.getAttribute('data-poster-source-width')) >= ${dossierPosterMinimumWidth}
+              )
+              .sort(
+                (left, right) =>
+                  Number(right.getAttribute('data-poster-source-width')) -
+                  Number(left.getAttribute('data-poster-source-width'))
+              )[0];
+            face = qualifiedPoster?.closest('.movie-card')?.querySelector('.movie-card-face');
+          } else {
+            face = document.querySelector('.movie-card:has(.poster-art) .movie-card-face');
+          }
+
           face?.click();
           return Boolean(face);
         })()
@@ -1420,7 +1441,10 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
             }
             await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
             const poster = image?.closest('.film-poster');
+            const posterBounds = poster?.getBoundingClientRect();
             return {
+              aspectRatio:
+                posterBounds && posterBounds.height > 0 ? posterBounds.width / posterBounds.height : 0,
               clientWidth: image?.clientWidth ?? 0,
               currentSource: image?.currentSrc ?? '',
               naturalWidth: image?.naturalWidth ?? 0,
@@ -1430,6 +1454,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
             };
           })()
         `)) as {
+          aspectRatio: number;
           clientWidth: number;
           currentSource: string;
           naturalWidth: number;
@@ -1438,16 +1463,51 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
           visible: boolean;
         };
 
+        const requiresDecodedArt = captureWidth > 700;
+        const decodedArtPassed =
+          dossierPoster.visible &&
+          dossierPoster.state === 'art' &&
+          dossierPoster.naturalWidth > 0 &&
+          dossierPoster.clientWidth > 0;
+        const truthfulFallbackPassed =
+          !dossierPoster.visible &&
+          dossierPoster.state === 'plate' &&
+          (dossierPoster.quality === 'low-resolution' || dossierPoster.quality === 'load-error') &&
+          Math.abs(dossierPoster.aspectRatio - 2 / 3) <= 0.01;
+
         if (
-          !dossierPoster.visible ||
-          dossierPoster.state !== 'art' ||
-          dossierPoster.naturalWidth === 0 ||
-          dossierPoster.clientWidth === 0
+          (requiresDecodedArt && !decodedArtPassed) ||
+          (!requiresDecodedArt && !decodedArtPassed && !truthfulFallbackPassed)
         ) {
           throw new Error(`Installed Dossier poster anchor failed: ${JSON.stringify(dossierPoster)}`);
         }
 
         process.stdout.write(`installed dossier poster: ${JSON.stringify(dossierPoster)}\n`);
+      }
+
+      if (captureRequestedView === 'detail-missing') {
+        const fallbackPoster = (await mainWindow.webContents.executeJavaScript(`
+          (() => {
+            const poster = document.querySelector('.movie-dossier .film-poster');
+            const image = poster?.querySelector('img.poster-art');
+            const bounds = poster?.getBoundingClientRect();
+            return {
+              aspectRatio: bounds && bounds.height > 0 ? bounds.width / bounds.height : 0,
+              imageVisible: Boolean(image && getComputedStyle(image).display !== 'none'),
+              state: poster?.getAttribute('data-poster') ?? ''
+            };
+          })()
+        `)) as { aspectRatio: number; imageVisible: boolean; state: string };
+
+        if (
+          fallbackPoster.state !== 'plate' ||
+          fallbackPoster.imageVisible ||
+          Math.abs(fallbackPoster.aspectRatio - 2 / 3) > 0.01
+        ) {
+          throw new Error(`Installed Dossier fallback poster failed: ${JSON.stringify(fallbackPoster)}`);
+        }
+
+        process.stdout.write(`installed dossier fallback: ${JSON.stringify(fallbackPoster)}\n`);
       }
 
       if (captureRequestedView === 'detail-outage') {
@@ -1583,38 +1643,64 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
           const output = document.querySelector('.log-sheet .rating-current-value');
           const mark = input?.closest('label')?.querySelector('.rating-segment-mark');
           const readout = input?.closest('label')?.querySelector('.rating-segment-readout');
-          const readChannels = (value) => value.match(/\\d+(?:\\.\\d+)?/g)?.map(Number) ?? [];
-          const background = mark ? readChannels(getComputedStyle(mark).backgroundColor).slice(0, 3) : [];
-          const foreground = readout ? readChannels(getComputedStyle(readout).color) : [];
-          const readoutBackground = readout ? readChannels(getComputedStyle(readout).backgroundColor) : [];
+          const readColor = (value) => {
+            const channels = value.match(/\\d+(?:\\.\\d+)?/g)?.map(Number) ?? [];
+            return {
+              alpha: channels[3] ?? 1,
+              blue: channels[2] ?? 0,
+              green: channels[1] ?? 0,
+              red: channels[0] ?? 0
+            };
+          };
+          const compositeOnWhite = (color) => [
+            color.red * color.alpha + 255 * (1 - color.alpha),
+            color.green * color.alpha + 255 * (1 - color.alpha),
+            color.blue * color.alpha + 255 * (1 - color.alpha)
+          ];
+          const luminance = (channels) => {
+            const values = channels.map((channel) => {
+              const normalized = channel / 255;
+              return normalized <= 0.04045
+                ? normalized / 12.92
+                : ((normalized + 0.055) / 1.055) ** 2.4;
+            });
+            return values[0] * 0.2126 + values[1] * 0.7152 + values[2] * 0.0722;
+          };
+          const contrastRatio = (foreground, background) => {
+            const values = [luminance(foreground), luminance(background)].sort((left, right) => right - left);
+            return (values[0] + 0.05) / (values[1] + 0.05);
+          };
+          const foreground = readout ? compositeOnWhite(readColor(getComputedStyle(readout).color)) : [];
+          const label = input?.closest('label');
+          const background = label ? compositeOnWhite(readColor(getComputedStyle(label).backgroundColor)) : [];
           return {
-            background,
             checked: input?.checked === true,
-            foreground,
+            contrast: foreground.length && background.length ? contrastRatio(foreground, background) : 0,
+            fontWeight: readout ? Number.parseInt(getComputedStyle(readout).fontWeight, 10) : 0,
+            markHeight: mark?.getBoundingClientRect().height ?? 0,
+            nonColorCue: Boolean(mark && getComputedStyle(mark).boxShadow !== 'none'),
             output: output?.textContent?.trim() ?? '',
-            readoutBackground
           };
         })()
       `)) as {
-        background: number[];
         checked: boolean;
-        foreground: number[];
+        contrast: number;
+        fontWeight: number;
+        markHeight: number;
+        nonColorCue: boolean;
         output: string;
-        readoutBackground: number[];
       };
       const ratingSelectionVisible =
         ratingSelectionState.checked &&
         ratingSelectionState.output === 'Current 4.0' &&
-        ratingSelectionState.background.length === 3 &&
-        ratingSelectionState.background.every((channel) => channel < 80) &&
-        ratingSelectionState.foreground.length === 3 &&
-        ratingSelectionState.foreground.every((channel) => channel > 230) &&
-        ratingSelectionState.readoutBackground.length === 4 &&
-        ratingSelectionState.readoutBackground[3] === 0;
+        ratingSelectionState.markHeight > 0 &&
+        ratingSelectionState.nonColorCue &&
+        ratingSelectionState.fontWeight >= 700 &&
+        ratingSelectionState.contrast >= 4.5;
 
       if (!ratingSelectionVisible) {
         throw new Error(
-          `Log dialog did not expose the selected 4.0 rating value with its high-contrast selection plate: ${JSON.stringify(ratingSelectionState)}`
+          `Log dialog did not expose a semantic, readable selected 4.0 rating: ${JSON.stringify(ratingSelectionState)}`
         );
       }
     }
@@ -2002,15 +2088,17 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
   }
 
   async function verifyMobileSheetLifecycle({
+    actionSelector,
     backdropSelector,
-    bodySelector,
     inputSelector,
+    scrollSelector,
     sheetSelector,
     triggerSelector
   }: {
+    actionSelector: string;
     backdropSelector: string;
-    bodySelector: string;
     inputSelector: string;
+    scrollSelector: string;
     sheetSelector: string;
     triggerSelector: string;
   }): Promise<void> {
@@ -2026,24 +2114,34 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     const sheetMetrics = (await mainWindow.webContents.executeJavaScript(`
       (() => {
         const backdrop = document.querySelector(${JSON.stringify(backdropSelector)});
-        const body = document.querySelector(${JSON.stringify(bodySelector)});
+        const action = document.querySelector(${JSON.stringify(actionSelector)});
         const input = document.querySelector(${JSON.stringify(inputSelector)});
+        const scroll = document.querySelector(${JSON.stringify(scrollSelector)});
+        const sheet = document.querySelector(${JSON.stringify(sheetSelector)});
         const navigationSelector = window.innerWidth <= ${captureMobileNavigationBreakpoint} ? '.mobile-nav' : '.archive-spine';
         const navigation = document.querySelector(navigationSelector);
         const navigationBounds = navigation?.getBoundingClientRect();
         const navigationTarget = navigationBounds
           ? document.elementFromPoint(navigationBounds.left + navigationBounds.width / 2, navigationBounds.top + navigationBounds.height / 2)
           : null;
-        const internalScroll = Boolean(body && body.scrollHeight > body.clientHeight);
+        const internalScroll = Boolean(scroll && scroll.scrollHeight > scroll.clientHeight);
 
-        if (body) {
-          body.scrollTop = Math.min(48, body.scrollHeight - body.clientHeight);
+        if (scroll) {
+          scroll.scrollTop = Math.max(0, scroll.scrollHeight - scroll.clientHeight);
         }
 
-        const scrolled = Boolean(body && body.scrollTop > 0);
+        const scrolled = Boolean(scroll && scroll.scrollTop > 0);
+        const actionBounds = action?.getBoundingClientRect();
+        const sheetBounds = sheet?.getBoundingClientRect();
+        const actionReachable = Boolean(
+          actionBounds &&
+          sheetBounds &&
+          actionBounds.top >= sheetBounds.top - 1 &&
+          actionBounds.bottom <= sheetBounds.bottom + 1
+        );
 
-        if (body) {
-          body.scrollTop = 0;
+        if (scroll) {
+          scroll.scrollTop = 0;
         }
 
         return {
@@ -2051,9 +2149,11 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
           focusWidth: window.visualViewport?.width ?? window.innerWidth,
           inputFontSize: input ? Number.parseFloat(getComputedStyle(input).fontSize) : 0,
           internalScroll: internalScroll && scrolled,
+          actionReachable,
           mobileNavigationBlocked:
             Boolean(backdrop && navigation && !navigationTarget?.closest(navigationSelector)) &&
-            Number(getComputedStyle(backdrop).zIndex) > Number(getComputedStyle(navigation).zIndex)
+            (Number.parseFloat(getComputedStyle(backdrop).zIndex) || 0) >
+              (Number.parseFloat(getComputedStyle(navigation).zIndex) || 0)
         };
       })()
     `)) as {
@@ -2061,6 +2161,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       focusWidth: number;
       inputFontSize: number;
       internalScroll: boolean;
+      actionReachable: boolean;
       mobileNavigationBlocked: boolean;
     };
     const focusLayoutStable =
@@ -2068,6 +2169,10 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
 
     if (!sheetMetrics.internalScroll) {
       throw new Error(`${sheetSelector} did not preserve internal scrolling.`);
+    }
+
+    if (!sheetMetrics.actionReachable) {
+      throw new Error(`${sheetSelector} did not keep its final action reachable inside the sheet.`);
     }
 
     if (!sheetMetrics.mobileNavigationBlocked) {
@@ -2130,11 +2235,20 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       await mainWindow.webContents.executeJavaScript(`
         (() => {
           window.__movieLogCaptureLayoutShift = 0;
+          window.__movieLogCaptureLayoutSources = [];
           window.__movieLogCaptureObservedSkeleton = Boolean(document.querySelector('.screen-loading'));
           window.__movieLogCaptureLayoutObserver = new PerformanceObserver((list) => {
             for (const entry of list.getEntries()) {
               if (!entry.hadRecentInput) {
                 window.__movieLogCaptureLayoutShift += entry.value;
+                window.__movieLogCaptureLayoutSources.push({
+                  sources: (entry.sources ?? []).map((source) => ({
+                    currentRect: source.currentRect?.toJSON?.() ?? source.currentRect,
+                    node: source.node?.className ?? source.node?.nodeName ?? '',
+                    previousRect: source.previousRect?.toJSON?.() ?? source.previousRect
+                  })),
+                  value: entry.value
+                });
               }
             }
           });
@@ -2180,12 +2294,21 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
           window.__movieLogCaptureLayoutObserver?.disconnect();
           return {
             cumulativeLayoutShift: window.__movieLogCaptureLayoutShift ?? -1,
-            observedSkeleton: window.__movieLogCaptureObservedSkeleton === true
+            observedSkeleton: window.__movieLogCaptureObservedSkeleton === true,
+            sources: window.__movieLogCaptureLayoutSources ?? []
           };
         })()
-      `)) as { cumulativeLayoutShift: number; observedSkeleton: boolean };
+      `)) as {
+        cumulativeLayoutShift: number;
+        observedSkeleton: boolean;
+        sources: Array<{ sources: unknown[]; value: number }>;
+      };
 
-      if (!stability.observedSkeleton || stability.cumulativeLayoutShift < 0 || stability.cumulativeLayoutShift > 0.1) {
+      if (
+        !stability.observedSkeleton ||
+        stability.cumulativeLayoutShift < 0 ||
+        stability.cumulativeLayoutShift > 0.01
+      ) {
         throw new Error(`Installed loading layout-stability proof failed: ${JSON.stringify(stability)}`);
       }
 

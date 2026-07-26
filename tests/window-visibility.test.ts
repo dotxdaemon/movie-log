@@ -8,26 +8,31 @@ describe('revealWindow', () => {
     const setBounds = vi.fn();
     const restore = vi.fn();
     const showInactive = vi.fn();
+    const show = vi.fn();
     const focus = vi.fn();
 
-    revealWindow({
-      focus,
-      getBounds: () => ({
-        height: 640,
-        width: 900,
-        x: 0,
+    revealWindow(
+      {
+        focus,
+        getBounds: () => ({
+          height: 640,
+          width: 900,
+          x: 0,
+          y: 0
+        }),
+        isMinimized: () => true,
+        restore,
+        setBounds,
+        show,
+        showInactive
+      },
+      {
+        height: 900,
+        width: 1440,
+        x: 1440,
         y: 0
-      }),
-      isMinimized: () => true,
-      restore,
-      setBounds,
-      showInactive
-    }, {
-      height: 900,
-      width: 1440,
-      x: 1440,
-      y: 0
-    });
+      }
+    );
 
     expect(restore).toHaveBeenCalledTimes(1);
     expect(setBounds).toHaveBeenCalledWith({
@@ -38,5 +43,35 @@ describe('revealWindow', () => {
     });
     expect(showInactive).toHaveBeenCalledTimes(1);
     expect(focus).not.toHaveBeenCalled();
+    expect(show).not.toHaveBeenCalled();
+  });
+
+  it('activates an explicit desktop or second-instance reveal', () => {
+    const focus = vi.fn();
+    const show = vi.fn();
+    const showInactive = vi.fn();
+
+    revealWindow(
+      {
+        focus,
+        getBounds: () => ({ height: 640, width: 900, x: 0, y: 0 }),
+        isMinimized: () => false,
+        restore: vi.fn(),
+        setBounds: vi.fn(),
+        show,
+        showInactive
+      },
+      {
+        height: 900,
+        width: 1440,
+        x: 0,
+        y: 0
+      },
+      'active'
+    );
+
+    expect(show).toHaveBeenCalledTimes(1);
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(showInactive).not.toHaveBeenCalled();
   });
 });

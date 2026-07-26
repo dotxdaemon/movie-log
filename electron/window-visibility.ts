@@ -13,6 +13,7 @@ interface WindowToReveal {
   isMinimized(): boolean;
   restore(): void;
   setBounds(bounds: WindowBounds): void;
+  show(): void;
   showInactive(): void;
 }
 
@@ -30,11 +31,22 @@ function moveWindowIntoArea(windowBounds: WindowBounds, areaBounds: WindowBounds
   };
 }
 
-export function revealWindow(windowToReveal: WindowToReveal, areaBounds: WindowBounds): void {
+export function revealWindow(
+  windowToReveal: WindowToReveal,
+  areaBounds: WindowBounds,
+  activation: 'active' | 'inactive' = 'inactive'
+): void {
   if (windowToReveal.isMinimized()) {
     windowToReveal.restore();
   }
 
   windowToReveal.setBounds(moveWindowIntoArea(windowToReveal.getBounds(), areaBounds));
+
+  if (activation === 'active') {
+    windowToReveal.show();
+    windowToReveal.focus();
+    return;
+  }
+
   windowToReveal.showInactive();
 }

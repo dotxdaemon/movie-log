@@ -14,6 +14,17 @@
     padding: 1rem 0.75rem;
   }
 
+  .archive-spine .log-action {
+    width: 58px;
+    min-height: 58px;
+    padding: 0;
+    align-self: center;
+  }
+
+  .archive-spine .log-action-label {
+    display: none;
+  }
+
   .primary-navigation {
     justify-items: center;
   }
@@ -64,7 +75,11 @@
 
   .month-metrics {
     min-width: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .month-summary-title {
+    border-radius: 24px 24px 0 0;
   }
 
   .viewing-row {

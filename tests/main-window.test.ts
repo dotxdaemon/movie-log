@@ -12,4 +12,11 @@ describe('main window sizing', () => {
 
     expect(mainSource).toMatch(/minWidth:\s*390\b/);
   });
+
+  it('lets lifecycle intent create a hidden window for inactive tray recreation', async () => {
+    const mainSource = await readFile(mainPath, 'utf8');
+
+    expect(mainSource).toContain('show: options.activation ===');
+    expect(mainSource).toContain("'active'");
+  });
 });

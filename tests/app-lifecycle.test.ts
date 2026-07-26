@@ -1,11 +1,7 @@
 // ABOUTME: Verifies that Movie Log routes show and close events through one explicit lifecycle policy.
 // ABOUTME: Keeps tray-only, reopen, and quit transitions testable without importing Electron.
 import { describe, expect, it, vi } from 'vitest';
-import {
-  handleMovieLogWindowsClosed,
-  readShowMovieLogAction,
-  showMovieLog
-} from '../electron/app-lifecycle.js';
+import { handleMovieLogWindowsClosed, readShowMovieLogAction, showMovieLog } from '../electron/app-lifecycle.js';
 
 describe('readShowMovieLogAction', () => {
   it('creates a window when Movie Log is shown without an existing window', () => {
@@ -18,23 +14,40 @@ describe('readShowMovieLogAction', () => {
 });
 
 describe('showMovieLog', () => {
-  it('starts background work before creating the first window', async () => {
+  it('starts background work before creating an inactive tray window', async () => {
     const order: string[] = [];
 
     await showMovieLog({
-      createWindow: async () => {
-        order.push('create');
+      activation: 'inactive',
+      createWindow: async (activation) => {
+        order.push(`create-${activation}`);
       },
       hasWindow: false,
-      revealWindow: () => {
-        order.push('reveal');
+      revealWindow: (activation) => {
+        order.push(`reveal-${activation}`);
       },
       startBackgroundWork: async () => {
         order.push('start');
       }
     });
 
-    expect(order).toEqual(['start', 'create']);
+    expect(order).toEqual(['start', 'create-inactive']);
+  });
+
+  it('passes active intent through when revealing an existing window', async () => {
+    const createWindow = vi.fn().mockResolvedValue(undefined);
+    const revealWindow = vi.fn();
+
+    await showMovieLog({
+      activation: 'active',
+      createWindow,
+      hasWindow: true,
+      revealWindow,
+      startBackgroundWork: vi.fn().mockResolvedValue(undefined)
+    });
+
+    expect(createWindow).not.toHaveBeenCalled();
+    expect(revealWindow).toHaveBeenCalledWith('active');
   });
 });
 
