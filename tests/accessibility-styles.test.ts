@@ -1,5 +1,5 @@
-// ABOUTME: Verifies shared text tokens and declared type sizes meet the archive readability floor.
-// ABOUTME: Pins WCAG contrast, focus framing, and minimum target geometry in the real stylesheet.
+// ABOUTME: Verifies Movie Log's shared text tokens and declared type sizes meet the archive readability floor.
+// ABOUTME: Pins WCAG contrast on pale surfaces and prevents microtype below twelve pixels.
 import { describe, expect, it } from 'vitest';
 import { readStyles } from './style-source.js';
 
@@ -35,11 +35,11 @@ function blend(foreground: string, background: string, alpha: number): string {
 
 describe('accessible archive styles', () => {
   it('keeps muted text at AA contrast on every pale material', () => {
-    const muted = readToken('text-muted');
+    const muted = readToken('ink-muted');
 
-    expect(contrast(muted, readToken('bg'))).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(muted, readToken('bg-2'))).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(muted, readToken('paper'))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(muted, readToken('canvas'))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(muted, readToken('surface'))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(muted, readToken('surface-lavender'))).toBeGreaterThanOrEqual(4.5);
   });
 
   it('declares no interface text below twelve pixels', () => {
@@ -56,13 +56,13 @@ describe('accessible archive styles', () => {
     const paper = readToken('paper');
     const structural = readToken('structural');
 
-    expect(contrast(blend(paper, structural, 0.74), structural)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(blend(paper, structural, 0.72), structural)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(blend(paper, structural, 0.7), structural)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('outlines the full None and numeric rating options on keyboard focus', () => {
     expect(stylesheet).toMatch(
-      /\.rating-segment:has\(input:focus-visible\),\s*\.rating-none:has\(input:focus-visible\)\s*\{[^}]*outline:\s*2px solid var\(--text\)[^}]*outline-offset:\s*2px/s
+      /\.rating-segment:has\(input:focus-visible\),\s*\.rating-none:has\(input:focus-visible\)\s*\{[^}]*outline:\s*2px solid var\(--ink\)[^}]*outline-offset:\s*2px/s
     );
   });
 });

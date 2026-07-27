@@ -3,15 +3,21 @@
     --rail-width: 94px;
   }
 
+  .archive-spine {
+    padding: 18px 10px;
+  }
+
   .brand-mark,
+  .brand-mark small,
   .rail-caption,
   .nav-item-label,
   .nav-item-index {
     display: none;
   }
 
-  .archive-spine {
-    padding: 1rem 0.75rem;
+  .primary-navigation {
+    gap: 5px;
+    justify-items: center;
   }
 
   .archive-spine .log-action {
@@ -19,14 +25,11 @@
     min-height: 58px;
     padding: 0;
     align-self: center;
+    justify-content: center;
   }
 
   .archive-spine .log-action-label {
     display: none;
-  }
-
-  .primary-navigation {
-    justify-items: center;
   }
 
   .nav-item {
@@ -44,8 +47,15 @@
   }
 
   .header-actions {
-    justify-content: start;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(130px, 1fr) auto;
+  }
+
+  .settings-view {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-section:first-child {
+    grid-row: auto;
   }
 
   .filter-toolbar {
@@ -53,47 +63,55 @@
   }
 
   .filter-sheet-trigger {
-    display: inline-flex;
+    display: block;
   }
 
-  .search-groups,
-  .statistics-panels,
-  .settings-view,
-  .statistics-coverage,
+  .movie-dossier {
+    grid-template-columns: minmax(190px, 0.62fr) minmax(320px, 1.3fr);
+    gap: 40px;
+  }
+
+  .nav-item {
+    justify-items: center;
+    min-height: 50px;
+    padding: 0;
+    font-size: 0;
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .nav-item-label {
+    display: none;
+  }
+
+  .nav-icon {
+    width: 17px;
+    height: 17px;
+  }
+
+  .search-groups {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .search-group-catalog {
+    grid-column: 1 / -1;
+  }
+
+  .activity-grid {
+    grid-template-columns: repeat(27, minmax(6px, 1fr));
+  }
+
+  .log-sheet {
+    width: min(640px, calc(100vw - var(--rail-width)));
+  }
+
   .log-sheet-body {
     grid-template-columns: 1fr;
   }
 
-  .metric-strip {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .dossier-identity,
-  .month-summary {
-    grid-template-columns: 1fr;
-  }
-
-  .month-metrics {
-    min-width: 0;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
-  .month-summary-title {
-    border-radius: 24px 24px 0 0;
-  }
-
-  .viewing-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .viewing-row > * {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .viewing-note,
-  .viewing-editor {
-    grid-column: 1 / -1;
+  .log-sheet-body > .entry-form {
+    padding-left: 0;
+    border-left: 0;
   }
 
   .log-sheet .rating-input {
