@@ -47,7 +47,7 @@ export function PageHeader({
         </p>
         <h1>{readViewTitle(activeView)}</h1>
         <p className="header-count-line">
-          <span>{diaryCount} diary entries</span>
+          <span>{diaryCount} viewings</span>
           {' · '}
           <span>{archiveCount} titles</span>
         </p>

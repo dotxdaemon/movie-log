@@ -160,7 +160,7 @@ describe('styles.css', () => {
     expect(compactRailStyles).not.toMatch(/\n\s*\.log-action\s*\{/);
     expect(mobileNavigationStyles).toMatch(/\.header-log-action\s*\{[^}]*display:\s*flex/s);
     expect(mobileNavigationStyles).toMatch(
-      /\.mobile-nav\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s
+      /\.mobile-nav\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s
     );
     expect(mobileNavigationStyles).not.toMatch(/\.mobile-nav \.mobile-log-action\s*\{/s);
   });

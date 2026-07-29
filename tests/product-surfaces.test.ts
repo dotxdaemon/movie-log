@@ -173,17 +173,17 @@ function renderSurface(activeView: ArchiveView, overrides: Partial<ArchiveApplic
 }
 
 describe('ArchiveApplication', () => {
-  it('renders five icon-and-label navigation modes plus the logging action on desktop and mobile', () => {
-    const tree = renderSurface('diary');
+  it('renders four icon-and-label navigation modes plus the logging action on desktop and mobile', () => {
+    const tree = renderSurface('library');
 
     expect(findByClass(tree, 'primary-navigation')).toHaveLength(1);
-    expect(findByClass(tree, 'nav-item')).toHaveLength(5);
-    expect(findByClass(tree, 'nav-icon').length).toBeGreaterThanOrEqual(10);
-    expect(findByClass(tree, 'nav-item-label')).toHaveLength(5);
-    expect(findByClass(tree, 'mobile-nav-item')).toHaveLength(5);
+    expect(findByClass(tree, 'nav-item')).toHaveLength(4);
+    expect(findByClass(tree, 'nav-icon').length).toBeGreaterThanOrEqual(8);
+    expect(findByClass(tree, 'nav-item-label')).toHaveLength(4);
+    expect(findByClass(tree, 'mobile-nav-item')).toHaveLength(4);
     expect(findByClass(tree, 'mobile-log-label')).toHaveLength(0);
     expect(findByClass(tree, 'log-action')).not.toHaveLength(0);
-    expect(readText(tree)).toContain('Diary');
+    expect(readText(tree)).not.toContain('Diary');
     expect(readText(tree)).toContain('Library');
     expect(readText(tree)).toContain('Search');
     expect(readText(tree)).toContain('Statistics');
@@ -398,7 +398,7 @@ describe('ArchiveApplication', () => {
     expect(text).toContain('Tag');
   });
 
-  it('groups search results into diary, library, and catalog lanes with posters and directors', () => {
+  it('groups search results into watched, library, and catalog lanes with posters and directors', () => {
     const groups = buildSearchResults(state, 'flow', [
       {
         description: '2019 short film',
@@ -418,7 +418,7 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'search-groups')).toHaveLength(1);
     expect(findByClass(tree, 'search-group')).toHaveLength(3);
     expect(findByClass(tree, 'search-result')).not.toHaveLength(0);
-    expect(text).toContain('Diary');
+    expect(text).toContain('Watched');
     expect(text).toContain('Catalog');
     expect(text).toContain('Gints Zilbalodis');
     expect(text).toContain('Jane Director');
@@ -567,7 +567,7 @@ describe('ArchiveApplication', () => {
     expect(coverage).toHaveLength(1);
     expect(readText(coverage)).toContain('Catalog metadata');
     expect(readText(coverage)).toContain('Personal annotations');
-    expect(readText(coverage)).toContain('Ratings and favorites will appear after you annotate diary entries.');
+    expect(readText(coverage)).toContain('Ratings and favorites will appear after you annotate viewings.');
   });
 
   it('renders settings with watched folders, current contents, and durable file paths', () => {

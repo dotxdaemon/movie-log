@@ -8,7 +8,6 @@ import {
   defaultArchiveFilters,
   type ArchiveItem,
   type ArchiveView,
-  type DiaryMode,
   type SearchResultItem
 } from './archive-model.js';
 import { guardDragNavigation } from './drag-guard.js';
@@ -31,11 +30,9 @@ import { readVisibleHistory } from '../shared/history.js';
 import type { CatalogSearchResult, LogEntryDetails, EntryDetails } from '../shared/types.js';
 
 export default function App() {
-  const [activeView, setActiveView] = useState<ArchiveView>('diary');
-  const [diaryMode, setDiaryMode] = useState<DiaryMode>('timeline');
+  const [activeView, setActiveView] = useState<ArchiveView>('library');
   const { dataFilePath, loadError, loading, noteFilePath, retryLoad, setState, state } = useArchiveData();
   const [dropActive, setDropActive] = useState(false);
-  const [expandedDiaryEntryIds, setExpandedDiaryEntryIds] = useState<Set<string>>(() => new Set());
   const [feedback, setFeedback] = useState<WorkspaceFeedback | null>(null);
   const [filters, setFilters] = useState(defaultArchiveFilters);
   const [filterDraft, setFilterDraft] = useState(defaultArchiveFilters);
@@ -58,7 +55,7 @@ export default function App() {
   const dossierReturnFocus = useRef<HTMLElement | null>(null);
   const [dossierReturnView, setDossierReturnView] = useState<Exclude<ArchiveView, 'detail'>>('library');
   const searchReturnFocus = useRef<HTMLElement | null>(null);
-  const searchReturnView = useRef<Exclude<ArchiveView, 'detail' | 'search'>>('diary');
+  const searchReturnView = useRef<Exclude<ArchiveView, 'detail' | 'search'>>('library');
   const rememberDialogOpener = useDialogSurface({
     filterSheetOpen,
     logPanelOpen,
@@ -144,20 +141,6 @@ export default function App() {
     }
 
     setFilterSheetOpen(open);
-  };
-
-  const handleDiaryEntryExpandedChange = (entryId: string, expanded: boolean) => {
-    setExpandedDiaryEntryIds((current) => {
-      const next = new Set(current);
-
-      if (expanded) {
-        next.add(entryId);
-      } else {
-        next.delete(entryId);
-      }
-
-      return next;
-    });
   };
 
   const handleAddWatchedFolders = () =>
@@ -274,7 +257,7 @@ export default function App() {
       updateArchiveState(await window.movieLog.getState(), setState);
       resetLogDraft();
       setLogPanelOpen(false);
-      setActiveView('diary');
+      setActiveView('library');
     } catch (error) {
       console.error('Movie Log logging action failed.', error);
       setFeedback({ message: readActionFailureMessage(error, 'log'), tone: 'error' });
@@ -291,14 +274,14 @@ export default function App() {
 
       if (!updatedEntry) {
         setFeedback({
-          message: 'That diary entry is no longer available.',
+          message: 'That viewing is no longer available.',
           tone: 'error'
         });
         return;
       }
 
       updateArchiveState(await window.movieLog.getState(), setState);
-      setFeedback({ message: 'Diary entry saved.', tone: 'notice' });
+      setFeedback({ message: 'Viewing saved.', tone: 'notice' });
     } catch (error) {
       console.error('Movie Log update action failed.', error);
       setFeedback({ message: readActionFailureMessage(error, 'update-entry'), tone: 'error' });
@@ -485,7 +468,6 @@ export default function App() {
     <ArchiveApplication
       activeView={activeView}
       dataFilePath={dataFilePath}
-      diaryMode={diaryMode}
       dossierMatchError={dossierMatchError}
       dossierMatchPending={dossierMatchPending}
       dossierMatchResults={dossierMatchResults}
@@ -496,7 +478,6 @@ export default function App() {
       }
       dossierOriginView={dossierReturnView}
       dropActive={dropActive}
-      expandedDiaryEntryIds={expandedDiaryEntryIds}
       feedback={feedback}
       filterSheetOpen={filterSheetOpen}
       filterDraft={filterDraft}
@@ -519,8 +500,6 @@ export default function App() {
       onCloseLogPanel={() => setLogPanelOpen(false)}
       onCopyPath={handleCopyPathFor}
       onCreateLog={handleCreateLog}
-      onDiaryModeChange={setDiaryMode}
-      onDiaryEntryExpandedChange={handleDiaryEntryExpandedChange}
       onDossierBack={handleDossierBack}
       onDrop={handleDrop}
       onDropActiveChange={setDropActive}

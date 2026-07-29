@@ -88,7 +88,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
   const persistenceProofPath = runtimePaths.persistenceProofPath;
   const captureWidth = Number(process.env.MOVIE_LOG_CAPTURE_WIDTH ?? 1180);
   const captureHeight = Number(process.env.MOVIE_LOG_CAPTURE_HEIGHT ?? 788);
-  const captureRequestedView = process.env.MOVIE_LOG_CAPTURE_VIEW ?? 'diary';
+  const captureRequestedView = process.env.MOVIE_LOG_CAPTURE_VIEW ?? 'library';
   const persistenceProof = {
     castNotes: 'Installed persistence proof cast notes',
     favorite: true,

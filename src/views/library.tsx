@@ -111,7 +111,7 @@ export function LibraryView({
             <p className="library-inspector-line">{selectedItem.film?.genres.join(' · ') || 'Genre not recorded'}</p>
             <p className="library-inspector-line">
               {selectedItem.rating === null ? 'Not rated' : `${selectedItem.rating.toFixed(1)} rating`} ·{' '}
-              {selectedItem.current ? 'Currently indexed' : 'Diary only'}
+              {selectedItem.current ? 'Currently indexed' : 'Watched only'}
             </p>
             <button
               className="command-block command-block-primary"

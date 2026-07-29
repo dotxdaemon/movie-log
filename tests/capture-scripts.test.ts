@@ -235,6 +235,8 @@ describe('capture pipeline', () => {
   });
 
   it('captures the remaining audit states through real installed-app interactions', () => {
+    expect(captureProcess).toContain("process.env.MOVIE_LOG_CAPTURE_VIEW ?? 'library'");
+
     const profiles = [
       'aggregation-verify',
       'diary-ledger',

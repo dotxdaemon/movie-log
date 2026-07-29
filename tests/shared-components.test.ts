@@ -13,21 +13,21 @@ describe('shared archive components', () => {
   it('renders the desktop and mobile navigation systems from one item register', () => {
     const desktop = renderTree(
       createElement(ArchiveNavigation, {
-        activeView: 'diary',
+        activeView: 'library',
         onOpenLogPanel: noop,
         onViewChange: noop
       })
     );
     const mobile = renderTree(
       createElement(MobileArchiveNavigation, {
-        activeView: 'diary',
+        activeView: 'library',
         onOpenLogPanel: noop,
         onViewChange: noop
       })
     );
 
-    expect(findByClass(desktop, 'nav-item')).toHaveLength(5);
-    expect(findByClass(mobile, 'mobile-nav-item')).toHaveLength(5);
+    expect(findByClass(desktop, 'nav-item')).toHaveLength(4);
+    expect(findByClass(mobile, 'mobile-nav-item')).toHaveLength(4);
     expect(findByClass(mobile, 'mobile-log-label')).toHaveLength(0);
     expect(readText(mobile)).not.toContain('Log');
     expect(readText(mobile)).toContain('Stats');
@@ -58,7 +58,7 @@ describe('shared archive components', () => {
     expect(findByClass(tree, 'header-log-action')).toHaveLength(1);
     const headerText = readText(tree);
     expect(headerText).toContain('Library');
-    expect(headerText.match(/98 diary entries · 22 titles/g)).toHaveLength(1);
+    expect(headerText.match(/98 viewings · 22 titles/g)).toHaveLength(1);
     expect(readText(findByClass(tree, 'metadata-status-primary'))).toBe('matching metadata…');
     expect(headerText).toContain('12 of 22 enriched');
   });

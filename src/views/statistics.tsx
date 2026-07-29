@@ -152,8 +152,8 @@ export function StatisticsView({ now, state }: StatisticsViewProps) {
           <strong>{`${coverage.annotated} of ${coverage.total} annotated`}</strong>
           <small>
             {coverage.annotated === 0
-              ? 'Ratings and favorites will appear after you annotate diary entries.'
-              : 'Ratings, reviews, favorites, tags, and viewing notes come only from your diary.'}
+              ? 'Ratings and favorites will appear after you annotate viewings.'
+              : 'Ratings, reviews, favorites, tags, and viewing notes come only from logged viewings.'}
           </small>
         </div>
       </section>

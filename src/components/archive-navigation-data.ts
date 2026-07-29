@@ -2,8 +2,8 @@
 // ABOUTME: Supplies one stable view model to the desktop rail, mobile bar, and shared page header.
 import type { ArchiveView } from '../archive-model.js';
 
-export type NavigationView = Exclude<ArchiveView, 'detail'>;
-export type NavIconName = 'diary' | 'library' | 'search' | 'statistics' | 'settings';
+export type NavigationView = Exclude<ArchiveView, 'detail' | 'diary'>;
+export type NavIconName = 'library' | 'search' | 'statistics' | 'settings';
 
 export const navigationItems: Array<{
   icon: NavIconName;
@@ -12,15 +12,14 @@ export const navigationItems: Array<{
   mobileLabel: string;
   view: NavigationView;
 }> = [
-  { icon: 'diary', index: '01', label: 'Diary', mobileLabel: 'Diary', view: 'diary' },
-  { icon: 'library', index: '02', label: 'Library', mobileLabel: 'Library', view: 'library' },
-  { icon: 'search', index: '03', label: 'Search', mobileLabel: 'Search', view: 'search' },
-  { icon: 'statistics', index: '04', label: 'Statistics', mobileLabel: 'Stats', view: 'statistics' },
-  { icon: 'settings', index: '05', label: 'Settings', mobileLabel: 'Settings', view: 'settings' }
+  { icon: 'library', index: '01', label: 'Library', mobileLabel: 'Library', view: 'library' },
+  { icon: 'search', index: '02', label: 'Search', mobileLabel: 'Search', view: 'search' },
+  { icon: 'statistics', index: '03', label: 'Statistics', mobileLabel: 'Stats', view: 'statistics' },
+  { icon: 'settings', index: '04', label: 'Settings', mobileLabel: 'Settings', view: 'settings' }
 ];
 
 export function readNavigationView(view: ArchiveView): NavigationView {
-  return view === 'detail' ? 'library' : view;
+  return view === 'detail' || view === 'diary' ? 'library' : view;
 }
 
 export function readViewTitle(view: ArchiveView): string {

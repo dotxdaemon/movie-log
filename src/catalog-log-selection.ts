@@ -31,7 +31,7 @@ export function createArchiveLogSelection(
   return {
     catalogId: film.catalogId,
     catalogSource: film.catalogSource,
-    description: item.current ? 'From your Library' : 'From your Diary',
+    description: item.current ? 'From your Library' : 'From your viewing history',
     director: film.director.length > 0 ? [...film.director] : undefined,
     mediaType: film.mediaType ?? (item.mediaType === 'unknown' ? undefined : item.mediaType),
     pageId: film.pageId,

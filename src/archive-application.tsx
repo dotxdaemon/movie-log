@@ -3,6 +3,7 @@
 import type { DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import { ArchiveNavigation, MobileArchiveNavigation } from './components/archive-navigation.js';
+import { readNavigationView } from './components/archive-navigation-data.js';
 import { FilterPanel, FilterSheet } from './components/filters.js';
 import { PageHeader } from './components/page-header.js';
 import { ViewSkeleton, ErrorState } from './components/states.js';
@@ -31,14 +32,14 @@ import type { CatalogSearchResult, EntryDetails, LogEntryDetails, MovieLogState 
 export interface ArchiveApplicationProps {
   activeView: ArchiveView;
   dataFilePath: string;
-  diaryMode: DiaryMode;
+  diaryMode?: DiaryMode;
   dossierMatchPending: boolean;
   dossierMatchError: string | null;
   dossierMatchResults: CatalogSearchResult[];
   dossierOriginLabel: string;
   dossierOriginView: Exclude<ArchiveView, 'detail'>;
   dropActive: boolean;
-  expandedDiaryEntryIds: ReadonlySet<string>;
+  expandedDiaryEntryIds?: ReadonlySet<string>;
   feedback: WorkspaceFeedback | null;
   filterSheetOpen: boolean;
   filterDraft: ArchiveFilters;
@@ -61,8 +62,8 @@ export interface ArchiveApplicationProps {
   onCloseLogPanel(): void;
   onCopyPath(path: string): Promise<void>;
   onCreateLog(details: LogEntryDetails): Promise<void>;
-  onDiaryModeChange(mode: DiaryMode): void;
-  onDiaryEntryExpandedChange(entryId: string, expanded: boolean): void;
+  onDiaryModeChange?(mode: DiaryMode): void;
+  onDiaryEntryExpandedChange?(entryId: string, expanded: boolean): void;
   onDossierBack(): void;
   onDrop(event: DragEvent<HTMLElement>): Promise<void> | void;
   onDropActiveChange(active: boolean): void;
@@ -113,7 +114,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
   const filterOptions = buildFilterOptions(archiveItems);
   const latestEntry = props.state.history[0];
   const modalOpen = props.filterSheetOpen || props.logPanelOpen;
-  const navigationView = props.activeView === 'detail' ? props.dossierOriginView : props.activeView;
+  const navigationView = readNavigationView(props.activeView === 'detail' ? props.dossierOriginView : props.activeView);
   const periodLabel = latestEntry ? periodFormatter.format(new Date(latestEntry.watchedAt)).toUpperCase() : 'EMPTY';
 
   const navigation = (
@@ -133,10 +134,10 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
 
   let view = (
     <DiaryView
-      diaryMode={props.diaryMode}
-      expandedEntryIds={props.expandedDiaryEntryIds}
+      diaryMode={props.diaryMode ?? 'timeline'}
+      expandedEntryIds={props.expandedDiaryEntryIds ?? new Set()}
       onDiaryEntryExpandedChange={props.onDiaryEntryExpandedChange}
-      onDiaryModeChange={props.onDiaryModeChange}
+      onDiaryModeChange={props.onDiaryModeChange ?? (() => {})}
       onOpenLogPanel={props.onOpenLogPanel}
       onSelectPath={props.onSelectPath}
       onUpdateEntry={props.onUpdateEntry}

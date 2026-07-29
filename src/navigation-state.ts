@@ -10,7 +10,7 @@ export function readSearchReturnView(
 ): SearchReturnView {
   const candidate = activeView === 'detail' ? dossierOrigin : activeView;
 
-  return candidate === 'search' ? 'diary' : candidate;
+  return candidate === 'search' || candidate === 'diary' ? 'library' : candidate;
 }
 
 export function isSearchContext(activeView: ArchiveView, dossierOrigin: Exclude<ArchiveView, 'detail'>): boolean {

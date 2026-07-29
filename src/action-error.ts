@@ -16,14 +16,14 @@ export type ActionFailureContext =
 const fallbackByContext: Record<ActionFailureContext, string> = {
   'add-folder': 'Movie Log could not add that watched folder.',
   'copy-path': 'Movie Log could not copy that path.',
-  log: 'Movie Log could not save this diary entry.',
+  log: 'Movie Log could not save this viewing.',
   metadata: 'The film catalog is temporarily unavailable. Try again when you are connected.',
   'open-item': 'Movie Log could not open that item.',
-  persistence: 'Movie Log could not save this change. Your existing diary was not changed.',
+  persistence: 'Movie Log could not save this change. Your existing viewing history was not changed.',
   'remove-folder': 'Movie Log could not remove that watched folder. Nothing was deleted.',
   scan: 'Movie Log could not scan that folder. Check that it is available and try again.',
   'show-in-finder': 'Movie Log could not reveal that item in Finder.',
-  'update-entry': 'Movie Log could not save that diary update.'
+  'update-entry': 'Movie Log could not save that viewing update.'
 };
 
 function readFailureText(error: unknown): string {

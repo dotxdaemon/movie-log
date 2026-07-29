@@ -159,7 +159,7 @@ export function SearchView({
             <p className="eyebrow">Archive index</p>
             <h2>Search by title, tag, or catalog entry</h2>
             <p>
-              Diary and current Library matches appear first. Catalog entries stay separate and never duplicate local
+              Watched and current Library matches appear first. Catalog entries stay separate and never duplicate local
               results.
             </p>
           </div>
@@ -167,7 +167,7 @@ export function SearchView({
       ) : noMatches ? (
         <EmptyState
           fragment="hand"
-          hint="Try a title, a diary tag, or a film not logged yet."
+          hint="Try a title, a viewing tag, or a film not logged yet."
           index="00"
           title="No archive matches."
         />
@@ -175,12 +175,12 @@ export function SearchView({
         <div className="search-groups" id="search-results" role="listbox">
           <SearchLane
             activeKey={activeKey}
-            emptyLabel={query ? 'No diary entries match.' : null}
+            emptyLabel={query ? 'No watched films match.' : null}
             index="A"
             onOpenResult={onOpenResult}
             results={groups.diary}
             startIndex={0}
-            title="Diary"
+            title="Watched"
           />
           <SearchLane
             activeKey={activeKey}

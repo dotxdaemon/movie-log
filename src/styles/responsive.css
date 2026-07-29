@@ -146,7 +146,7 @@
     border-top: 1px solid rgba(245, 243, 246, 0.17);
     color: var(--paper);
     background: var(--structural);
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .movie-grid .card-annotation {

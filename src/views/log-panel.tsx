@@ -96,7 +96,7 @@ export function LogPanel({
   return (
     <SheetDialog
       backdropClassName="log-backdrop"
-      eyebrow="New diary entry"
+      eyebrow="New viewing"
       headClassName="log-sheet-head"
       label="Log a Film"
       onClose={onClose}
@@ -238,7 +238,7 @@ export function LogPanel({
           review={review}
           showDate
           submitDisabled={!canSubmit || saving}
-          submitLabel={saving ? 'Saving diary entry…' : 'Create diary entry'}
+          submitLabel={saving ? 'Saving viewing…' : 'Log viewing'}
         />
       </div>
     </SheetDialog>

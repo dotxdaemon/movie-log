@@ -105,7 +105,7 @@ export function DossierView({
           <h2>{item.displayTitle}</h2>
           <p className="dossier-standfirst">
             {readMediaTypeLabel(item)} · {item.year ?? 'Year unknown'} ·{' '}
-            {item.current ? 'Currently indexed' : 'Diary record'}
+            {item.current ? 'Currently indexed' : 'Viewing record'}
             {film?.runtimeMinutes ? ` · ${formatRuntime(film.runtimeMinutes)}` : ''}
           </p>
 
@@ -244,10 +244,10 @@ export function DossierView({
       ) : (
         <section className="dossier-unlogged">
           <header>
-            <p className="eyebrow">Diary status</p>
+            <p className="eyebrow">Viewing status</p>
             <h3>Not logged yet</h3>
           </header>
-          <p>This title is indexed in Library but has no diary viewing.</p>
+          <p>This title is indexed in Library but has no logged viewing.</p>
           <button className="command-block dossier-log-action" onClick={() => onLogItem(item)} type="button">
             Log a viewing
           </button>

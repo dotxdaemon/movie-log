@@ -87,7 +87,7 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
         <select name="status" onChange={(event) => change('status', event.target.value)} value={filters.status}>
           <option value="all">All</option>
           <option value="current">Currently indexed</option>
-          <option value="archive">Diary only</option>
+          <option value="archive">Watched only</option>
         </select>
       </label>
       <label className="filter-field">
