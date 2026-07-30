@@ -7,9 +7,15 @@ export function MetadataStatus({ coverage, onRetry }: { coverage: ArchiveCoverag
     return null;
   }
 
-  const needsAttention = coverage.failed > 0 || coverage.retryScheduled > 0 || coverage.unmatched > 0;
+  const retryable = coverage.failed + coverage.retryScheduled;
   const summary =
-    coverage.pending > 0 ? 'matching metadata…' : needsAttention ? 'metadata needs attention' : 'metadata complete';
+    coverage.pending > 0
+      ? 'matching metadata…'
+      : retryable > 0
+        ? `${retryable} metadata ${retryable === 1 ? 'retry' : 'retries'} available`
+        : coverage.unmatched > 0
+          ? `${coverage.matched} of ${coverage.total} metadata matched`
+          : 'metadata complete';
 
   return (
     <details className="metadata-status">
@@ -18,7 +24,7 @@ export function MetadataStatus({ coverage, onRetry }: { coverage: ArchiveCoverag
       </summary>
       <div className="metadata-status-details" role="status">
         <span>{`${coverage.matched} of ${coverage.total} enriched`}</span>
-        {coverage.unmatched > 0 ? <span>{`${coverage.unmatched} need review`}</span> : null}
+        {coverage.unmatched > 0 ? <span>{`${coverage.unmatched} not found in catalog`}</span> : null}
         <span>{`${coverage.annotated} annotated`}</span>
         {coverage.retryScheduled > 0 ? <span>{`${coverage.retryScheduled} retry scheduled`}</span> : null}
         {coverage.failed > 0 || coverage.retryScheduled > 0 ? (

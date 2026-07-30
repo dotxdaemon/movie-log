@@ -85,6 +85,29 @@ describe('shared archive components', () => {
     expect(readText(findByClass(tree, 'metadata-status-details'))).toContain('22 of 22 enriched');
   });
 
+  it('reports catalog misses precisely without presenting them as an attention warning', () => {
+    const tree = renderTree(
+      createElement(PageHeader, {
+        activeView: 'library',
+        archiveCount: 22,
+        coverage: { annotated: 4, failed: 0, matched: 17, pending: 0, retryScheduled: 0, total: 22, unmatched: 5 },
+        diaryCount: 98,
+        loading: false,
+        navigationView: 'library',
+        onOpenLogPanel: noop,
+        onRetryMetadata: async () => {},
+        onSearchQueryChange: noop,
+        onViewChange: noop,
+        periodLabel: 'JUL 2026',
+        searchQuery: ''
+      })
+    );
+
+    expect(readText(findByClass(tree, 'metadata-status-primary'))).toBe('17 of 22 metadata matched');
+    expect(readText(findByClass(tree, 'metadata-status-details'))).toContain('5 not found in catalog');
+    expect(readText(tree)).not.toContain('needs attention');
+  });
+
   it('shares backdrop, close, and downward-swipe dismissal across sheets', () => {
     let closeCount = 0;
     const tree = renderTree(

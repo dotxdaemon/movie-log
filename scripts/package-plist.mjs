@@ -33,6 +33,22 @@ function removePlistString(contents, key) {
   return contents.replace(pattern, '');
 }
 
+function upsertPlistString(contents, key, value) {
+  const pattern = new RegExp(`(<key>${key}</key>\\s*<string>)([^<]*)(</string>)`);
+
+  if (pattern.test(contents)) {
+    return contents.replace(pattern, `$1${escapeXmlText(value)}$3`);
+  }
+
+  const dictionaryEnd = contents.lastIndexOf('</dict>');
+
+  if (dictionaryEnd < 0) {
+    throw new Error('Info.plist is missing its root dictionary.');
+  }
+
+  return `${contents.slice(0, dictionaryEnd)}  <key>${key}</key>\n  <string>${escapeXmlText(value)}</string>\n${contents.slice(dictionaryEnd)}`;
+}
+
 export function rewriteMovieLogInfoPlist(contents, { appIdentifier, appName, iconBaseName, version }) {
   const values = [
     ['CFBundleDisplayName', appName],
@@ -48,5 +64,14 @@ export function rewriteMovieLogInfoPlist(contents, { appIdentifier, appName, ico
     contents
   );
 
-  return unusedPermissionKeys.reduce((nextContents, key) => removePlistString(nextContents, key), identified);
+  const withRemovableVolumePurpose = upsertPlistString(
+    identified,
+    'NSRemovableVolumesUsageDescription',
+    'Movie Log watches folders you choose on removable volumes for new media.'
+  );
+
+  return unusedPermissionKeys.reduce(
+    (nextContents, key) => removePlistString(nextContents, key),
+    withRemovableVolumePurpose
+  );
 }

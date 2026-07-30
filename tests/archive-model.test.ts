@@ -108,6 +108,39 @@ describe('archive model', () => {
     expect(items[0]?.tags).toEqual(['Animation', 'Drama']);
   });
 
+  it('keeps hidden and unsupported file history out of archive items and metadata coverage', () => {
+    const invalidFileState: MovieLogState = {
+      ...state,
+      films: {
+        ...state.films,
+        'ds store::': {
+          ...flowFilm,
+          attempts: 2,
+          failureReason: 'temporary',
+          key: 'ds store::',
+          posterUrl: null,
+          status: 'failed',
+          title: 'DS Store',
+          year: null
+        }
+      },
+      history: [
+        ...state.history,
+        {
+          id: 'hidden-file',
+          source: 'watch',
+          sourceKind: 'file',
+          sourcePath: '/Movies/.DS_Store',
+          title: '.DS_Store',
+          watchedAt: '2026-07-12T12:00:00.000Z'
+        }
+      ]
+    };
+
+    expect(buildArchiveItems(invalidFileState)).toHaveLength(2);
+    expect(readArchiveCoverage(invalidFileState)).toMatchObject({ failed: 0, matched: 2, total: 2 });
+  });
+
   it('groups multiple files and a catalog-only entry by clean title plus year without rewriting viewings', () => {
     const groupedState: MovieLogState = {
       ...state,

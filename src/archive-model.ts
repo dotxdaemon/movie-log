@@ -9,6 +9,7 @@ import {
   readLocalCalendarYear
 } from '../shared/local-calendar.js';
 import { readCatalogResultKey } from './catalog-result.js';
+import { isTrackableMediaItem } from '../shared/media-items.js';
 import type { CatalogSearchResult, FilmRecord, MovieLogState, WatchEntry } from '../shared/types.js';
 
 export type ArchiveView = 'diary' | 'library' | 'search' | 'statistics' | 'settings' | 'detail';
@@ -217,6 +218,10 @@ export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
   const viewingsByPath = new Map<string, WatchEntry[]>();
 
   for (const entry of state.history) {
+    if (!isTrackableMediaItem(entry.sourcePath, entry.sourceKind)) {
+      continue;
+    }
+
     const viewings = viewingsByPath.get(entry.sourcePath) ?? [];
     viewings.push(entry);
     viewingsByPath.set(entry.sourcePath, viewings);

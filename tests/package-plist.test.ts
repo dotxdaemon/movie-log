@@ -22,6 +22,11 @@ const electronTemplatePlist = `<?xml version="1.0" encoding="UTF-8"?>
   <string>public.app-category.developer-tools</string>
   <key>LSMinimumSystemVersion</key>
   <string>12.0</string>
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <true/>
+  </dict>
   <key>NSAudioCaptureUsageDescription</key>
   <string>This app needs access to audio capture</string>
   <key>NSBluetoothAlwaysUsageDescription</key>
@@ -50,6 +55,10 @@ describe('rewriteMovieLogInfoPlist', () => {
     expect(plist).toContain('<string>12.0</string>');
     expect(plist.match(/<string>Movie Log<\/string>/g)).toHaveLength(2);
     expect(plist.match(/<string>1\.2\.3<\/string>/g)).toHaveLength(2);
+    expect(plist).toContain('<key>NSRemovableVolumesUsageDescription</key>');
+    expect(plist).toContain(
+      '<string>Movie Log watches folders you choose on removable volumes for new media.</string>'
+    );
   });
 
   it.each([
