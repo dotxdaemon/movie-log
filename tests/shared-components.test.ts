@@ -56,9 +56,11 @@ describe('shared archive components', () => {
     expect(findByClass(tree, 'header-search')).toHaveLength(1);
     expect(findByClass(tree, 'header-filters')).toHaveLength(0);
     expect(findByClass(tree, 'header-log-action')).toHaveLength(1);
+    expect(findByClass(tree, 'mobile-archive-status')).toHaveLength(1);
     const headerText = readText(tree);
     expect(headerText).toContain('Library');
-    expect(headerText.match(/98 viewings · 22 titles/g)).toHaveLength(1);
+    expect(readText(findByClass(tree, 'header-count-line'))).toBe('98 viewings · 22 titles');
+    expect(readText(findByClass(tree, 'mobile-archive-status'))).toContain('98 viewings · 22 titles');
     expect(readText(findByClass(tree, 'metadata-status-primary'))).toBe('matching metadata…');
     expect(headerText).toContain('12 of 22 enriched');
   });

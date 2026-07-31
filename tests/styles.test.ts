@@ -284,8 +284,9 @@ describe('styles.css', () => {
     expect(phoneStyles).toMatch(
       /\.header-title-block \.section-index\s*\{[^}]*grid-row:\s*1[^}]*white-space:\s*nowrap/s
     );
-    expect(phoneStyles).toMatch(/\.header-title-block \.metadata-status\s*\{[^}]*grid-row:\s*1/s);
-    expect(phoneStyles).toMatch(/\.header-count-line\s*\{[^}]*grid-row:\s*3/s);
+    expect(phoneStyles).toMatch(/\.header-title-block \.metadata-status\s*\{[^}]*display:\s*none/s);
+    expect(phoneStyles).toMatch(/\.mobile-archive-status\s*\{[^}]*grid-row:\s*1[^}]*grid-column:\s*2/s);
+    expect(phoneStyles).toMatch(/\.header-count-line\s*\{[^}]*display:\s*none/s);
     expect(phoneStyles).toMatch(/\.metadata-status-placeholder\s*\{[^}]*width:\s*166px[^}]*height:\s*24px/s);
   });
 

@@ -196,8 +196,8 @@ describe('capture pipeline', () => {
   it('replays touch dismissal in mobile sheets before taking proof', () => {
     expect(captureProcess).toContain('verifyMobileSheetLifecycle');
     expect(captureProcess).toContain('scroll.scrollHeight > scroll.clientHeight');
-    expect(captureProcess).toContain("scrollSelector: '.filter-sheet'");
-    expect(captureProcess).toContain("scrollSelector: '.log-sheet'");
+    expect(captureProcess).toContain("scrollSelector: '.filter-sheet-body'");
+    expect(captureProcess).toContain("scrollSelector: '.log-sheet-body'");
     expect(captureProcess).toContain('actionReachable');
     expect(captureProcess).toContain('mobileNavigationBlocked');
     expect(captureProcess).toContain('Number.parseFloat(getComputedStyle(navigation).zIndex) || 0');

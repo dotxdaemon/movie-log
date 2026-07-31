@@ -247,14 +247,26 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
           diaryCount={props.state.history.length}
           loading={props.loading}
           libraryTools={
-            props.activeView === 'library' && !props.loading && !props.loadError && archiveItems.length > 0 ? (
-              <FilterPanel
-                filters={props.filters}
-                onFilterChange={props.onFilterChange}
-                onSheetOpenChange={props.onFilterSheetOpenChange}
-                options={filterOptions}
-                sheetOpen={props.filterSheetOpen}
-              />
+            props.activeView === 'library' && !props.loadError && (props.loading || archiveItems.length > 0) ? (
+              props.loading ? (
+                <div aria-hidden="true" className="filter-panel-loading" inert>
+                  <FilterPanel
+                    filters={props.filters}
+                    onFilterChange={props.onFilterChange}
+                    onSheetOpenChange={props.onFilterSheetOpenChange}
+                    options={filterOptions}
+                    sheetOpen={false}
+                  />
+                </div>
+              ) : (
+                <FilterPanel
+                  filters={props.filters}
+                  onFilterChange={props.onFilterChange}
+                  onSheetOpenChange={props.onFilterSheetOpenChange}
+                  options={filterOptions}
+                  sheetOpen={props.filterSheetOpen}
+                />
+              )
             ) : undefined
           }
           onOpenLogPanel={props.onOpenLogPanel}

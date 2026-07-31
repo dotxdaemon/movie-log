@@ -418,7 +418,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
           const settlePaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           const timings = [];
 
-          for (const label of ['library', 'search', 'statistics', 'settings', 'diary']) {
+          for (const label of ['library', 'search', 'statistics', 'settings']) {
             const target = navigationItems.find((item) => readLabel(item).includes(label));
             const startedAt = performance.now();
             target?.click();
@@ -740,6 +740,11 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
             return (lighter + 0.05) / (darker + 0.05);
           };
           const readBackground = (element) => {
+            if (element.classList?.contains('rating-segment-readout')) {
+              const mark = element.parentElement?.querySelector('.rating-segment-mark');
+              const markColor = mark ? parseColor(getComputedStyle(mark).backgroundColor) : null;
+              if (markColor && markColor.alpha > 0) return markColor;
+            }
             let current = element;
             const layers = [];
             while (current) {
@@ -826,7 +831,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
             });
           };
 
-          for (const label of ['diary', 'library', 'search', 'statistics', 'settings']) {
+          for (const label of ['library', 'search', 'statistics', 'settings']) {
             navigationItems.find((item) => readLabel(item).includes(label))?.click();
             await settlePaint();
             auditSurface(label);
@@ -852,7 +857,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
             await settlePaint();
           }
 
-          navigationItems.find((item) => readLabel(item).includes('diary'))?.click();
+          navigationItems.find((item) => readLabel(item).includes('library'))?.click();
           await settlePaint();
           const issues = results.flatMap((result) =>
             [
@@ -1005,12 +1010,12 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
 
       await mainWindow.webContents.executeJavaScript(`
         (() => {
-          const diaryItem = [...document.querySelectorAll(${JSON.stringify(navigationSelector)})]
-            .find((item) => (item.getAttribute('aria-label') || item.textContent || '').trim().toLowerCase().includes('diary'));
-          diaryItem?.click();
+          const libraryItem = [...document.querySelectorAll(${JSON.stringify(navigationSelector)})]
+            .find((item) => (item.getAttribute('aria-label') || item.textContent || '').trim().toLowerCase().includes('library'));
+          libraryItem?.click();
         })()
       `);
-      await waitForCaptureSelector('.diary-view');
+      await waitForCaptureSelector('.library-view');
       await mainWindow.webContents.executeJavaScript(`
         (() => {
           const searchItem = [...document.querySelectorAll(${JSON.stringify(navigationSelector)})]
@@ -1034,7 +1039,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         (() => {
           const searchItem = [...document.querySelectorAll(${JSON.stringify(navigationSelector)})]
             .find((item) => item.textContent?.trim().toLowerCase().includes('search'));
-          return Boolean(document.querySelector('.diary-view') && document.activeElement === searchItem);
+          return Boolean(document.querySelector('.library-view') && document.activeElement === searchItem);
         })()
       `)) as boolean;
 
@@ -1093,7 +1098,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         actionSelector: '.log-sheet .entry-form-footer button[type="submit"]',
         backdropSelector: '.log-backdrop',
         inputSelector: '.film-search-block input, .log-sheet input',
-        scrollSelector: '.log-sheet',
+        scrollSelector: '.log-sheet-body',
         sheetSelector: '.log-sheet',
         triggerSelector: logActionSelector
       });
@@ -1288,7 +1293,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         actionSelector: '.filter-sheet-actions button:last-child',
         backdropSelector: '.filter-sheet-backdrop',
         inputSelector: '.filter-sheet select',
-        scrollSelector: '.filter-sheet',
+        scrollSelector: '.filter-sheet-body',
         sheetSelector: '.filter-sheet',
         triggerSelector: '.filter-sheet-trigger'
       });
@@ -1671,8 +1676,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
             return (values[0] + 0.05) / (values[1] + 0.05);
           };
           const foreground = readout ? compositeOnWhite(readColor(getComputedStyle(readout).color)) : [];
-          const label = input?.closest('label');
-          const background = label ? compositeOnWhite(readColor(getComputedStyle(label).backgroundColor)) : [];
+          const background = mark ? compositeOnWhite(readColor(getComputedStyle(mark).backgroundColor)) : [];
           return {
             checked: input?.checked === true,
             contrast: foreground.length && background.length ? contrastRatio(foreground, background) : 0,
@@ -1744,7 +1748,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         document.querySelector('.log-sheet .entry-form button[type="submit"]')?.click()
       `);
       await waitForCaptureSelector('.log-sheet', false);
-      await waitForCaptureSelector('.diary-view');
+      await waitForCaptureSelector('.library-view');
       const savedEntry = (await historyStore.readState()).history.find(
         (entry) => entry.review === persistenceProof.review
       );
@@ -1922,7 +1926,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     }
 
     const viewSelector = {
-      'accessibility-audit': '.diary-view',
+      'accessibility-audit': '.library-view',
       'aggregation-verify': '.movie-dossier',
       catalog: '.search-view',
       'catalog-outage': '.catalog-error',
@@ -1942,18 +1946,18 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       log: '.log-sheet',
       'log-selected': '.selected-film',
       'log-ambiguity': '.log-ambiguity-error',
-      'log-path-match': '.diary-view',
-      'log-multiple-paths': '.diary-view',
+      'log-path-match': '.library-view',
+      'log-multiple-paths': '.library-view',
       'log-rating-none': '.rating-none:has(input:focus-visible)',
       'log-rating-numeric': '.rating-segment:has(input:focus-visible)',
       'metadata-retry': '.status-banner',
       loading: '.screen-loading',
-      'layout-stability': '.diary-view',
+      'layout-stability': '.library-view',
       'load-error': '.error-state',
-      'persistence-save': '.diary-view',
-      'persistence-verify': '.diary-view',
-      'persistence-edit': '.diary-view',
-      'persistence-edit-verify': '.diary-view',
+      'persistence-save': '.library-view',
+      'persistence-verify': '.library-view',
+      'persistence-edit': '.library-view',
+      'persistence-edit-verify': '.library-view',
       performance: '.search-result',
       'performance-diary-large': '.diary-view',
       'performance-large': '.movie-card',

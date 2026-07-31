@@ -473,7 +473,7 @@ describe('ArchiveApplication', () => {
     const tree = renderSurface('library', { state: progressState });
 
     expect(findByClass(tree, 'metadata-status')).toHaveLength(1);
-    expect(findByClass(tree, 'metadata-retry')).toHaveLength(1);
+    expect(findByClass(tree, 'metadata-retry')).toHaveLength(2);
     expect(readText(tree)).toContain('1 of 2 enriched');
     expect(readText(tree)).toContain('temporarily failed');
   });

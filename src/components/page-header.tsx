@@ -2,7 +2,7 @@
 // ABOUTME: Keeps every view's heading controls in one consistent character-sheet header.
 import type { ReactNode } from 'react';
 import { navigationItems, readNavigationView, readViewTitle, type NavigationView } from './archive-navigation-data.js';
-import { MetadataStatus } from './metadata-status.js';
+import { MetadataStatus, MobileArchiveStatus } from './metadata-status.js';
 import type { ArchiveCoverage, ArchiveView } from '../archive-model.js';
 
 interface PageHeaderProps {
@@ -56,6 +56,13 @@ export function PageHeader({
         ) : (
           <MetadataStatus coverage={coverage} onRetry={onRetryMetadata} />
         )}
+        <MobileArchiveStatus
+          archiveCount={archiveCount}
+          coverage={coverage}
+          loading={loading}
+          onRetry={onRetryMetadata}
+          viewingCount={diaryCount}
+        />
         <span aria-hidden="true" className="header-rule" />
       </div>
       <div className="header-actions">

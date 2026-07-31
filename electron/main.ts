@@ -155,8 +155,6 @@ app.whenReady().then(async () => {
     historyStore,
     readState
   });
-  await startBackgroundWork();
-
   if (!capture.isRequested) {
     statusItem = createStatusItem({
       TrayConstructor: Tray,
@@ -170,6 +168,9 @@ app.whenReady().then(async () => {
   }
 
   await createWindow('active');
+  void startBackgroundWork().catch((error: unknown) => {
+    console.error('Movie Log background startup failed.', error);
+  });
 });
 
 app.on('activate', () => {

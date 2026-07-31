@@ -23,7 +23,7 @@ export async function createMovieLogWindow(options: CreateMovieLogWindowOptions)
   const mainWindow = new BrowserWindow({
     width: capture.isRequested ? capture.width : 1180,
     height: capture.isRequested ? capture.height : 820,
-    minWidth: 390,
+    minWidth: capture.isRequested ? 320 : 390,
     minHeight: 640,
     useContentSize: capture.isRequested,
     backgroundColor: '#f5f3f6',

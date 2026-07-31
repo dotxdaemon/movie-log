@@ -52,6 +52,7 @@ function SearchLane({
           onClick={() => onOpenResult(result)}
           role="option"
           tabIndex={-1}
+          title={result.title}
           type="button"
         >
           <FilmPoster
@@ -214,6 +215,7 @@ export function SearchView({
                 onClick={() => onOpenResult(result)}
                 role="option"
                 tabIndex={-1}
+                title={result.title}
                 type="button"
               >
                 <FilmPoster
