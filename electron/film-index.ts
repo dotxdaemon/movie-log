@@ -125,7 +125,7 @@ class EnrichmentCancelledError extends Error {
 }
 
 const automaticMatchVersion = 3;
-const posterLookupVersion = 1;
+const posterLookupVersion = 2;
 
 function readPosterWidth(source: { posterUrl: string | null; posterWidth?: number }): number | null {
   if (typeof source.posterWidth === 'number' && source.posterWidth > 0) {
@@ -146,6 +146,7 @@ function selectPoster(record: FilmRecord, fallback: CatalogSearchResult | null):
   const shouldUseFallback =
     Boolean(fallback?.posterUrl) &&
     (record.posterUrl === null ||
+      (record.catalogSource === 'imdb' && fallbackWidth !== null && fallbackWidth >= dossierPosterMinimumWidth) ||
       (fallbackWidth !== null && fallbackWidth >= dossierPosterMinimumWidth && fallbackWidth > (currentWidth ?? 0)));
   const selectedPoster = shouldUseFallback && fallback ? fallback : record;
   const selectedWidth = readPosterWidth(selectedPoster);

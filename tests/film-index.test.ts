@@ -291,7 +291,7 @@ describe('createFilmIndex', () => {
       detailsComplete: true,
       director: ['Gore Verbinski'],
       pageId: -298130,
-      posterLookupVersion: 1,
+      posterLookupVersion: 2,
       posterUrl: selected.posterUrl,
       posterWidth: 1200,
       status: 'matched',
@@ -719,9 +719,73 @@ describe('createFilmIndex', () => {
       catalogSource: 'wikipedia',
       director: ['Charlie Polinger'],
       pageId: 79985226,
-      posterLookupVersion: 1,
+      posterLookupVersion: 2,
       posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague@._V1_.jpg',
       posterWidth: 900,
+      status: 'matched'
+    });
+  });
+
+  it('refreshes a cached IMDb poster when the curated primary artwork changes', async () => {
+    await writeFile(
+      join(dataDirectory, 'movie-log-films.json'),
+      `${JSON.stringify({
+        films: {
+          'the plague::2025': {
+            ...plagueDetails,
+            attempts: 1,
+            catalogId: 'tt32359447',
+            catalogSource: 'imdb',
+            detailsComplete: true,
+            fetchedAt: '2026-07-12T10:00:00.000Z',
+            key: 'the plague::2025',
+            matchVersion: 3,
+            mediaType: 'film',
+            pageId: -32359447,
+            posterLookupVersion: 1,
+            posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-gallery@._V1_.jpg',
+            posterWidth: 1600,
+            status: 'matched',
+            title: 'The Plague'
+          }
+        }
+      })}\n`,
+      'utf8'
+    );
+    const index = createFilmIndex({
+      catalog: {
+        async fetchFilmDetails() {
+          throw new Error('complete cached details must remain intact');
+        },
+        async searchFilms() {
+          throw new Error('the established IMDb identity must remain intact');
+        },
+        async searchPosterFallback() {
+          return [
+            {
+              catalogId: 'tt32359447',
+              catalogSource: 'imdb' as const,
+              description: 'Feature film',
+              mediaType: 'film' as const,
+              pageId: -32359447,
+              posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-primary@._V1_.jpg',
+              posterWidth: 800,
+              title: 'The Plague',
+              year: 2025
+            }
+          ];
+        }
+      },
+      dataDirectory
+    });
+
+    await index.enrichFilms([{ key: 'the plague::2025', mediaType: 'film', title: 'The Plague', year: 2025 }]);
+
+    expect((await index.readFilms())['the plague::2025']).toMatchObject({
+      catalogSource: 'imdb',
+      posterLookupVersion: 2,
+      posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-primary@._V1_.jpg',
+      posterWidth: 800,
       status: 'matched'
     });
   });
@@ -793,7 +857,7 @@ describe('createFilmIndex', () => {
     await index.enrichFilms(request, { forceRetry: true });
     const completed = (await index.readFilms())['the plague::2025'];
     expect(completed).toMatchObject({
-      posterLookupVersion: 1,
+      posterLookupVersion: 2,
       posterWidth: 1200
     });
     expect(completed?.nextRetryAt).toBeUndefined();
@@ -867,7 +931,7 @@ describe('createFilmIndex', () => {
     const terminal = (await index.readFilms())['the plague::2025'];
     expect(terminal).toMatchObject({
       posterFailureCount: 3,
-      posterLookupVersion: 1,
+      posterLookupVersion: 2,
       status: 'matched'
     });
     expect(terminal?.failureCount).toBeUndefined();

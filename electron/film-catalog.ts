@@ -95,6 +95,7 @@ interface ImdbTitlePayload {
     {
       credits?: { edges?: Array<{ node?: { name?: { nameText?: { text?: string } } } }> };
       images?: { edges?: Array<{ node?: ImdbImage }> };
+      primaryImage?: ImdbImage;
     }
   >;
 }
@@ -128,6 +129,7 @@ async function fetchImdbTitleJsonFromNetwork(
         credits(first: 8, filter: { categories: ["director"] }) {
           edges { node { name { nameText { text } } } }
         }
+        primaryImage { height url width }
         images(first: 20, filter: { types: ["poster"] }) {
           edges { node { height type url width } }
         }
@@ -284,17 +286,18 @@ function enrichImdbResults(payload: unknown, results: CatalogSearchResult[]): Ca
         (title?.credits?.edges ?? []).map((edge) => edge.node?.name?.nameText?.text?.trim() ?? '').filter(Boolean)
       )
     ];
-    const posters = (title?.images?.edges ?? [])
+    const readPortraitImage = (
+      image: ImdbImage | undefined
+    ): image is Required<Pick<ImdbImage, 'height' | 'url' | 'width'>> & ImdbImage =>
+      typeof image?.url === 'string' &&
+      typeof image.width === 'number' &&
+      typeof image.height === 'number' &&
+      image.height >= image.width * 1.1;
+    const galleryPosters = (title?.images?.edges ?? [])
       .map((edge) => edge.node)
-      .filter(
-        (image): image is Required<Pick<ImdbImage, 'height' | 'url' | 'width'>> & ImdbImage =>
-          typeof image?.url === 'string' &&
-          typeof image.width === 'number' &&
-          typeof image.height === 'number' &&
-          image.height >= image.width * 1.1
-      )
+      .filter(readPortraitImage)
       .sort((left, right) => right.width - left.width);
-    const poster = posters[0];
+    const poster = (readPortraitImage(title?.primaryImage) ? title.primaryImage : undefined) ?? galleryPosters[0];
     const posterWidth = poster?.width ?? result.posterWidth;
 
     return {

@@ -404,7 +404,7 @@ describe('IMDb poster fallback', () => {
     ]);
   });
 
-  it('prefers the largest portrait IMDb poster and reads its own director credits', async () => {
+  it('prefers the curated IMDb primary poster over a larger gallery poster', async () => {
     const catalog = createFilmCatalog({
       fetchImdbTitleJson: async (catalogIds: string[]) => {
         expect(catalogIds).toEqual(['tt32359447']);
@@ -425,6 +425,11 @@ describe('IMDb poster fallback', () => {
                     }
                   }
                 ]
+              },
+              primaryImage: {
+                height: 1200,
+                url: 'https://m.media-amazon.com/images/M/MV5Bplague-primary@._V1_.jpg',
+                width: 800
               }
             }
           }
@@ -454,8 +459,8 @@ describe('IMDb poster fallback', () => {
       {
         director: ['Charlie Polinger'],
         posterLookupComplete: true,
-        posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-large@._V1_.jpg',
-        posterWidth: 1600
+        posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-primary@._V1_.jpg',
+        posterWidth: 800
       }
     ]);
   });
