@@ -211,7 +211,7 @@ describe('capture pipeline', () => {
   });
 
   it('keeps capture selectors synchronized with the renderer responsive breakpoints', () => {
-    expect(captureProcess).toContain('const captureMobileNavigationBreakpoint = 900');
+    expect(captureProcess).toContain('const captureMobileNavigationBreakpoint = 700');
     expect(captureProcess).toContain('const captureCompactFilterBreakpoint = 1024');
     expect(captureProcess).toContain('captureWidth <= captureMobileNavigationBreakpoint');
     expect(captureProcess).toContain('captureWidth <= captureCompactFilterBreakpoint');

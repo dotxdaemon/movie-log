@@ -13,7 +13,7 @@ const posterWidths: Record<PosterSize, number[]> = {
 const posterSizes: Record<PosterSize, string> = {
   thumb: '46px',
   entry: '68px',
-  card: '(max-width: 520px) 31vw, (max-width: 1179px) 150px, 190px',
+  card: '(max-width: 520px) 45vw, (max-width: 700px) 30vw, (max-width: 900px) 26vw, (max-width: 1179px) 220px, 190px',
   dossier: '(max-width: 700px) 130px, 400px'
 };
 

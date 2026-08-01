@@ -8,7 +8,9 @@ describe('poster image sources', () => {
     const sourceSet = buildPosterSourceSet('https://upload.wikimedia.org/wikipedia/en/3/37/Theringpostere.jpg', 'card');
 
     expect(sourceSet).toBeUndefined();
-    expect(readPosterSizes('card')).toContain('31vw');
+    expect(readPosterSizes('card')).toBe(
+      '(max-width: 520px) 45vw, (max-width: 700px) 30vw, (max-width: 900px) 26vw, (max-width: 1179px) 220px, 190px'
+    );
   });
 
   it('builds responsive IMDb image variants without changing the title identity', () => {

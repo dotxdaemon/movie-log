@@ -117,13 +117,18 @@ export function ViewSkeleton({
   if (view === 'library') {
     return (
       <div aria-label="Loading library" className="screen-loading library-loading" role="status">
-        <SkeletonBlock className="skeleton-toolbar" />
+        <div aria-hidden="true" className="library-result-line skeleton-library-result-line">
+          <SkeletonBlock className="skeleton-line skeleton-library-count" />
+          <span className="library-result-rule" />
+          <SkeletonBlock className="skeleton-line skeleton-library-indexed" />
+        </div>
         <div className="movie-grid">
           {repeatBlocks(8, (index) => (
             <span className="skeleton-card" key={index}>
               <SkeletonBlock className="skeleton-poster" />
-              <SkeletonBlock className="skeleton-line" />
-              <SkeletonBlock className="skeleton-line skeleton-line-short" />
+              <SkeletonBlock className="skeleton-line skeleton-card-title" />
+              <SkeletonBlock className="skeleton-line skeleton-card-media" />
+              <SkeletonBlock className="skeleton-line skeleton-card-meta" />
             </span>
           ))}
         </div>

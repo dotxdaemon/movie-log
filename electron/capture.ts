@@ -17,7 +17,7 @@ interface CaptureControllerOptions {
 
 export type CaptureDataMode = 'real' | 'scratch';
 
-const captureMobileNavigationBreakpoint = 900;
+const captureMobileNavigationBreakpoint = 700;
 const captureCompactFilterBreakpoint = 1024;
 const captureInceptionEnglishPosterUrl =
   'https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_.jpg';

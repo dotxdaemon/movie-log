@@ -6,6 +6,16 @@ import { ViewSkeleton } from '../src/components/states.js';
 import { findByClass, renderTree } from './render-tree.js';
 
 describe('view loading geometry', () => {
+  it('mirrors the Library result line and complete card-copy height', () => {
+    const tree = renderTree(createElement(ViewSkeleton, { view: 'library' }));
+
+    expect(findByClass(tree, 'library-result-line')).toHaveLength(1);
+    expect(findByClass(tree, 'skeleton-toolbar')).toHaveLength(0);
+    expect(findByClass(tree, 'skeleton-card-title')).toHaveLength(8);
+    expect(findByClass(tree, 'skeleton-card-media')).toHaveLength(8);
+    expect(findByClass(tree, 'skeleton-card-meta')).toHaveLength(8);
+  });
+
   it('mirrors the Diary month summary, layout switcher, and timeline entry anatomy', () => {
     const tree = renderTree(createElement(ViewSkeleton, { view: 'diary' }));
 

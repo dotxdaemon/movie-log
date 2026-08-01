@@ -601,11 +601,11 @@
 }
 
 .sheet-close {
-  flex: 0 0 44px;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   font-size: 1.4rem;
 }
 
@@ -1239,12 +1239,15 @@
   border-top: 4px solid var(--structural);
 }
 
+.library-loading {
+  border-top: 0;
+}
+
 .skeleton {
   display: block;
   background: var(--surface-deep);
 }
 
-.skeleton-toolbar,
 .skeleton-strip,
 .skeleton-search {
   height: 96px;
@@ -1253,7 +1256,11 @@
 
 .skeleton-card {
   display: grid;
-  gap: var(--space-2);
+  gap: 6px;
+}
+
+.skeleton-card .skeleton-poster {
+  margin-bottom: 2px;
 }
 
 .skeleton-poster {
@@ -1266,6 +1273,27 @@
 
 .skeleton-line-short {
   width: 58%;
+}
+
+.skeleton-library-result-line .skeleton-line {
+  height: 17px;
+}
+
+.skeleton-library-count {
+  width: 74px;
+}
+
+.skeleton-library-indexed {
+  width: 144px;
+}
+
+.skeleton-card-title {
+  height: 37px;
+}
+
+.skeleton-card-media,
+.skeleton-card-meta {
+  height: 17px;
 }
 
 .skeleton-result,

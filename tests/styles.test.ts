@@ -286,8 +286,25 @@ describe('styles.css', () => {
     );
     expect(phoneStyles).toMatch(/\.header-title-block \.metadata-status\s*\{[^}]*display:\s*none/s);
     expect(phoneStyles).toMatch(/\.mobile-archive-status\s*\{[^}]*grid-row:\s*1[^}]*grid-column:\s*2/s);
+    expect(phoneStyles).toMatch(/\.mobile-archive-status\s*\{[^}]*min-height:\s*24px[^}]*line-height:\s*24px/s);
     expect(phoneStyles).toMatch(/\.header-count-line\s*\{[^}]*display:\s*none/s);
     expect(phoneStyles).toMatch(/\.metadata-status-placeholder\s*\{[^}]*width:\s*166px[^}]*height:\s*24px/s);
+    expect(styles).toMatch(/\.library-loading\s*\{[^}]*border-top:\s*0/s);
+    expect(styles).toMatch(/\.skeleton-card-title\s*\{[^}]*height:\s*37px/s);
+    expect(styles).toMatch(/\.skeleton-card-media,\s*\.skeleton-card-meta\s*\{[^}]*height:\s*17px/s);
+  });
+
+  it('keeps the compact side rail on tablet instead of switching to phone navigation', async () => {
+    const styles = await readCompleteStyles();
+    const tabletRailStyles = styles.slice(
+      styles.indexOf('@media (min-width: 701px) and (max-width: 900px)'),
+      styles.indexOf('@media (max-width: 700px)')
+    );
+
+    expect(tabletRailStyles).toMatch(/\.dossier-shell\s*\{[^}]*display:\s*grid[^}]*padding-bottom:\s*0/s);
+    expect(tabletRailStyles).toMatch(/\.archive-spine\s*\{[^}]*display:\s*flex/s);
+    expect(tabletRailStyles).toMatch(/\.archive-canvas\s*\{[^}]*min-height:\s*100dvh/s);
+    expect(tabletRailStyles).toMatch(/\.mobile-nav\s*\{[^}]*display:\s*none/s);
   });
 
   it('defines spacing, shadow, and motion tokens for the shared visual system', async () => {
@@ -399,7 +416,7 @@ describe('styles.css', () => {
     const normalMotion = styles.split('@media (prefers-reduced-motion: reduce)')[0] ?? styles;
 
     expect(styles).toMatch(/\.entry-form-footer\s*\{[^}]*position:\s*static/s);
-    expect(styles).toMatch(/\.sheet-close\s*\{[^}]*flex:\s*0 0 44px[^}]*width:\s*44px[^}]*height:\s*44px/s);
+    expect(styles).toMatch(/\.sheet-close\s*\{[^}]*flex:\s*0 0 48px[^}]*width:\s*48px[^}]*height:\s*48px/s);
     expect(normalMotion).not.toContain('!important');
   });
 });

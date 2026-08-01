@@ -154,6 +154,29 @@
   }
 }
 
+@media (min-width: 701px) and (max-width: 900px) {
+  .dossier-shell {
+    display: grid;
+    padding-bottom: 0;
+  }
+
+  .archive-spine {
+    display: flex;
+  }
+
+  .archive-canvas {
+    min-height: 100dvh;
+  }
+
+  .mobile-nav {
+    display: none;
+  }
+
+  .drop-overlay {
+    inset: 24px 24px 24px calc(var(--rail-width) + 24px);
+  }
+}
+
 @media (max-width: 700px) {
   :is(input, select, textarea) {
     font-size: 16px;
@@ -551,9 +574,11 @@
     justify-self: end;
     max-width: min(210px, 58vw);
     min-width: 0;
+    min-height: 24px;
     color: var(--ink-muted);
     font-family: var(--mono);
     font-size: 0.75rem;
+    line-height: 24px;
   }
 
   .mobile-archive-status summary {
