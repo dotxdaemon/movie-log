@@ -427,7 +427,10 @@ describe('IMDb poster fallback', () => {
                 ]
               },
               primaryImage: {
+                countries: [{ id: 'US', text: 'United States' }],
                 height: 1200,
+                id: 'plague-primary',
+                languages: [{ id: 'en', text: 'English' }],
                 url: 'https://m.media-amazon.com/images/M/MV5Bplague-primary@._V1_.jpg',
                 width: 800
               }
@@ -535,6 +538,64 @@ describe('IMDb poster fallback', () => {
     ]);
   });
 
+  it('returns no artwork when IMDb only has explicitly foreign-language posters', async () => {
+    const catalog = createFilmCatalog({
+      fetchImdbTitleJson: async () => ({
+        data: {
+          title0: {
+            images: {
+              edges: [
+                {
+                  node: {
+                    countries: [{ id: 'RU', text: 'Russia' }],
+                    height: 3600,
+                    id: 'russian-poster',
+                    languages: [{ id: 'ru', text: 'Russian' }],
+                    type: 'poster',
+                    url: 'https://m.media-amazon.com/images/M/russian-poster.jpg',
+                    width: 2400
+                  }
+                }
+              ]
+            },
+            primaryImage: {
+              countries: [{ id: 'FR', text: 'France' }],
+              height: 1800,
+              id: 'french-primary',
+              languages: [{ id: 'fr', text: 'French' }],
+              url: 'https://m.media-amazon.com/images/M/french-primary.jpg',
+              width: 1200
+            }
+          }
+        }
+      }),
+      fetchPosterJson: async () => ({
+        d: [
+          {
+            i: {
+              height: 1800,
+              imageUrl: 'https://m.media-amazon.com/images/M/suggestion.jpg',
+              width: 1200
+            },
+            id: 'tt1375666',
+            l: 'Inception',
+            q: 'feature',
+            y: 2010
+          }
+        ]
+      })
+    });
+
+    await expect(
+      catalog.searchPosterFallback?.('Inception 2010 film', { includeCredits: false })
+    ).resolves.toMatchObject([
+      {
+        posterLookupComplete: true,
+        posterUrl: null
+      }
+    ]);
+  });
+
   it('sends an explicit US English locale and IMDb page origin for title artwork', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
@@ -598,6 +659,7 @@ describe('IMDb poster fallback', () => {
                 {
                   node: {
                     height: Math.ceil(width * 1.5),
+                    languages: [{ id: 'en', text: 'English' }],
                     type: 'poster',
                     url: `https://m.media-amazon.com/images/M/title-${width}.jpg`,
                     width
@@ -636,7 +698,7 @@ describe('IMDb poster fallback', () => {
     ]);
   });
 
-  it('marks suggestion artwork retryable when IMDb title-detail lookup is only partially available', async () => {
+  it('keeps title-detail failures retryable without exposing an unverified suggestion poster', async () => {
     const catalog = createFilmCatalog({
       fetchImdbTitleJson: async () => {
         throw new Error('IMDb title details unavailable');
@@ -663,8 +725,7 @@ describe('IMDb poster fallback', () => {
     ).resolves.toMatchObject([
       {
         posterLookupComplete: false,
-        posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-small@._V1_.jpg',
-        posterWidth: 500
+        posterUrl: null
       }
     ]);
   });

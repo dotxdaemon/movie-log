@@ -125,7 +125,7 @@ class EnrichmentCancelledError extends Error {
 }
 
 const automaticMatchVersion = 3;
-const posterLookupVersion = 3;
+const posterLookupVersion = 4;
 
 function readPosterWidth(source: { posterUrl: string | null; posterWidth?: number }): number | null {
   if (typeof source.posterWidth === 'number' && source.posterWidth > 0) {
@@ -140,15 +140,21 @@ function posterNeedsLookup(record: FilmRecord): boolean {
   return record.posterLookupVersion !== posterLookupVersion;
 }
 
+function clearStaleImdbPoster(record: FilmRecord): FilmRecord {
+  if (!posterNeedsLookup(record) || !record.posterUrl?.startsWith('https://m.media-amazon.com/')) {
+    return record;
+  }
+
+  return {
+    ...record,
+    posterUrl: null,
+    posterWidth: undefined
+  };
+}
+
 function selectPoster(record: FilmRecord, fallback: CatalogSearchResult | null): FilmRecord {
-  const currentWidth = readPosterWidth(record);
-  const fallbackWidth = fallback ? readPosterWidth(fallback) : null;
   const fallbackVerified = fallback?.posterLookupComplete !== false;
-  const shouldUseFallback =
-    Boolean(fallback?.posterUrl) &&
-    (record.posterUrl === null ||
-      (fallbackVerified && fallbackWidth !== null && fallbackWidth >= dossierPosterMinimumWidth) ||
-      (fallbackVerified && fallbackWidth !== null && fallbackWidth > (currentWidth ?? 0)));
+  const shouldUseFallback = Boolean(fallback?.posterUrl) && (record.posterUrl === null || fallbackVerified);
   const selectedPoster = shouldUseFallback && fallback ? fallback : record;
   const selectedWidth = readPosterWidth(selectedPoster);
 
@@ -292,7 +298,18 @@ export function createFilmIndex({
   ): FilmRecord {
     const selected = selectPoster(record, fallback);
     const selectedWidth = readPosterWidth(selected);
-    const fallbackVerified = Boolean(fallback?.posterUrl) && fallback?.posterLookupComplete !== false;
+    const fallbackVerified = fallback !== null && fallback.posterLookupComplete !== false;
+
+    if (fallbackVerified && fallback.posterUrl === null) {
+      return {
+        ...record,
+        nextRetryAt: undefined,
+        posterFailureCount: undefined,
+        posterLookupVersion,
+        posterUrl: null,
+        posterWidth: undefined
+      };
+    }
 
     if (fallbackVerified && selectedWidth !== null && selectedWidth >= dossierPosterMinimumWidth) {
       return {
@@ -432,7 +449,7 @@ export function createFilmIndex({
 
               return buildRecord(request.key, previous, details, now(), totalAttempts, request.mediaType);
             })
-          : { ...previous, attempts: totalAttempts, fetchedAt: now() };
+          : { ...clearStaleImdbPoster(previous), attempts: totalAttempts, fetchedAt: now() };
 
       if (previous.posterLookupVersion === posterLookupVersion) {
         record = {
@@ -659,11 +676,14 @@ export function createFilmIndex({
 
       return record.status === 'retry-scheduled' ? 3 : 4;
     };
-    const pending = uniqueRequests
+    const pendingCandidates = uniqueRequests
       .map((request, index) => ({ index, priority: readPriority(known[request.key]), request }))
       .filter(({ request }) => shouldProcessRecord(known[request.key], options.forceRetry === true, currentTime))
-      .sort((left, right) => left.priority - right.priority || left.index - right.index)
-      .slice(0, Math.max(1, options.maxWork ?? maxWorkPerRun));
+      .sort((left, right) => left.priority - right.priority || left.index - right.index);
+    const workLimit = Math.max(1, options.maxWork ?? maxWorkPerRun);
+    const pending = pendingCandidates.filter(
+      (candidate, candidateIndex) => candidateIndex < workLimit || candidate.priority === 2
+    );
     const pendingRequests = pending.map(({ request }) => request);
 
     if (pendingRequests.length === 0) {
@@ -675,7 +695,7 @@ export function createFilmIndex({
       const previous = known[request.key];
 
       if (previous?.status === 'matched') {
-        return { ...previous, fetchedAt: now(), nextRetryAt: undefined };
+        return { ...clearStaleImdbPoster(previous), fetchedAt: now(), nextRetryAt: undefined };
       }
 
       return emptyRecord(request, now(), 'pending', previous);

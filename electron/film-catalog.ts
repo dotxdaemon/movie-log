@@ -349,24 +349,28 @@ function enrichImdbResults(payload: unknown, results: CatalogSearchResult[]): Ca
 
       return hasLocaleTags ? 0 : 1;
     };
-    const poster = candidates.sort((left, right) => {
-      const localeDifference = readLocaleRank(right) - readLocaleRank(left);
+    const poster = candidates
+      .filter((image) => readLocaleRank(image) >= 2)
+      .sort((left, right) => {
+        const localeDifference = readLocaleRank(right) - readLocaleRank(left);
 
-      if (localeDifference !== 0) {
-        return localeDifference;
-      }
+        if (localeDifference !== 0) {
+          return localeDifference;
+        }
 
-      const primaryDifference = Number(right === primaryPoster) - Number(left === primaryPoster);
-      return primaryDifference !== 0 ? primaryDifference : right.width - left.width;
-    })[0];
-    const posterWidth = poster?.width ?? result.posterWidth;
+        const primaryDifference = Number(right === primaryPoster) - Number(left === primaryPoster);
+        return primaryDifference !== 0 ? primaryDifference : right.width - left.width;
+      })[0];
+    const titleLookupComplete = Boolean(title);
+    const posterWidth = titleLookupComplete ? poster?.width : result.posterWidth;
 
     return {
       ...result,
       director: directors,
       posterLookupComplete:
-        Boolean(title) && typeof posterWidth === 'number' && posterWidth >= dossierPosterMinimumWidth,
-      posterUrl: poster?.url ?? result.posterUrl,
+        titleLookupComplete &&
+        (poster === undefined || (typeof posterWidth === 'number' && posterWidth >= dossierPosterMinimumWidth)),
+      posterUrl: titleLookupComplete ? (poster?.url ?? null) : result.posterUrl,
       posterWidth
     };
   });
@@ -618,7 +622,12 @@ export function createFilmCatalog(
         throw error;
       }
 
-      results = results.map((result) => ({ ...result, posterLookupComplete: false }));
+      results = results.map((result) => ({
+        ...result,
+        posterLookupComplete: false,
+        posterUrl: null,
+        posterWidth: undefined
+      }));
     }
 
     if (requestOptions.includeCredits === false || results.every((result) => (result.director?.length ?? 0) > 0)) {

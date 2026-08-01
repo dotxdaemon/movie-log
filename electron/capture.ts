@@ -1385,19 +1385,23 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     }
 
     if (captureRequestedView === 'poster-locale') {
-      assertCaptureWritable(captureDataMode, 'poster locale migration');
       const filmKey = 'inception::2010';
-      const beforePosterUrl = (await readState()).films?.[filmKey]?.posterUrl;
+      const beforeFilm = (await readState()).films?.[filmKey];
+      const beforePosterUrl = beforeFilm?.posterUrl;
+      const migrationNeeded =
+        beforeFilm?.posterLookupVersion !== 4 || beforePosterUrl !== captureInceptionEnglishPosterUrl;
 
-      await mainWindow.webContents.executeJavaScript(`window.movieLog.retryFilmEnrichment()`);
+      if (migrationNeeded) {
+        assertCaptureWritable(captureDataMode, 'poster locale migration');
+        await mainWindow.webContents.executeJavaScript(`window.movieLog.retryFilmEnrichment()`);
+      }
 
       const migratedFilm = (await readState()).films?.[filmKey];
 
       if (
         !migratedFilm ||
-        migratedFilm.posterLookupVersion !== 3 ||
-        migratedFilm.posterUrl !== captureInceptionEnglishPosterUrl ||
-        migratedFilm.posterUrl === beforePosterUrl
+        migratedFilm.posterLookupVersion !== 4 ||
+        migratedFilm.posterUrl !== captureInceptionEnglishPosterUrl
       ) {
         throw new Error(
           `Installed poster locale migration failed: ${JSON.stringify({
@@ -1431,6 +1435,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         `installed poster locale: ${JSON.stringify({
           afterPosterUrl: migratedFilm.posterUrl,
           beforePosterUrl,
+          migrationNeeded,
           posterLookupVersion: migratedFilm.posterLookupVersion,
           posterWidth: migratedFilm.posterWidth
         })}\n`
