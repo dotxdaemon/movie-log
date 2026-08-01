@@ -267,6 +267,7 @@ describe('capture pipeline', () => {
       'performance-large',
       'performance',
       'poster-performance',
+      'poster-locale',
       'retry-backoff-verify',
       'slow-catalog',
       'statistics-lower'
@@ -324,6 +325,7 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain('installed slow catalog:');
     expect(captureProcess).toContain('installed large library:');
     expect(captureProcess).toContain('installed poster performance:');
+    expect(captureProcess).toContain('installed poster locale:');
     expect(captureProcess).toContain('Network.setCacheDisabled');
     expect(captureProcess).toContain('Network.emulateNetworkConditions');
     expect(captureProcess).toContain('measureThrottledPosterResource');

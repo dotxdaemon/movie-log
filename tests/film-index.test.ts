@@ -291,7 +291,7 @@ describe('createFilmIndex', () => {
       detailsComplete: true,
       director: ['Gore Verbinski'],
       pageId: -298130,
-      posterLookupVersion: 2,
+      posterLookupVersion: 3,
       posterUrl: selected.posterUrl,
       posterWidth: 1200,
       status: 'matched',
@@ -657,7 +657,7 @@ describe('createFilmIndex', () => {
     });
   });
 
-  it('upgrades a cached Wikipedia poster from an exact larger source without replacing its film identity', async () => {
+  it('refreshes a cached foreign poster on a Wikipedia identity even when the preferred poster is smaller', async () => {
     await writeFile(
       join(dataDirectory, 'movie-log-films.json'),
       `${JSON.stringify({
@@ -672,9 +672,9 @@ describe('createFilmIndex', () => {
             key: 'the plague::2025',
             matchVersion: 3,
             mediaType: 'film',
-            posterUrl:
-              'https://upload.wikimedia.org/wikipedia/en/thumb/c/c3/The_Plague_film_poster.jpg/282px-The_Plague_film_poster.jpg',
-            posterWidth: 282,
+            posterLookupVersion: 2,
+            posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-foreign@._V1_.jpg',
+            posterWidth: 1600,
             status: 'matched',
             title: 'The Plague'
           }
@@ -699,8 +699,8 @@ describe('createFilmIndex', () => {
               catalogSource: 'imdb' as const,
               description: 'Feature film',
               pageId: -32359447,
-              posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague@._V1_.jpg',
-              posterWidth: 900,
+              posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-us-english@._V1_.jpg',
+              posterWidth: 800,
               title: 'The Plague',
               year: 2025
             }
@@ -719,9 +719,9 @@ describe('createFilmIndex', () => {
       catalogSource: 'wikipedia',
       director: ['Charlie Polinger'],
       pageId: 79985226,
-      posterLookupVersion: 2,
-      posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague@._V1_.jpg',
-      posterWidth: 900,
+      posterLookupVersion: 3,
+      posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-us-english@._V1_.jpg',
+      posterWidth: 800,
       status: 'matched'
     });
   });
@@ -783,7 +783,7 @@ describe('createFilmIndex', () => {
 
     expect((await index.readFilms())['the plague::2025']).toMatchObject({
       catalogSource: 'imdb',
-      posterLookupVersion: 2,
+      posterLookupVersion: 3,
       posterUrl: 'https://m.media-amazon.com/images/M/MV5Bplague-primary@._V1_.jpg',
       posterWidth: 800,
       status: 'matched'
@@ -815,7 +815,8 @@ describe('createFilmIndex', () => {
       })}\n`,
       'utf8'
     );
-    let fallbackWidth = 500;
+    let fallbackComplete = false;
+    let fallbackWidth = 900;
     const index = createFilmIndex({
       catalog: {
         async fetchFilmDetails() {
@@ -831,7 +832,7 @@ describe('createFilmIndex', () => {
               catalogSource: 'imdb' as const,
               description: 'Feature film',
               pageId: -32359447,
-              posterLookupComplete: fallbackWidth >= 640,
+              posterLookupComplete: fallbackComplete,
               posterUrl: `https://m.media-amazon.com/images/M/MV5Bplague-${fallbackWidth}.jpg`,
               posterWidth: fallbackWidth,
               title: 'The Plague',
@@ -853,12 +854,13 @@ describe('createFilmIndex', () => {
     });
     expect(partial?.posterLookupVersion).toBeUndefined();
 
-    fallbackWidth = 1200;
+    fallbackComplete = true;
+    fallbackWidth = 800;
     await index.enrichFilms(request, { forceRetry: true });
     const completed = (await index.readFilms())['the plague::2025'];
     expect(completed).toMatchObject({
-      posterLookupVersion: 2,
-      posterWidth: 1200
+      posterLookupVersion: 3,
+      posterWidth: 800
     });
     expect(completed?.nextRetryAt).toBeUndefined();
   });
@@ -931,7 +933,7 @@ describe('createFilmIndex', () => {
     const terminal = (await index.readFilms())['the plague::2025'];
     expect(terminal).toMatchObject({
       posterFailureCount: 3,
-      posterLookupVersion: 2,
+      posterLookupVersion: 3,
       status: 'matched'
     });
     expect(terminal?.failureCount).toBeUndefined();

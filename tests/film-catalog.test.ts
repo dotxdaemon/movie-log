@@ -1,6 +1,6 @@
 // ABOUTME: Verifies catalog search mapping, confident match selection, and full film detail assembly.
 // ABOUTME: Uses recorded Wikipedia and Wikidata payload fixtures so mapping logic tests real response shapes.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   chooseFilmMatch,
   createFilmCatalog,
@@ -463,6 +463,126 @@ describe('IMDb poster fallback', () => {
         posterWidth: 800
       }
     ]);
+  });
+
+  it('prefers an explicitly US English poster over a foreign curated primary image', async () => {
+    const catalog = createFilmCatalog({
+      fetchImdbTitleJson: async () => ({
+        data: {
+          title0: {
+            images: {
+              edges: [
+                {
+                  node: {
+                    countries: [{ id: 'RU', text: 'Russia' }],
+                    height: 3600,
+                    id: 'russian-poster',
+                    languages: [{ id: 'ru', text: 'Russian' }],
+                    type: 'poster',
+                    url: 'https://m.media-amazon.com/images/M/russian-poster.jpg',
+                    width: 2400
+                  }
+                },
+                {
+                  node: {
+                    countries: [{ id: 'US', text: 'United States' }],
+                    height: 1200,
+                    id: 'us-english-poster',
+                    languages: [{ id: 'en', text: 'English' }],
+                    type: 'poster',
+                    url: 'https://m.media-amazon.com/images/M/us-english-poster.jpg',
+                    width: 800
+                  }
+                }
+              ]
+            },
+            primaryImage: {
+              countries: [{ id: 'FR', text: 'France' }],
+              height: 1800,
+              id: 'french-primary',
+              languages: [{ id: 'fr', text: 'French' }],
+              url: 'https://m.media-amazon.com/images/M/french-primary.jpg',
+              width: 1200
+            }
+          }
+        }
+      }),
+      fetchPosterJson: async () => ({
+        d: [
+          {
+            i: {
+              height: 1800,
+              imageUrl: 'https://m.media-amazon.com/images/M/suggestion.jpg',
+              width: 1200
+            },
+            id: 'tt1375666',
+            l: 'Inception',
+            q: 'feature',
+            y: 2010
+          }
+        ]
+      })
+    });
+
+    await expect(
+      catalog.searchPosterFallback?.('Inception 2010 film', { includeCredits: false })
+    ).resolves.toMatchObject([
+      {
+        posterLookupComplete: true,
+        posterUrl: 'https://m.media-amazon.com/images/M/us-english-poster.jpg',
+        posterWidth: 800
+      }
+    ]);
+  });
+
+  it('sends an explicit US English locale and IMDb page origin for title artwork', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            title0: {
+              primaryImage: {
+                countries: [{ id: 'US', text: 'United States' }],
+                height: 1200,
+                id: 'us-primary',
+                languages: [{ id: 'en', text: 'English' }],
+                url: 'https://m.media-amazon.com/images/M/us-primary.jpg',
+                width: 800
+              }
+            }
+          }
+        }),
+        { status: 200 }
+      )
+    );
+    const catalog = createFilmCatalog({
+      fetchPosterJson: async () => ({
+        d: [
+          {
+            i: { height: 1200, imageUrl: 'https://m.media-amazon.com/images/M/suggestion.jpg', width: 800 },
+            id: 'tt1375666',
+            l: 'Inception',
+            q: 'feature',
+            y: 2010
+          }
+        ]
+      })
+    });
+
+    try {
+      await catalog.searchPosterFallback?.('Inception 2010 film', { includeCredits: false });
+      expect(fetchSpy).toHaveBeenCalledOnce();
+      expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({
+        headers: {
+          Origin: 'https://www.imdb.com',
+          Referer: 'https://www.imdb.com/',
+          'x-imdb-user-country': 'US',
+          'x-imdb-user-language': 'en-US'
+        }
+      });
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it.each([

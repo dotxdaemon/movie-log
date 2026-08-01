@@ -125,7 +125,7 @@ class EnrichmentCancelledError extends Error {
 }
 
 const automaticMatchVersion = 3;
-const posterLookupVersion = 2;
+const posterLookupVersion = 3;
 
 function readPosterWidth(source: { posterUrl: string | null; posterWidth?: number }): number | null {
   if (typeof source.posterWidth === 'number' && source.posterWidth > 0) {
@@ -143,11 +143,12 @@ function posterNeedsLookup(record: FilmRecord): boolean {
 function selectPoster(record: FilmRecord, fallback: CatalogSearchResult | null): FilmRecord {
   const currentWidth = readPosterWidth(record);
   const fallbackWidth = fallback ? readPosterWidth(fallback) : null;
+  const fallbackVerified = fallback?.posterLookupComplete !== false;
   const shouldUseFallback =
     Boolean(fallback?.posterUrl) &&
     (record.posterUrl === null ||
-      (record.catalogSource === 'imdb' && fallbackWidth !== null && fallbackWidth >= dossierPosterMinimumWidth) ||
-      (fallbackWidth !== null && fallbackWidth >= dossierPosterMinimumWidth && fallbackWidth > (currentWidth ?? 0)));
+      (fallbackVerified && fallbackWidth !== null && fallbackWidth >= dossierPosterMinimumWidth) ||
+      (fallbackVerified && fallbackWidth !== null && fallbackWidth > (currentWidth ?? 0)));
   const selectedPoster = shouldUseFallback && fallback ? fallback : record;
   const selectedWidth = readPosterWidth(selectedPoster);
 
@@ -291,8 +292,9 @@ export function createFilmIndex({
   ): FilmRecord {
     const selected = selectPoster(record, fallback);
     const selectedWidth = readPosterWidth(selected);
+    const fallbackVerified = Boolean(fallback?.posterUrl) && fallback?.posterLookupComplete !== false;
 
-    if (selectedWidth !== null && selectedWidth >= dossierPosterMinimumWidth) {
+    if (fallbackVerified && selectedWidth !== null && selectedWidth >= dossierPosterMinimumWidth) {
       return {
         ...selected,
         nextRetryAt: undefined,

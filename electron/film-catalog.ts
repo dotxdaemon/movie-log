@@ -83,10 +83,18 @@ interface LabelsPayload {
 }
 
 interface ImdbImage {
+  countries?: ImdbImageTag[];
   height?: number;
+  id?: string;
+  languages?: ImdbImageTag[];
   type?: string;
   url?: string;
   width?: number;
+}
+
+interface ImdbImageTag {
+  id?: string;
+  text?: string;
 }
 
 interface ImdbTitlePayload {
@@ -129,9 +137,26 @@ async function fetchImdbTitleJsonFromNetwork(
         credits(first: 8, filter: { categories: ["director"] }) {
           edges { node { name { nameText { text } } } }
         }
-        primaryImage { height url width }
+        primaryImage {
+          countries { id text }
+          height
+          id
+          languages { id text }
+          url
+          width
+        }
         images(first: 20, filter: { types: ["poster"] }) {
-          edges { node { height type url width } }
+          edges {
+            node {
+              countries { id text }
+              height
+              id
+              languages { id text }
+              type
+              url
+              width
+            }
+          }
         }
       }`
     )
@@ -143,6 +168,10 @@ async function fetchImdbTitleJsonFromNetwork(
     }),
     headers: {
       'Content-Type': 'application/json',
+      Origin: 'https://www.imdb.com',
+      Referer: 'https://www.imdb.com/',
+      'x-imdb-user-country': 'US',
+      'x-imdb-user-language': 'en-US',
       'User-Agent': 'MovieLog/0.1 (personal desktop film diary)'
     },
     method: 'POST',
@@ -293,11 +322,43 @@ function enrichImdbResults(payload: unknown, results: CatalogSearchResult[]): Ca
       typeof image.width === 'number' &&
       typeof image.height === 'number' &&
       image.height >= image.width * 1.1;
-    const galleryPosters = (title?.images?.edges ?? [])
-      .map((edge) => edge.node)
-      .filter(readPortraitImage)
-      .sort((left, right) => right.width - left.width);
-    const poster = (readPortraitImage(title?.primaryImage) ? title.primaryImage : undefined) ?? galleryPosters[0];
+    const galleryPosters = (title?.images?.edges ?? []).map((edge) => edge.node).filter(readPortraitImage);
+    const primaryPoster = readPortraitImage(title?.primaryImage) ? title.primaryImage : undefined;
+    const candidates = [primaryPoster, ...galleryPosters]
+      .filter((image): image is Required<Pick<ImdbImage, 'height' | 'url' | 'width'>> & ImdbImage => Boolean(image))
+      .filter(
+        (image, candidateIndex, images) =>
+          images.findIndex((candidate) => candidate.id === image.id && candidate.url === image.url) === candidateIndex
+      );
+    const readLocaleRank = (image: ImdbImage): number => {
+      const isEnglish = image.languages?.some((language) => language.id === 'en') ?? false;
+      const isUnitedStates = image.countries?.some((country) => country.id === 'US') ?? false;
+      const hasLocaleTags = (image.languages?.length ?? 0) > 0 || (image.countries?.length ?? 0) > 0;
+
+      if (isEnglish && isUnitedStates) {
+        return 4;
+      }
+
+      if (isEnglish) {
+        return 3;
+      }
+
+      if (isUnitedStates) {
+        return 2;
+      }
+
+      return hasLocaleTags ? 0 : 1;
+    };
+    const poster = candidates.sort((left, right) => {
+      const localeDifference = readLocaleRank(right) - readLocaleRank(left);
+
+      if (localeDifference !== 0) {
+        return localeDifference;
+      }
+
+      const primaryDifference = Number(right === primaryPoster) - Number(left === primaryPoster);
+      return primaryDifference !== 0 ? primaryDifference : right.width - left.width;
+    })[0];
     const posterWidth = poster?.width ?? result.posterWidth;
 
     return {

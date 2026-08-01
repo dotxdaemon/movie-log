@@ -19,6 +19,8 @@ export type CaptureDataMode = 'real' | 'scratch';
 
 const captureMobileNavigationBreakpoint = 900;
 const captureCompactFilterBreakpoint = 1024;
+const captureInceptionEnglishPosterUrl =
+  'https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_.jpg';
 
 export function resolveCaptureDataMode(captureRequested: boolean, value: string | undefined): CaptureDataMode | null {
   if (!captureRequested) {
@@ -152,6 +154,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     'performance-large',
     'performance',
     'poster-performance',
+    'poster-locale',
     'retry-backoff-verify',
     'slow-catalog'
   ]);
@@ -1381,6 +1384,59 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       await waitForCaptureSelector('.library-inspector');
     }
 
+    if (captureRequestedView === 'poster-locale') {
+      assertCaptureWritable(captureDataMode, 'poster locale migration');
+      const filmKey = 'inception::2010';
+      const beforePosterUrl = (await readState()).films?.[filmKey]?.posterUrl;
+
+      await mainWindow.webContents.executeJavaScript(`window.movieLog.retryFilmEnrichment()`);
+
+      const migratedFilm = (await readState()).films?.[filmKey];
+
+      if (
+        !migratedFilm ||
+        migratedFilm.posterLookupVersion !== 3 ||
+        migratedFilm.posterUrl !== captureInceptionEnglishPosterUrl ||
+        migratedFilm.posterUrl === beforePosterUrl
+      ) {
+        throw new Error(
+          `Installed poster locale migration failed: ${JSON.stringify({
+            after: migratedFilm,
+            beforePosterUrl
+          })}`
+        );
+      }
+
+      const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          const card = [...document.querySelectorAll('.movie-card')].find(
+            (candidate) => candidate.querySelector('.movie-card-title')?.textContent?.trim() === 'Inception'
+          );
+          const face = card?.querySelector('.movie-card-face');
+          face?.click();
+          return Boolean(face);
+        })()
+      `)) as boolean;
+
+      if (!selectedMovie) {
+        throw new Error('Installed poster locale proof could not select Inception.');
+      }
+
+      await waitForCaptureSelector('.movie-card-selected');
+      await mainWindow.webContents.executeJavaScript(`
+        document.querySelector('.movie-card-selected .movie-card-face')?.click()
+      `);
+      await waitForCaptureSelector('.movie-dossier');
+      process.stdout.write(
+        `installed poster locale: ${JSON.stringify({
+          afterPosterUrl: migratedFilm.posterUrl,
+          beforePosterUrl,
+          posterLookupVersion: migratedFilm.posterLookupVersion,
+          posterWidth: migratedFilm.posterWidth
+        })}\n`
+      );
+    }
+
     if (
       captureRequestedView === 'detail' ||
       captureRequestedView === 'detail-imdb-match' ||
@@ -1962,6 +2018,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       'performance-diary-large': '.diary-view',
       'performance-large': '.movie-card',
       'poster-performance': '.library-view',
+      'poster-locale': '.movie-dossier',
       'retry-backoff-verify': '.metadata-retry',
       search: '.search-view',
       'search-results': '.search-result',
