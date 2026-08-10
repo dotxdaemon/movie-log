@@ -1,9 +1,10 @@
 // ABOUTME: Owns Movie Log's renderer state, IPC calls, dialogs, and catalog searches for the archive.
 // ABOUTME: Feeds the pure ArchiveApplication surface and keeps every user action tied to real behavior.
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { ArchiveApplication } from './archive-application.js';
 import { readAppShortcut } from './app-shortcuts.js';
 import {
+  buildArchiveItems,
   buildSearchResults,
   defaultArchiveFilters,
   type ArchiveItem,
@@ -27,12 +28,14 @@ import { useCatalogSearch } from './use-catalog-search.js';
 import { useDialogSurface } from './use-dialog-surface.js';
 import { parseFilmTitle } from '../shared/film-title.js';
 import { readVisibleHistory } from '../shared/history.js';
-import type { CatalogSearchResult, LogEntryDetails, EntryDetails } from '../shared/types.js';
+import type { CatalogSearchResult, LogEntryDetails, WatchEntry } from '../shared/types.js';
 
 export default function App() {
   const [activeView, setActiveView] = useState<ArchiveView>('library');
   const { dataFilePath, loadError, loading, noteFilePath, retryLoad, setState, state } = useArchiveData();
   const [dropActive, setDropActive] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<WatchEntry | null>(null);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [feedback, setFeedback] = useState<WorkspaceFeedback | null>(null);
   const [filters, setFilters] = useState(defaultArchiveFilters);
   const [filterDraft, setFilterDraft] = useState(defaultArchiveFilters);
@@ -56,9 +59,19 @@ export default function App() {
   const [dossierReturnView, setDossierReturnView] = useState<Exclude<ArchiveView, 'detail'>>('library');
   const searchReturnFocus = useRef<HTMLElement | null>(null);
   const searchReturnView = useRef<Exclude<ArchiveView, 'detail' | 'search'>>('library');
+  const handleDeleteConfirmationOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open && !deleteInProgress) {
+        setDeleteConfirmation(null);
+      }
+    },
+    [deleteInProgress]
+  );
   const rememberDialogOpener = useDialogSurface({
+    confirmationOpen: deleteConfirmation !== null,
     filterSheetOpen,
     logPanelOpen,
+    setConfirmationOpen: handleDeleteConfirmationOpenChange,
     setFilterSheetOpen,
     setLogPanelOpen
   });
@@ -76,7 +89,7 @@ export default function App() {
     const handleAppKeyDown = (event: KeyboardEvent) => {
       const shortcut = readAppShortcut(
         event,
-        filterSheetOpen || logPanelOpen,
+        filterSheetOpen || logPanelOpen || deleteConfirmation !== null,
         navigator.platform.toLowerCase().includes('mac') ? 'mac' : 'other'
       );
 
@@ -113,7 +126,7 @@ export default function App() {
 
     document.addEventListener('keydown', handleAppKeyDown);
     return () => document.removeEventListener('keydown', handleAppKeyDown);
-  }, [activeView, dossierReturnView, filterSheetOpen, logPanelOpen, rememberDialogOpener]);
+  }, [activeView, deleteConfirmation, dossierReturnView, filterSheetOpen, logPanelOpen, rememberDialogOpener]);
 
   const runAction = async (action: () => Promise<void>, context: ActionFailureContext) => {
     setFeedback(null);
@@ -266,7 +279,7 @@ export default function App() {
     }
   };
 
-  const handleUpdateEntry = async (entryId: string, details: EntryDetails) => {
+  const handleUpdateEntry = async (entryId: string, details: LogEntryDetails) => {
     setFeedback(null);
 
     try {
@@ -285,6 +298,49 @@ export default function App() {
     } catch (error) {
       console.error('Movie Log update action failed.', error);
       setFeedback({ message: readActionFailureMessage(error, 'update-entry'), tone: 'error' });
+    }
+  };
+
+  const handleRequestDeleteEntry = (entry: WatchEntry) => {
+    rememberDialogOpener();
+    setDeleteConfirmation(entry);
+  };
+
+  const handleConfirmDeleteEntry = async () => {
+    const entry = deleteConfirmation;
+
+    if (!entry || deleteInProgress) {
+      return;
+    }
+
+    setFeedback(null);
+    setDeleteInProgress(true);
+
+    try {
+      const deletedEntry = await window.movieLog.deleteEntry(entry.id);
+
+      if (!deletedEntry) {
+        setDeleteConfirmation(null);
+        setFeedback({ message: 'That viewing is no longer available.', tone: 'error' });
+        return;
+      }
+
+      const nextState = await window.movieLog.getState();
+      updateArchiveState(nextState, setState);
+      setDeleteConfirmation(null);
+      setFeedback({ message: 'Viewing deleted.', tone: 'notice' });
+
+      if (selectedPath && !buildArchiveItems(nextState).some((item) => item.sourcePaths.includes(selectedPath))) {
+        const returnTarget = dossierReturnFocus.current;
+        setActiveView(dossierReturnView);
+        setSelectedPath(null);
+        window.setTimeout(() => focusDossierReturnTarget(returnTarget, selectedPath), 0);
+      }
+    } catch (error) {
+      console.error('Movie Log delete entry action failed.', error);
+      setFeedback({ message: readActionFailureMessage(error, 'delete-entry'), tone: 'error' });
+    } finally {
+      setDeleteInProgress(false);
     }
   };
 
@@ -468,6 +524,8 @@ export default function App() {
     <ArchiveApplication
       activeView={activeView}
       dataFilePath={dataFilePath}
+      deleteConfirmation={deleteConfirmation}
+      deleteInProgress={deleteInProgress}
       dossierMatchError={dossierMatchError}
       dossierMatchPending={dossierMatchPending}
       dossierMatchResults={dossierMatchResults}
@@ -500,6 +558,8 @@ export default function App() {
       onCloseLogPanel={() => setLogPanelOpen(false)}
       onCopyPath={handleCopyPathFor}
       onCreateLog={handleCreateLog}
+      onCancelDeleteEntry={() => setDeleteConfirmation(null)}
+      onConfirmDeleteEntry={handleConfirmDeleteEntry}
       onDossierBack={handleDossierBack}
       onDrop={handleDrop}
       onDropActiveChange={setDropActive}
@@ -518,6 +578,7 @@ export default function App() {
       onOpenLogPanel={() => handleLogPanelOpenChange(true)}
       onOpenSearchResult={handleOpenSearchResult}
       onRemoveWatchedFolder={handleRemoveWatchedFolder}
+      onRequestDeleteEntry={handleRequestDeleteEntry}
       onRetryLoad={handleRetryLoad}
       onRetryMetadata={handleRetryMetadata}
       onScanNow={handleScanNow}

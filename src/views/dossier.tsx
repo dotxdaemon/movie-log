@@ -8,7 +8,7 @@ import { RatingMeter } from '../components/rating.js';
 import { EmptyState } from '../components/states.js';
 import { buildArchiveItems, formatRuntime, readMediaTypeLabel, type ArchiveItem } from '../archive-model.js';
 import { readCatalogResultKey } from '../catalog-result.js';
-import type { CatalogSearchResult, EntryDetails, MovieLogState } from '../../shared/types.js';
+import type { CatalogSearchResult, LogEntryDetails, MovieLogState, WatchEntry } from '../../shared/types.js';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -22,8 +22,9 @@ interface DossierViewProps {
   onMatchFilm(item: ArchiveItem, selection: CatalogSearchResult | null): void;
   onOpenInFinder(path: string): Promise<void>;
   onOpenItem(path: string): Promise<void>;
+  onRequestDeleteEntry(entry: WatchEntry): void;
   onSearchMatch(query: string): void;
-  onUpdateEntry(entryId: string, details: EntryDetails): Promise<void>;
+  onUpdateEntry(entryId: string, details: LogEntryDetails): Promise<void>;
   originLabel: string;
   selectedPath: string | null;
   state: MovieLogState;
@@ -39,6 +40,7 @@ export function DossierView({
   onMatchFilm,
   onOpenInFinder,
   onOpenItem,
+  onRequestDeleteEntry,
   onSearchMatch,
   onUpdateEntry,
   originLabel,
@@ -216,7 +218,7 @@ export function DossierView({
           </header>
           <ol className="viewing-ledger">
             {item.viewings.map((entry) => (
-              <li className="viewing-row" key={entry.id}>
+              <li className="viewing-row" data-entry-id={entry.id} key={entry.id}>
                 <time className="viewing-date" dateTime={entry.watchedAt}>
                   {dateFormatter.format(new Date(entry.watchedAt))}
                 </time>
@@ -233,8 +235,19 @@ export function DossierView({
                     <EntryForm
                       defaults={entry}
                       onSubmit={(details) => void onUpdateEntry(entry.id, details)}
+                      showDate
                       submitLabel="Save viewing"
                     />
+                    <div className="viewing-danger-zone">
+                      <p>Remove this viewing, its rating, notes, and tags from your journal.</p>
+                      <button
+                        className="viewing-delete-action"
+                        onClick={() => onRequestDeleteEntry(entry)}
+                        type="button"
+                      >
+                        Delete viewing…
+                      </button>
+                    </div>
                   </div>
                 </details>
               </li>

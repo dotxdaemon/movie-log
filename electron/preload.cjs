@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('movieLog', {
   addWatchedFolders: () => ipcRenderer.invoke('movie-log:add-watched-folders'),
   chooseLogPaths: () => ipcRenderer.invoke('movie-log:choose-log-paths'),
   copyPath: (itemPath) => ipcRenderer.invoke('movie-log:copy-path', itemPath),
+  deleteEntry: (entryId) => ipcRenderer.invoke('movie-log:delete-entry', entryId),
   getDataFilePath: () => ipcRenderer.invoke('movie-log:get-data-file-path'),
   getNoteFilePath: () => ipcRenderer.invoke('movie-log:get-note-file-path'),
   getState: () => ipcRenderer.invoke('movie-log:get-state'),

@@ -131,6 +131,8 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     'statistics-lower',
     'settings',
     'detail',
+    'detail-delete-confirmation',
+    'detail-editor',
     'detail-imdb-match',
     'detail-missing',
     'detail-outage',
@@ -148,6 +150,8 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     'persistence-verify',
     'persistence-edit',
     'persistence-edit-verify',
+    'persistence-delete',
+    'persistence-date-edit',
     'accessibility-audit',
     'layout-stability',
     'performance-diary-large',
@@ -384,6 +388,8 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
 
         if (
           requestedView === 'detail' ||
+          requestedView === 'detail-delete-confirmation' ||
+          requestedView === 'detail-editor' ||
           requestedView === 'detail-imdb-match' ||
           requestedView === 'detail-missing' ||
           requestedView === 'detail-outage' ||
@@ -391,6 +397,8 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
           requestedView.startsWith('library') ||
           requestedView === 'performance-large' ||
           requestedView === 'poster-performance' ||
+          requestedView === 'persistence-delete' ||
+          requestedView === 'persistence-date-edit' ||
           requestedView === 'aggregation-verify'
         ) {
           navigationItems.find((item) => readLabel(item).includes('library'))?.click();
@@ -1444,9 +1452,13 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
 
     if (
       captureRequestedView === 'detail' ||
+      captureRequestedView === 'detail-delete-confirmation' ||
+      captureRequestedView === 'detail-editor' ||
       captureRequestedView === 'detail-imdb-match' ||
       captureRequestedView === 'detail-missing' ||
-      captureRequestedView === 'detail-outage'
+      captureRequestedView === 'detail-outage' ||
+      captureRequestedView === 'persistence-delete' ||
+      captureRequestedView === 'persistence-date-edit'
     ) {
       const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
         (async () => {
@@ -1456,8 +1468,14 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
           if (requestedView === 'detail-missing') {
             face = [...document.querySelectorAll('.movie-card:not(:has(.poster-art)) .movie-card-face')]
               .sort((left, right) => (right.textContent?.length ?? 0) - (left.textContent?.length ?? 0))[0];
-          } else if (requestedView === 'detail') {
-            const qualifiedPoster = [...document.querySelectorAll(
+          } else if (
+            requestedView === 'detail' ||
+            requestedView === 'detail-delete-confirmation' ||
+            requestedView === 'detail-editor' ||
+            requestedView === 'persistence-delete' ||
+            requestedView === 'persistence-date-edit'
+          ) {
+            const qualifiedPosters = [...document.querySelectorAll(
               '.movie-card .film-poster[data-poster-source-width]'
             )]
               .filter(
@@ -1468,7 +1486,14 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
                 (left, right) =>
                   Number(right.getAttribute('data-poster-source-width')) -
                   Number(left.getAttribute('data-poster-source-width'))
-              )[0];
+              );
+            const qualifiedPoster =
+              requestedView === 'detail'
+                ? qualifiedPosters[0]
+                : qualifiedPosters.find((poster) => {
+                    const status = poster.closest('.movie-card')?.querySelector('.movie-card-status')?.textContent?.trim();
+                    return status !== 'Indexed' && status !== 'Archived';
+                  });
             face = qualifiedPoster?.closest('.movie-card')?.querySelector('.movie-card-face');
           } else {
             face = document.querySelector('.movie-card:has(.poster-art) .movie-card-face');
@@ -1549,6 +1574,127 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         }
 
         process.stdout.write(`installed dossier poster: ${JSON.stringify(dossierPoster)}\n`);
+      }
+
+      if (
+        captureRequestedView === 'detail-editor' ||
+        captureRequestedView === 'detail-delete-confirmation' ||
+        captureRequestedView === 'persistence-delete' ||
+        captureRequestedView === 'persistence-date-edit'
+      ) {
+        const editorOpened = (await mainWindow.webContents.executeJavaScript(`
+          (() => {
+            const editor = document.querySelector('.viewing-editor');
+            const summary = editor?.querySelector('summary');
+            summary?.click();
+            editor?.scrollIntoView({ block: 'center' });
+            return Boolean(editor && summary);
+          })()
+        `)) as boolean;
+
+        if (!editorOpened) {
+          throw new Error(`Capture view did not render an editable viewing: ${captureRequestedView}.`);
+        }
+
+        await waitForCaptureSelector('.viewing-editor[open] .field-block-date');
+
+        if (captureRequestedView === 'persistence-date-edit') {
+          if (captureDataMode !== 'scratch') {
+            throw new Error('Installed date-edit proof requires MOVIE_LOG_CAPTURE_DATA_MODE=scratch.');
+          }
+
+          const dateProof = '2026-05-17';
+          const editTarget = (await mainWindow.webContents.executeJavaScript(`
+            (() => {
+              const editor = document.querySelector('.viewing-editor[open]');
+              const row = editor?.closest('.viewing-row');
+              const input = editor?.querySelector('input[name="watchedAt"]');
+              const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+              const before = input?.value ?? '';
+              setter?.call(input, ${JSON.stringify(dateProof)});
+              input?.dispatchEvent(new Event('input', { bubbles: true }));
+              editor?.querySelector('.entry-form')?.requestSubmit();
+              return { before, entryId: row?.getAttribute('data-entry-id') ?? '' };
+            })()
+          `)) as { before: string; entryId: string };
+          const expectedWatchedAt = new Date(`${dateProof}T12:00:00`).toISOString();
+          let editedEntry: WatchEntry | undefined;
+
+          for (let attempt = 0; attempt < 60; attempt += 1) {
+            editedEntry = (await historyStore.readState()).history.find((entry) => entry.id === editTarget.entryId);
+
+            if (editedEntry?.watchedAt === expectedWatchedAt) {
+              break;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+
+          if (!editTarget.entryId || editedEntry?.watchedAt !== expectedWatchedAt) {
+            throw new Error(
+              `Installed viewing-date edit did not persist: ${JSON.stringify({ editTarget, expectedWatchedAt, watchedAt: editedEntry?.watchedAt })}.`
+            );
+          }
+
+          await waitForCaptureSelector('.status-banner');
+          await mainWindow.webContents.executeJavaScript('window.scrollTo(0, 0)');
+          process.stdout.write(
+            `installed viewing date edit: ${JSON.stringify({ after: editedEntry.watchedAt, before: editTarget.before })}\n`
+          );
+        }
+
+        if (captureRequestedView === 'detail-editor') {
+          await mainWindow.webContents.executeJavaScript(`
+            (() => {
+              document.querySelector('.viewing-editor[open] .field-block-date')?.scrollIntoView({ block: 'start' });
+              window.scrollBy(0, -24);
+            })()
+          `);
+        }
+
+        if (captureRequestedView === 'detail-delete-confirmation' || captureRequestedView === 'persistence-delete') {
+          await mainWindow.webContents.executeJavaScript(`
+            document.querySelector('.viewing-editor[open] .viewing-delete-action')?.click()
+          `);
+          await waitForCaptureSelector('.confirmation-dialog');
+          const confirmation = (await mainWindow.webContents.executeJavaScript(`
+            (() => ({
+              backgroundInert: document.querySelector('.archive-background')?.inert === true,
+              focusInside:
+                document.querySelector('.confirmation-dialog')?.contains(document.activeElement) === true,
+              modal: document.querySelector('.confirmation-dialog')?.getAttribute('aria-modal') === 'true'
+            }))()
+          `)) as { backgroundInert: boolean; focusInside: boolean; modal: boolean };
+
+          if (!confirmation.backgroundInert || !confirmation.focusInside || !confirmation.modal) {
+            throw new Error(`Installed delete confirmation accessibility failed: ${JSON.stringify(confirmation)}.`);
+          }
+
+          process.stdout.write(`installed delete confirmation: ${JSON.stringify(confirmation)}\n`);
+        }
+
+        if (captureRequestedView === 'persistence-delete') {
+          if (captureDataMode !== 'scratch') {
+            throw new Error('Installed deletion proof requires MOVIE_LOG_CAPTURE_DATA_MODE=scratch.');
+          }
+
+          await mainWindow.webContents.executeJavaScript(`
+            document.querySelector('.confirmation-confirm')?.click()
+          `);
+          await waitForCaptureSelector('.status-banner');
+          await mainWindow.webContents.executeJavaScript('window.scrollTo(0, 0)');
+          const nextHistoryCount = (await historyStore.readState()).history.length;
+
+          if (nextHistoryCount !== initialRawHistoryCount - 1) {
+            throw new Error(
+              `Installed deletion changed history from ${initialRawHistoryCount} to ${nextHistoryCount} instead of removing one viewing.`
+            );
+          }
+
+          process.stdout.write(
+            `installed viewing deletion: ${JSON.stringify({ after: nextHistoryCount, before: initialRawHistoryCount })}\n`
+          );
+        }
       }
 
       if (captureRequestedView === 'detail-missing') {
@@ -1992,6 +2138,8 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       catalog: '.search-view',
       'catalog-outage': '.catalog-error',
       detail: '.movie-dossier',
+      'detail-delete-confirmation': '.confirmation-dialog',
+      'detail-editor': '.viewing-editor[open] .field-block-date',
       'detail-imdb-match': '.movie-dossier',
       'detail-missing': '.movie-dossier',
       'detail-outage': '.dossier-match-error',
@@ -2019,6 +2167,8 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       'persistence-verify': '.library-view',
       'persistence-edit': '.library-view',
       'persistence-edit-verify': '.library-view',
+      'persistence-delete': '.status-banner',
+      'persistence-date-edit': '.status-banner',
       performance: '.search-result',
       'performance-diary-large': '.diary-view',
       'performance-large': '.movie-card',

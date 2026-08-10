@@ -3,6 +3,7 @@
 import type { DragEvent } from 'react';
 import { AppShell } from './app-shell.js';
 import { ArchiveNavigation, MobileArchiveNavigation } from './components/archive-navigation.js';
+import { ConfirmationDialog } from './components/confirmation-dialog.js';
 import { readNavigationView } from './components/archive-navigation-data.js';
 import { FilterPanel, FilterSheet } from './components/filters.js';
 import { PageHeader } from './components/page-header.js';
@@ -27,7 +28,7 @@ import {
   type SearchResultItem
 } from './archive-model.js';
 import type { WorkspaceFeedback } from './feedback.js';
-import type { CatalogSearchResult, EntryDetails, LogEntryDetails, MovieLogState } from '../shared/types.js';
+import type { CatalogSearchResult, LogEntryDetails, MovieLogState, WatchEntry } from '../shared/types.js';
 
 export interface ArchiveApplicationProps {
   activeView: ArchiveView;
@@ -38,6 +39,8 @@ export interface ArchiveApplicationProps {
   dossierMatchResults: CatalogSearchResult[];
   dossierOriginLabel: string;
   dossierOriginView: Exclude<ArchiveView, 'detail'>;
+  deleteConfirmation: WatchEntry | null;
+  deleteInProgress: boolean;
   dropActive: boolean;
   expandedDiaryEntryIds?: ReadonlySet<string>;
   feedback: WorkspaceFeedback | null;
@@ -62,6 +65,8 @@ export interface ArchiveApplicationProps {
   onCloseLogPanel(): void;
   onCopyPath(path: string): Promise<void>;
   onCreateLog(details: LogEntryDetails): Promise<void>;
+  onCancelDeleteEntry(): void;
+  onConfirmDeleteEntry(): Promise<void>;
   onDiaryModeChange?(mode: DiaryMode): void;
   onDiaryEntryExpandedChange?(entryId: string, expanded: boolean): void;
   onDossierBack(): void;
@@ -82,6 +87,7 @@ export interface ArchiveApplicationProps {
   onOpenLogPanel(): void;
   onOpenSearchResult(result: SearchResultItem): void;
   onRemoveWatchedFolder(id: string): Promise<void>;
+  onRequestDeleteEntry(entry: WatchEntry): void;
   onRetryLoad(): void;
   onRetryMetadata(): Promise<void>;
   onScanNow(): Promise<void>;
@@ -92,7 +98,7 @@ export interface ArchiveApplicationProps {
   onSelectLibraryPath(path: string | null): void;
   onSelectLogFilm(film: CatalogSearchResult | null): void;
   onSelectPath(path: string): void;
-  onUpdateEntry(entryId: string, details: EntryDetails): Promise<void>;
+  onUpdateEntry(entryId: string, details: LogEntryDetails): Promise<void>;
   onViewChange(view: ArchiveView): void;
   pendingLogPaths: string[];
   scanInProgress: boolean;
@@ -107,13 +113,18 @@ export interface ArchiveApplicationProps {
 }
 
 const periodFormatter = new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' });
+const confirmationDateFormatter = new Intl.DateTimeFormat(undefined, {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric'
+});
 
 export function ArchiveApplication(props: ArchiveApplicationProps) {
   const archiveItems = buildArchiveItems(props.state);
   const coverage = readArchiveCoverage(props.state);
   const filterOptions = buildFilterOptions(archiveItems);
   const latestEntry = props.state.history[0];
-  const modalOpen = props.filterSheetOpen || props.logPanelOpen;
+  const modalOpen = props.filterSheetOpen || props.logPanelOpen || props.deleteConfirmation !== null;
   const navigationView = readNavigationView(props.activeView === 'detail' ? props.dossierOriginView : props.activeView);
   const periodLabel = latestEntry ? periodFormatter.format(new Date(latestEntry.watchedAt)).toUpperCase() : 'EMPTY';
 
@@ -202,6 +213,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
         onMatchFilm={props.onMatchFilm}
         onOpenInFinder={props.onOpenInFinder}
         onOpenItem={props.onOpenItem}
+        onRequestDeleteEntry={props.onRequestDeleteEntry}
         onSearchMatch={props.onSearchMatch}
         onUpdateEntry={props.onUpdateEntry}
         selectedPath={props.selectedPath}
@@ -331,6 +343,19 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
           review={props.logReview}
           saving={props.logSaving}
           selectedFilm={props.logSelectedFilm}
+        />
+      ) : null}
+      {props.deleteConfirmation ? (
+        <ConfirmationDialog
+          busy={props.deleteInProgress}
+          confirmLabel="Delete viewing"
+          description={`Delete ${
+            archiveItems.find((item) => item.viewings.some((entry) => entry.id === props.deleteConfirmation?.id))
+              ?.displayTitle ?? props.deleteConfirmation.title
+          } from ${confirmationDateFormatter.format(new Date(props.deleteConfirmation.watchedAt))}? This removes only this viewing and its personal notes. Indexed media stays in Library.`}
+          onCancel={props.onCancelDeleteEntry}
+          onConfirm={() => void props.onConfirmDeleteEntry()}
+          title="Delete this viewing?"
         />
       ) : null}
     </div>

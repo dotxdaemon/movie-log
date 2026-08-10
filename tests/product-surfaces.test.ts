@@ -100,6 +100,8 @@ const baseProps: ArchiveApplicationProps = {
   filterSheetOpen: false,
   filterDraft: defaultArchiveFilters,
   filters: defaultArchiveFilters,
+  deleteConfirmation: null,
+  deleteInProgress: false,
   loadError: null,
   loading: false,
   logFilmError: null,
@@ -118,6 +120,8 @@ const baseProps: ArchiveApplicationProps = {
   onCloseLogPanel: noop,
   onCopyPath: asyncNoop,
   onCreateLog: asyncNoop,
+  onCancelDeleteEntry: noop,
+  onConfirmDeleteEntry: asyncNoop,
   onDiaryModeChange: noop,
   onDiaryEntryExpandedChange: noop,
   onDossierBack: noop,
@@ -138,6 +142,7 @@ const baseProps: ArchiveApplicationProps = {
   onOpenLogPanel: noop,
   onOpenSearchResult: noop,
   onRemoveWatchedFolder: asyncNoop,
+  onRequestDeleteEntry: noop,
   onRetryLoad: noop,
   onRetryMetadata: asyncNoop,
   onScanNow: asyncNoop,
@@ -682,6 +687,29 @@ describe('ArchiveApplication', () => {
 
     expect(findByClass(tree, 'viewing-editor')).toHaveLength(2);
     expect(findByClass(tree, 'entry-form')).toHaveLength(2);
+    const dateFields = findByClass(tree, 'field-block-date');
+    expect(dateFields).toHaveLength(2);
+    expect(
+      dateFields.map((field) => field.children.find((child) => child.type === 'input')?.props.defaultValue)
+    ).toEqual(['2026-07-10', '2026-06-10']);
+    expect(findByClass(tree, 'viewing-delete-action')).toHaveLength(2);
+  });
+
+  it('renders a focused destructive confirmation outside the inert application background', () => {
+    const tree = renderSurface('detail', {
+      deleteConfirmation: state.history[0]!,
+      selectedPath: '/Movies/Flow.2024.mkv'
+    });
+    const background = findByClass(tree, 'archive-background')[0];
+    const dialog = findByClass(tree, 'confirmation-dialog')[0];
+
+    expect(background?.props.inert).toBe(true);
+    expect(background?.props['aria-hidden']).toBe('true');
+    expect(dialog?.props.role).toBe('alertdialog');
+    expect(dialog?.props['aria-modal']).toBe('true');
+    expect(readText([dialog!])).toContain('Delete this viewing?');
+    expect(readText([dialog!])).toContain('Flow');
+    expect(findByClass(tree, 'confirmation-confirm')).toHaveLength(1);
   });
 
   it('renders sanitized dossier catalog-match failures inside the match study', () => {

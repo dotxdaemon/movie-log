@@ -3,10 +3,10 @@
 import type { FormEvent } from 'react';
 import { readEntryDetails, readLocalDateValue, reviewCharacterLimit } from './entry-details.js';
 import { RatingInput } from './rating.js';
-import type { EntryDetails, LogEntryDetails } from '../../shared/types.js';
+import type { LogEntryDetails } from '../../shared/types.js';
 
 interface EntryFormProps {
-  defaults: EntryDetails;
+  defaults: LogEntryDetails;
   footer?: boolean;
   onReviewChange?: (value: string) => void;
   onSubmit(details: LogEntryDetails): void;
@@ -43,7 +43,11 @@ export function EntryForm({
       {showDate ? (
         <label className="field-block field-block-date">
           <span>Viewing date</span>
-          <input defaultValue={readLocalDateValue()} name="watchedAt" type="date" />
+          <input
+            defaultValue={readLocalDateValue(defaults.watchedAt ? new Date(defaults.watchedAt) : new Date())}
+            name="watchedAt"
+            type="date"
+          />
         </label>
       ) : null}
       <RatingInput name="rating" value={defaults.rating ?? null} />

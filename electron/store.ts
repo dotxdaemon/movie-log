@@ -9,7 +9,7 @@ import {
   readVisibleHistory,
   sortEntriesByWatchedAt
 } from '../shared/history.js';
-import type { EntryDetails, LibraryItem, MovieLogState, WatchEntry, WatchedFolder } from '../shared/types.js';
+import type { LibraryItem, LogEntryDetails, MovieLogState, WatchEntry, WatchedFolder } from '../shared/types.js';
 
 const HISTORY_POLICY = 'append-only';
 
@@ -680,10 +680,18 @@ export function createHistoryStore(dataDirectory: string) {
     }
   }
 
-  async function writePersistedState(state: PersistedState): Promise<PersistedState> {
-    const normalizedState = await protectHistoryForWrite(normalizeState(state));
+  async function writePersistedState(
+    state: PersistedState,
+    options: { allowExplicitHistoryReduction?: boolean } = {}
+  ): Promise<PersistedState> {
+    const normalized = normalizeState(state);
+    const normalizedState = options.allowExplicitHistoryReduction
+      ? normalized
+      : await protectHistoryForWrite(normalized);
     await mkdir(dataDirectory, { recursive: true });
-    await protectNoteForWrite(normalizedState);
+    if (!options.allowExplicitHistoryReduction) {
+      await protectNoteForWrite(normalizedState);
+    }
     await snapshotExistingFiles();
     await writeFileAtomically(dataFilePath, `${JSON.stringify(normalizedState, null, 2)}\n`);
     await writeFileAtomically(noteFilePath, renderNote(normalizedState));
@@ -721,7 +729,7 @@ export function createHistoryStore(dataDirectory: string) {
       });
     },
 
-    async updateHistoryEntry(entryId: string, details: EntryDetails): Promise<WatchEntry | null> {
+    async updateHistoryEntry(entryId: string, details: LogEntryDetails): Promise<WatchEntry | null> {
       return runSerialized(async () => {
         const state = await readPersistedState();
         const entry = state.history.find((candidate) => candidate.id === entryId);
@@ -734,11 +742,30 @@ export function createHistoryStore(dataDirectory: string) {
           ...entry,
           ...details,
           tags: details.tags ? [...details.tags] : entry.tags,
-          watchedAt: entry.watchedAt
+          watchedAt: details.watchedAt ?? entry.watchedAt
         };
         state.history = state.history.map((candidate) => (candidate.id === entryId ? updatedEntry : candidate));
         await writePersistedState(state);
         return updatedEntry;
+      });
+    },
+
+    async deleteHistoryEntry(entryId: string): Promise<WatchEntry | null> {
+      return runSerialized(async () => {
+        const state = await readPersistedState();
+        const entry = state.history.find((candidate) => candidate.id === entryId);
+
+        if (!entry) {
+          return null;
+        }
+
+        state.history = state.history.filter((candidate) =>
+          entry.source === 'watch'
+            ? candidate.source !== 'watch' || candidate.sourcePath !== entry.sourcePath
+            : candidate.id !== entryId
+        );
+        await writePersistedState(state, { allowExplicitHistoryReduction: true });
+        return entry;
       });
     },
 

@@ -119,6 +119,61 @@ describe('createHistoryStore', () => {
     });
   });
 
+  it('updates the viewing date when an edit supplies a new local date', async () => {
+    const store = createHistoryStore(dataDirectory);
+    const entry = createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'drop', '2026-03-12T08:00:00.000Z');
+    await store.addHistoryEntry(entry);
+
+    const updated = await store.updateHistoryEntry(entry.id, {
+      watchedAt: '2026-03-10T18:00:00.000Z'
+    });
+
+    expect(updated).toMatchObject({
+      id: entry.id,
+      watchedAt: '2026-03-10T18:00:00.000Z'
+    });
+    expect((await store.readState()).history[0]?.watchedAt).toBe('2026-03-10T18:00:00.000Z');
+    expect(await readFile(join(dataDirectory, 'movie-log-note.md'), 'utf8')).toContain('2026-03-10T18:00:00.000Z');
+  });
+
+  it('deletes one explicitly selected viewing and snapshots the previous journal', async () => {
+    const store = createHistoryStore(dataDirectory);
+    const flow = createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'drop', '2026-03-12T08:00:00.000Z');
+    const heat = createEntryFromPath('/Users/seankim/Movies/Heat.mkv', 'drop', '2026-03-11T08:00:00.000Z');
+    await store.addHistoryEntries([flow, heat]);
+
+    const deleted = await store.deleteHistoryEntry(flow.id);
+    const state = await store.readState();
+    const note = await readFile(join(dataDirectory, 'movie-log-note.md'), 'utf8');
+    const snapshotDirectories = await readdir(join(dataDirectory, 'history-snapshots'));
+    const latestSnapshot = snapshotDirectories.sort().at(-1) ?? '';
+    const snapshot = JSON.parse(
+      await readFile(join(dataDirectory, 'history-snapshots', latestSnapshot, 'movie-log.json'), 'utf8')
+    ) as { history: Array<{ id: string }> };
+
+    expect(deleted?.id).toBe(flow.id);
+    expect(state.history.map((entry) => entry.id)).toEqual([heat.id]);
+    expect(note).not.toContain('Flow.mkv');
+    expect(note).toContain('Heat.mkv');
+    expect(snapshot.history.map((entry) => entry.id)).toEqual(expect.arrayContaining([flow.id, heat.id]));
+    expect(await store.deleteHistoryEntry(flow.id)).toBeNull();
+  });
+
+  it('does not reveal an older hidden watcher duplicate after its visible viewing is deleted', async () => {
+    const store = createHistoryStore(dataDirectory);
+    const older = createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'watch', '2026-03-11T08:00:00.000Z', 'file');
+    const newer = createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'watch', '2026-03-12T08:00:00.000Z', 'file');
+    await store.addHistoryEntries([newer, older]);
+
+    await store.deleteHistoryEntry(older.id);
+
+    expect((await store.readState()).history).toEqual([]);
+    const stored = JSON.parse(await readFile(join(dataDirectory, 'movie-log.json'), 'utf8')) as {
+      history: Array<{ sourcePath: string }>;
+    };
+    expect(stored.history).toEqual([]);
+  });
+
   it('does not rewrite the readable note when state is only being read', async () => {
     const store = createHistoryStore(dataDirectory);
 

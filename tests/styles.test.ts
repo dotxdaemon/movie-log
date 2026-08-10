@@ -145,6 +145,16 @@ describe('styles.css', () => {
     expect(styles).toMatch(/\.log-sheet \.rating-none\s*\{[^}]*width:\s*100%/s);
   });
 
+  it('wraps the dossier editor rating control before it can overlap the current value', async () => {
+    const styles = await readCompleteStyles();
+
+    expect(styles).toMatch(/\.viewing-editor-body \.rating-input\s*\{[^}]*grid-template-columns:\s*1fr/s);
+    expect(styles).toMatch(
+      /\.viewing-editor-body \.rating-segments\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s
+    );
+    expect(styles).toMatch(/\.viewing-editor-body \.rating-none\s*\{[^}]*width:\s*100%/s);
+  });
+
   it('moves the deliberate logging action with the navigation breakpoint', async () => {
     const styles = await readCompleteStyles();
     const compactRailStyles = styles.slice(

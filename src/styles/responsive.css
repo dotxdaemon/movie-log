@@ -756,6 +756,26 @@
     margin-top: var(--space-3);
   }
 
+  .viewing-danger-zone {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .viewing-delete-action {
+    width: 100%;
+  }
+
+  .confirmation-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .confirmation-dialog {
+    width: 100%;
+    padding: var(--space-5) 18px calc(var(--space-5) + env(safe-area-inset-bottom));
+    animation-name: sheet-rise;
+  }
+
   .dossier-meta {
     margin-top: var(--space-4);
   }

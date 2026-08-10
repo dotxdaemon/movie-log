@@ -39,8 +39,9 @@ describe('Movie Log public API', () => {
 
     expect(sharedTypesSource).toContain('chooseLogPaths(): Promise<string[]>;');
     expect(sharedTypesSource).toContain(
-      'updateEntry(entryId: string, details: EntryDetails): Promise<WatchEntry | null>;'
+      'updateEntry(entryId: string, details: LogEntryDetails): Promise<WatchEntry | null>;'
     );
+    expect(sharedTypesSource).toContain('deleteEntry(entryId: string): Promise<WatchEntry | null>;');
     expect(sharedTypesSource).toContain(
       'logPaths(paths: string[], details?: LogEntryDetails, film?: LogFilmRequest): Promise<LogPathsResult>;'
     );
@@ -48,6 +49,7 @@ describe('Movie Log public API', () => {
     expect(preloadSource).toContain(
       "updateEntry: (entryId, details) => ipcRenderer.invoke('movie-log:update-entry', entryId, details)"
     );
+    expect(preloadSource).toContain("deleteEntry: (entryId) => ipcRenderer.invoke('movie-log:delete-entry', entryId)");
     expect(preloadSource).toContain("retryFilmEnrichment: () => ipcRenderer.invoke('movie-log:retry-film-enrichment')");
   });
 

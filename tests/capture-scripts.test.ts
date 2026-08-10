@@ -248,6 +248,8 @@ describe('capture pipeline', () => {
       'search-results',
       'search-long',
       'catalog-outage',
+      'detail-delete-confirmation',
+      'detail-editor',
       'detail-imdb-match',
       'detail-missing',
       'detail-outage',
@@ -261,6 +263,8 @@ describe('capture pipeline', () => {
       'load-error',
       'persistence-edit',
       'persistence-edit-verify',
+      'persistence-delete',
+      'persistence-date-edit',
       'accessibility-audit',
       'layout-stability',
       'performance-diary-large',
@@ -296,6 +300,8 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain("captureRequestedView === 'log-multiple-paths'");
     expect(captureProcess).toContain('Installed persistence proof');
     expect(captureProcess).toContain('Installed edit persistence proof');
+    expect(captureProcess).toContain('installed viewing date edit:');
+    expect(captureProcess).toContain('installed viewing deletion:');
     expect(captureProcess).toContain('Installed film aggregation did not survive relaunch');
     expect(captureProcess).toContain('Installed metadata Retry');
     expect(captureProcess).toContain('Mobile filter Reset');

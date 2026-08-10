@@ -4,6 +4,7 @@
 export type ActionFailureContext =
   | 'add-folder'
   | 'copy-path'
+  | 'delete-entry'
   | 'log'
   | 'metadata'
   | 'open-item'
@@ -16,6 +17,7 @@ export type ActionFailureContext =
 const fallbackByContext: Record<ActionFailureContext, string> = {
   'add-folder': 'Movie Log could not add that watched folder.',
   'copy-path': 'Movie Log could not copy that path.',
+  'delete-entry': 'Movie Log could not delete that viewing. Your journal was not changed.',
   log: 'Movie Log could not save this viewing.',
   metadata: 'The film catalog is temporarily unavailable. Try again when you are connected.',
   'open-item': 'Movie Log could not open that item.',

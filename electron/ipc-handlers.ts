@@ -7,7 +7,6 @@ import { createEntryFromPath } from '../shared/history.js';
 import { isTrackableMediaItem } from '../shared/media-items.js';
 import type {
   CatalogSearchResult,
-  EntryDetails,
   EntryKind,
   LogEntryDetails,
   LogFilmRequest,
@@ -146,6 +145,17 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
     }
   );
 
+  ipcMain.handle('movie-log:delete-entry', async (_event, entryId: string) => {
+    capture.assertWritable('delete entry');
+    const entry = await historyStore.deleteHistoryEntry(entryId);
+
+    if (entry) {
+      await broadcastState();
+    }
+
+    return entry;
+  });
+
   ipcMain.handle('movie-log:log-film', async (_event, film: LogFilmRequest, details?: LogEntryDetails) => {
     capture.assertWritable('log film');
     const { watchedAt = new Date().toISOString(), ...annotations } = details ?? {};
@@ -216,7 +226,7 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
     }
   );
 
-  ipcMain.handle('movie-log:update-entry', async (_event, entryId: string, details: EntryDetails) => {
+  ipcMain.handle('movie-log:update-entry', async (_event, entryId: string, details: LogEntryDetails) => {
     capture.assertWritable('update entry');
     const entry = await historyStore.updateHistoryEntry(entryId, details);
 

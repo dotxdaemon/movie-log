@@ -146,6 +146,7 @@ export interface LogFilmRequest {
 
 export interface MovieLogApi {
   chooseLogPaths(): Promise<string[]>;
+  deleteEntry(entryId: string): Promise<WatchEntry | null>;
   getState(): Promise<MovieLogState>;
   getDataFilePath(): Promise<string>;
   getNoteFilePath(): Promise<string>;
@@ -157,7 +158,7 @@ export interface MovieLogApi {
     selection: CatalogSearchResult | null
   ): Promise<void>;
   searchCatalog(query: string): Promise<CatalogSearchResult[]>;
-  updateEntry(entryId: string, details: EntryDetails): Promise<WatchEntry | null>;
+  updateEntry(entryId: string, details: LogEntryDetails): Promise<WatchEntry | null>;
   addWatchedFolders(): Promise<WatchedFolder[]>;
   removeWatchedFolder(id: string): Promise<void>;
   retryFilmEnrichment(): Promise<void>;

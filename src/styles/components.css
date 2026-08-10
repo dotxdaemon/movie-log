@@ -1051,6 +1051,99 @@
   max-width: 680px;
 }
 
+.viewing-editor-body .rating-input {
+  grid-template-columns: 1fr;
+}
+
+.viewing-editor-body .rating-segments {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.viewing-editor-body .rating-none {
+  width: 100%;
+}
+
+.viewing-danger-zone {
+  display: flex;
+  max-width: 680px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+.viewing-danger-zone p {
+  max-width: 460px;
+  margin: 0;
+  color: var(--ink-muted);
+  font-family: var(--body);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.viewing-delete-action {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--burgundy);
+  color: var(--burgundy);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.viewing-delete-action:hover {
+  color: var(--paper);
+  background: var(--burgundy);
+}
+
+.confirmation-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: rgba(23, 24, 33, 0.58);
+}
+
+.confirmation-dialog {
+  width: min(480px, 100%);
+  padding: var(--space-6);
+  border-top: 5px solid var(--burgundy);
+  border-bottom: 1px solid var(--border-dark);
+  color: var(--ink);
+  background: var(--canvas);
+  box-shadow: var(--shadow-panel);
+  animation: dossier-arrive 160ms ease-out both;
+}
+
+.confirmation-dialog h2 {
+  margin: var(--space-2) 0 0;
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+}
+
+.confirmation-dialog > p:last-of-type {
+  margin: var(--space-4) 0 var(--space-6);
+  color: var(--ink-muted);
+  line-height: 1.65;
+}
+
+.confirmation-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.confirmation-confirm {
+  border-left: 4px solid var(--active-red);
+  color: var(--paper);
+  background: var(--burgundy);
+}
+
 .dossier-unlogged {
   padding: var(--space-5);
   border-top: 4px solid var(--structural);

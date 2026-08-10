@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { ArchiveNavigation, MobileArchiveNavigation } from '../src/components/archive-navigation.js';
 import { PageHeader } from '../src/components/page-header.js';
 import { SheetDialog } from '../src/components/sheet-dialog.js';
+import { ConfirmationDialog } from '../src/components/confirmation-dialog.js';
 import { findByClass, renderTree, readText } from './render-tree.js';
 
 const noop = () => {};
@@ -149,5 +150,24 @@ describe('shared archive components', () => {
     expect(findByClass(tree, 'test-sheet')[0]?.props.role).toBe('dialog');
     expect(findByClass(tree, 'test-sheet')[0]?.props['aria-modal']).toBe('true');
     expect(findByClass(tree, 'test-sheet')[0]?.props['aria-label']).toBe('Test sheet');
+  });
+
+  it('renders destructive confirmation with explicit cancel and confirm actions', () => {
+    const tree = renderTree(
+      createElement(ConfirmationDialog, {
+        busy: false,
+        confirmLabel: 'Delete viewing',
+        description: 'This removes one viewing from the journal.',
+        onCancel: noop,
+        onConfirm: noop,
+        title: 'Delete this viewing?'
+      })
+    );
+
+    expect(findByClass(tree, 'confirmation-dialog')[0]?.props.role).toBe('alertdialog');
+    expect(findByClass(tree, 'confirmation-dialog')[0]?.props['aria-modal']).toBe('true');
+    expect(findByClass(tree, 'confirmation-cancel')).toHaveLength(1);
+    expect(findByClass(tree, 'confirmation-confirm')).toHaveLength(1);
+    expect(readText(tree)).toContain('This removes one viewing from the journal.');
   });
 });
