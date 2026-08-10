@@ -1,12 +1,17 @@
 // ABOUTME: Owns installed-app capture profiles, interaction replay, and fail-closed screenshot validation.
 // ABOUTME: Keeps proof-only automation outside the production Electron lifecycle and IPC entrypoint.
-import type { BrowserWindow } from 'electron';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { clipboard, type BrowserWindow } from 'electron';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { parseFilmTitle, readFilmKey } from '../shared/film-title.js';
 import { dossierPosterMinimumWidth } from '../shared/poster-policy.js';
 import type { FilmRecord, MovieLogState, WatchEntry } from '../shared/types.js';
-import { captureSnapshotMarkerName, validateCaptureRuntimePaths } from './capture-data-safety.js';
+import {
+  assertAbsolutePathOutsideApplicationSupport,
+  captureSnapshotMarkerName,
+  readProductionApplicationSupportDirectory,
+  validateCaptureRuntimePaths
+} from './capture-data-safety.js';
 
 interface CaptureControllerOptions {
   dataDirectory: string;
@@ -91,6 +96,39 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
   const captureWidth = Number(process.env.MOVIE_LOG_CAPTURE_WIDTH ?? 1180);
   const captureHeight = Number(process.env.MOVIE_LOG_CAPTURE_HEIGHT ?? 788);
   const captureRequestedView = process.env.MOVIE_LOG_CAPTURE_VIEW ?? 'library';
+  const watchedFolderOverride =
+    captureRequestedView === 'watched-folder-flow'
+      ? assertAbsolutePathOutsideApplicationSupport(
+          process.env.MOVIE_LOG_CAPTURE_WATCHED_FOLDER,
+          readProductionApplicationSupportDirectory(),
+          'Capture watched folder'
+        )
+      : null;
+  const dropPathOverrides = (() => {
+    if (captureRequestedView !== 'drag-drop-flow') {
+      return [];
+    }
+
+    let values: unknown;
+
+    try {
+      values = JSON.parse(process.env.MOVIE_LOG_CAPTURE_DROP_PATHS ?? '[]');
+    } catch (error) {
+      throw new Error('Capture drop paths must be a JSON array of isolated absolute paths.', { cause: error });
+    }
+
+    if (!Array.isArray(values) || values.length < 2 || values.some((value) => typeof value !== 'string')) {
+      throw new Error('Capture drop paths must include supported and unsupported absolute paths.');
+    }
+
+    return values.map((value) =>
+      assertAbsolutePathOutsideApplicationSupport(
+        value,
+        readProductionApplicationSupportDirectory(),
+        'Capture drop path'
+      )
+    );
+  })();
   const persistenceProof = {
     castNotes: 'Installed persistence proof cast notes',
     favorite: true,
@@ -136,6 +174,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     'detail-imdb-match',
     'detail-missing',
     'detail-outage',
+    'drag-drop-flow',
     'log',
     'log-selected',
     'log-ambiguity',
@@ -154,13 +193,14 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     'persistence-date-edit',
     'accessibility-audit',
     'layout-stability',
-    'performance-diary-large',
+    'performance-history-large',
     'performance-large',
     'performance',
     'poster-performance',
     'poster-locale',
     'retry-backoff-verify',
-    'slow-catalog'
+    'slow-catalog',
+    'watched-folder-flow'
   ]);
 
   if (
@@ -352,7 +392,8 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
           requestedView === 'performance' ||
           requestedView === 'accessibility-audit' ||
           requestedView === 'layout-stability' ||
-          requestedView === 'performance-diary-large'
+          requestedView === 'performance-history-large' ||
+          requestedView === 'drag-drop-flow'
         ) {
           return true;
         }
@@ -407,7 +448,11 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         }
 
         if (!requestedView.startsWith('diary')) {
-          const navigationView = requestedView.startsWith('statistics') ? 'statistics' : requestedView;
+          const navigationView = requestedView.startsWith('statistics')
+            ? 'statistics'
+            : requestedView === 'watched-folder-flow'
+              ? 'settings'
+              : requestedView;
           navigationItems.find((item) => readLabel(item).includes(navigationView))?.click();
         }
 
@@ -507,6 +552,18 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         (async () => {
           const settlePaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           document.documentElement.style.scrollBehavior = 'auto';
+          const initialCardCount = document.querySelectorAll('.movie-card').length;
+          const batchDurations = [];
+          const loadStartedAt = performance.now();
+
+          while (document.querySelector('.library-load-more')) {
+            const batchStartedAt = performance.now();
+            document.querySelector('.library-load-more')?.click();
+            await settlePaint();
+            batchDurations.push(performance.now() - batchStartedAt);
+          }
+
+          const loadMilliseconds = performance.now() - loadStartedAt;
           const cardCount = document.querySelectorAll('.movie-card').length;
           const startedAt = performance.now();
           const frameDurations = [];
@@ -525,12 +582,32 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
           const maxFrameMilliseconds = Math.max(...frameDurations);
           window.scrollTo(0, 0);
           await settlePaint();
-          return { cardCount, maxFrameMilliseconds, totalMilliseconds };
+          return {
+            batchCount: batchDurations.length,
+            cardCount,
+            initialCardCount,
+            loadMilliseconds,
+            maxBatchMilliseconds: Math.max(0, ...batchDurations),
+            maxFrameMilliseconds,
+            totalMilliseconds
+          };
         })()
-      `)) as { cardCount: number; maxFrameMilliseconds: number; totalMilliseconds: number };
+      `)) as {
+        batchCount: number;
+        cardCount: number;
+        initialCardCount: number;
+        loadMilliseconds: number;
+        maxBatchMilliseconds: number;
+        maxFrameMilliseconds: number;
+        totalMilliseconds: number;
+      };
 
       if (
+        measurements.initialCardCount > 120 ||
         measurements.cardCount < 1_000 ||
+        measurements.batchCount < 1 ||
+        measurements.maxBatchMilliseconds >= 250 ||
+        measurements.loadMilliseconds >= 4_000 ||
         measurements.maxFrameMilliseconds >= 100 ||
         measurements.totalMilliseconds >= 2_000
       ) {
@@ -540,40 +617,345 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       process.stdout.write(`installed large library: ${JSON.stringify(measurements)}\n`);
     }
 
-    if (captureRequestedView === 'performance-diary-large') {
+    if (captureRequestedView === 'performance-history-large') {
+      const historyCount = (await historyStore.readState()).history.length;
       const rendererMeasurements = (await mainWindow.webContents.executeJavaScript(`
-        (() => ({
-          collapsedFormCount: document.querySelectorAll('.diary-entry .entry-form').length,
-          entryCount: document.querySelectorAll('.diary-entry').length,
-          interactiveCount: document.querySelectorAll(
-            'button, input:not([type="hidden"]), select, textarea, a[href], summary, [tabindex]'
-          ).length,
-          readyMilliseconds: performance.now()
-        }))()
+        (async () => {
+          const settlePaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const navigationItems = [...document.querySelectorAll('.nav-item')];
+          const readLabel = (element) => (element.getAttribute('aria-label') || element.textContent || '').trim().toLowerCase();
+          const timings = {};
+          const navigate = async (label) => {
+            const startedAt = performance.now();
+            navigationItems.find((item) => readLabel(item).includes(label))?.click();
+            await settlePaint();
+            timings[label] = performance.now() - startedAt;
+          };
+
+          await navigate('statistics');
+          const statisticsText = document.querySelector('.statistics-view')?.textContent ?? '';
+          await navigate('search');
+          const input = document.querySelector('.archive-search input');
+          const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+          const searchStartedAt = performance.now();
+          valueSetter?.call(input, 'Stress Film 0999');
+          input?.dispatchEvent(new Event('input', { bubbles: true }));
+          await settlePaint();
+          const searchMilliseconds = performance.now() - searchStartedAt;
+          const searchResultCount = document.querySelectorAll('.search-result').length;
+          await navigate('library');
+          document.querySelector('.movie-card .movie-card-face')?.click();
+          await settlePaint();
+          document.querySelector('.movie-card-selected .movie-card-face')?.click();
+          await settlePaint();
+
+          return {
+            dossierViewingCount: document.querySelectorAll('.movie-dossier .viewing-row').length,
+            readyMilliseconds: performance.now(),
+            searchMilliseconds,
+            searchResultCount,
+            statisticsShowsHistoryCount: statisticsText.includes('1,000') || statisticsText.includes('1000'),
+            timings
+          };
+        })()
       `)) as {
-        collapsedFormCount: number;
-        entryCount: number;
-        interactiveCount: number;
+        dossierViewingCount: number;
         readyMilliseconds: number;
+        searchMilliseconds: number;
+        searchResultCount: number;
+        statisticsShowsHistoryCount: boolean;
+        timings: Record<string, number>;
       };
       const captureStartedAt = Number(process.env.MOVIE_LOG_CAPTURE_STARTED_AT);
       const measurements = {
+        historyCount,
         ...rendererMeasurements,
         launchReadyMilliseconds: Number.isFinite(captureStartedAt) ? Date.now() - captureStartedAt : -1
       };
+      const maxNavigationMilliseconds = Math.max(...Object.values(measurements.timings));
 
       if (
-        measurements.entryCount < 1_000 ||
-        measurements.collapsedFormCount !== 0 ||
-        measurements.interactiveCount >= 3_500 ||
+        measurements.historyCount < 1_000 ||
+        !measurements.statisticsShowsHistoryCount ||
+        measurements.searchResultCount < 1 ||
+        measurements.dossierViewingCount < 1 ||
+        maxNavigationMilliseconds >= 100 ||
+        measurements.searchMilliseconds >= 100 ||
         measurements.readyMilliseconds >= 3_000 ||
         measurements.launchReadyMilliseconds < 0 ||
         measurements.launchReadyMilliseconds >= 4_000
       ) {
-        throw new Error(`Installed large-diary budget failed: ${JSON.stringify(measurements)}`);
+        throw new Error(`Installed large-history budget failed: ${JSON.stringify(measurements)}`);
       }
 
-      process.stdout.write(`installed large diary: ${JSON.stringify(measurements)}\n`);
+      process.stdout.write(`installed large history: ${JSON.stringify(measurements)}\n`);
+    }
+
+    if (captureRequestedView === 'watched-folder-flow') {
+      if (!watchedFolderOverride) {
+        throw new Error('Installed watched-folder flow requires an isolated watched-folder override.');
+      }
+
+      const startingState = await historyStore.readState();
+      const startingHistoryCount = startingState.history.length;
+      const startingLibraryIds = new Set(startingState.libraryItems.map((item) => item.id));
+      const watchedFolderWindow = mainWindow;
+      const waitForState = async (
+        label: string,
+        predicate: (state: MovieLogState) => boolean,
+        maximumAttempts = 120
+      ): Promise<MovieLogState> => {
+        for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+          const state = await historyStore.readState();
+
+          if (predicate(state)) {
+            return state;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        throw new Error(`Installed watched-folder flow timed out waiting for ${label}.`);
+      };
+      const clickSettingsButton = async (label: string): Promise<boolean> =>
+        (await watchedFolderWindow.webContents.executeJavaScript(`
+          (() => {
+            const button = [...document.querySelectorAll('.settings-view button')].find(
+              (candidate) => candidate.textContent?.trim().toLowerCase() === ${JSON.stringify(label.toLowerCase())}
+            );
+            button?.click();
+            return Boolean(button);
+          })()
+        `)) as boolean;
+
+      if (!(await clickSettingsButton('Add folder'))) {
+        throw new Error('Installed Settings did not expose Add folder.');
+      }
+
+      const addedState = await waitForState(
+        'the selected folder to be added and initially indexed',
+        (state) =>
+          state.watchedFolders.some((folder) => folder.path === watchedFolderOverride) &&
+          state.libraryItems.some((item) => item.sourcePath === `${watchedFolderOverride}/Baseline.mkv`)
+      );
+      const watchedFolder = addedState.watchedFolders.find((folder) => folder.path === watchedFolderOverride);
+
+      if (!watchedFolder) {
+        throw new Error('Installed Add folder did not persist the selected watched folder.');
+      }
+
+      if (
+        addedState.libraryItems.some(
+          (item) => item.sourcePath.includes('/.Hidden') || item.sourcePath.endsWith('/Unsupported.jpg')
+        )
+      ) {
+        throw new Error('Installed watched-folder scan indexed hidden or unsupported files.');
+      }
+
+      const arrivalOne = `${watchedFolderOverride}/Arrival One.mkv`;
+      const arrivalTwo = `${watchedFolderOverride}/Arrival Two.mkv`;
+      await Promise.all([writeFile(arrivalOne, 'movie'), writeFile(arrivalTwo, 'movie')]);
+      const arrivalState = await waitForState('two coalesced filesystem arrivals', (state) =>
+        [arrivalOne, arrivalTwo].every((path) => state.history.some((entry) => entry.sourcePath === path))
+      );
+      const arrivalEntries = arrivalState.history.filter((entry) =>
+        [arrivalOne, arrivalTwo].includes(entry.sourcePath)
+      );
+
+      if (arrivalEntries.length !== 2 || new Set(arrivalEntries.map((entry) => entry.watchedAt)).size !== 1) {
+        throw new Error('Installed filesystem arrivals did not settle into one folder refresh.');
+      }
+
+      await mainWindow.webContents.executeJavaScript(`window.movieLog.copyPath(${JSON.stringify(arrivalOne)})`);
+
+      if (clipboard.readText() !== arrivalOne) {
+        throw new Error('Installed Copy path did not place the exact local path on the clipboard.');
+      }
+
+      await mainWindow.webContents.executeJavaScript(`window.movieLog.openInFinder(${JSON.stringify(arrivalOne)})`);
+      await mainWindow.webContents.executeJavaScript(
+        `window.movieLog.openItem(${JSON.stringify(watchedFolderOverride)})`
+      );
+
+      const manualScanPath = `${watchedFolderOverride}/Manual Scan.mkv`;
+      await writeFile(manualScanPath, 'movie');
+
+      if (!(await clickSettingsButton('Scan now'))) {
+        throw new Error('Installed Settings did not expose Scan now.');
+      }
+
+      await waitForState('the manual scan result', (state) =>
+        state.history.some((entry) => entry.sourcePath === manualScanPath)
+      );
+
+      const missingPath = `${watchedFolderOverride}-offline`;
+      await rename(watchedFolderOverride, missingPath);
+      const missingState = await waitForState(
+        'the missing folder to clear its current index',
+        (state) => !state.libraryItems.some((item) => item.folderId === watchedFolder.id)
+      );
+      const historyWhileMissing = missingState.history.length;
+      await rename(missingPath, watchedFolderOverride);
+      await waitForState(
+        'the remounted folder to restore its current index',
+        (state) => state.libraryItems.filter((item) => item.folderId === watchedFolder.id).length >= 4
+      );
+
+      const afterRemountPath = `${watchedFolderOverride}/After Remount.mkv`;
+      await writeFile(afterRemountPath, 'movie');
+      const remountedState = await waitForState('an arrival after remount', (state) =>
+        state.history.some((entry) => entry.sourcePath === afterRemountPath)
+      );
+
+      if (remountedState.history.length !== historyWhileMissing + 1) {
+        throw new Error('Installed remount duplicated history or lost the post-remount arrival.');
+      }
+
+      const removedByControl = (await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          const row = [...document.querySelectorAll('.watched-folder-row')].find(
+            (candidate) => candidate.textContent?.includes(${JSON.stringify(watchedFolderOverride)})
+          );
+          const button = row?.querySelector('.folder-remove');
+          button?.click();
+          return Boolean(button);
+        })()
+      `)) as boolean;
+
+      if (!removedByControl) {
+        throw new Error('Installed Settings did not expose Remove for the added watched folder.');
+      }
+
+      const removedState = await waitForState(
+        'the watched folder to be removed',
+        (state) =>
+          !state.watchedFolders.some((folder) => folder.id === watchedFolder.id) &&
+          !state.libraryItems.some((item) => item.folderId === watchedFolder.id)
+      );
+      const expectedUnrelatedLibraryCount = startingState.libraryItems.filter((item) =>
+        startingLibraryIds.has(item.id)
+      ).length;
+
+      if (
+        removedState.history.length !== remountedState.history.length ||
+        removedState.libraryItems.length !== expectedUnrelatedLibraryCount
+      ) {
+        throw new Error('Installed watched-folder removal changed history or unrelated indexed media.');
+      }
+
+      const afterRemovalPath = `${watchedFolderOverride}/After Removal.mkv`;
+      await writeFile(afterRemovalPath, 'movie');
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      const finalState = await historyStore.readState();
+
+      if (finalState.history.some((entry) => entry.sourcePath === afterRemovalPath)) {
+        throw new Error('Removed watched folder continued recording filesystem arrivals.');
+      }
+
+      process.stdout.write(
+        `installed watched folder flow: ${JSON.stringify({
+          arrivalBatchSize: arrivalEntries.length,
+          copiedPath: clipboard.readText(),
+          finalHistoryCount: finalState.history.length,
+          historyAdded: finalState.history.length - startingHistoryCount,
+          remounted: true,
+          removed: true
+        })}\n`
+      );
+    }
+
+    if (captureRequestedView === 'drag-drop-flow') {
+      const [supportedPath, unsupportedPath] = dropPathOverrides;
+      const startingHistoryCount = (await historyStore.readState()).history.length;
+      mainWindow.setPosition(0, 80);
+      const contentBounds = mainWindow.getContentBounds();
+      const dropTarget = {
+        x: Math.round(contentBounds.x + contentBounds.width / 2),
+        y: Math.round(contentBounds.y + contentBounds.height / 2)
+      };
+
+      if (!supportedPath || !unsupportedPath) {
+        throw new Error('Installed drag/drop flow could not resolve its target and fixture paths.');
+      }
+
+      await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          window.__movieLogDropEvents = [];
+          for (const type of ['dragenter', 'dragover', 'drop']) {
+            document.addEventListener(type, (event) => {
+              window.__movieLogDropEvents.push({
+                fileCount: event.dataTransfer?.files.length ?? -1,
+                fileNames: [...(event.dataTransfer?.files ?? [])].map((file) => file.name),
+                target: event.target?.className ?? event.target?.nodeName ?? '',
+                type,
+                types: [...(event.dataTransfer?.types ?? [])]
+              });
+            }, true);
+          }
+        })()
+      `);
+      mainWindow.show();
+      mainWindow.focus();
+      process.stdout.write(`installed Finder drop waiting: ${JSON.stringify({ dropTarget })}\n`);
+      await waitForCaptureSelector('.log-sheet', true, 300);
+
+      const dropEvents = (await mainWindow.webContents.executeJavaScript(
+        `window.__movieLogDropEvents ?? []`
+      )) as Array<{ fileCount: number; fileNames: string[]; target: string; type: string; types: string[] }>;
+
+      if (!dropEvents.some((event) => event.type === 'drop' && event.fileCount === dropPathOverrides.length)) {
+        throw new Error(
+          `Installed Finder drag did not reach the renderer with real files: ${JSON.stringify(dropEvents)}`
+        );
+      }
+
+      const selectedMedia = (await mainWindow.webContents.executeJavaScript(`
+        [...document.querySelectorAll('.selected-media p')].map((item) => item.textContent?.trim() ?? '')
+      `)) as string[];
+
+      if (
+        !selectedMedia.includes(supportedPath.split('/').at(-1) ?? '') ||
+        !selectedMedia.includes(unsupportedPath.split('/').at(-1) ?? '')
+      ) {
+        throw new Error(`Installed Finder drop did not preserve every dropped path: ${JSON.stringify(selectedMedia)}`);
+      }
+
+      const submitted = (await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          const button = [...document.querySelectorAll('.log-sheet button')].find(
+            (candidate) => candidate.textContent?.trim() === 'Log viewing'
+          );
+          button?.click();
+          return Boolean(button && !button.disabled);
+        })()
+      `)) as boolean;
+
+      if (!submitted) {
+        throw new Error('Installed Log sheet did not enable Log viewing for dropped local media.');
+      }
+
+      await waitForCaptureSelector('.log-sheet', false, 120);
+      await waitForCaptureSelector('.status-banner', true, 120);
+      const finalState = await historyStore.readState();
+      const feedbackText = (await mainWindow.webContents.executeJavaScript(
+        `document.querySelector('.status-banner')?.textContent?.trim() ?? ''`
+      )) as string;
+
+      if (
+        finalState.history.length !== startingHistoryCount + 1 ||
+        !finalState.history.some((entry) => entry.sourcePath === supportedPath) ||
+        finalState.history.some((entry) => entry.sourcePath === unsupportedPath) ||
+        !feedbackText.includes('Logged 1 item') ||
+        !feedbackText.includes('Skipped 1 path')
+      ) {
+        throw new Error(
+          `Installed Finder drop did not save the supported path and report the unsupported path: ${JSON.stringify({ feedbackText })}`
+        );
+      }
+
+      process.stdout.write(
+        `installed Finder drop: ${JSON.stringify({ feedbackText, selectedMedia, supportedPath, unsupportedPath })}\n`
+      );
     }
 
     if (captureRequestedView === 'diary' && captureWidth <= captureMobileNavigationBreakpoint) {
@@ -2138,6 +2520,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       'detail-imdb-match': '.movie-dossier',
       'detail-missing': '.movie-dossier',
       'detail-outage': '.dossier-match-error',
+      'drag-drop-flow': '.status-banner',
       diary: '.diary-view',
       'diary-grid': '#diary-panel-grid',
       'diary-ledger': '#diary-panel-ledger',
@@ -2165,7 +2548,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       'persistence-delete': '.status-banner',
       'persistence-date-edit': '.status-banner',
       performance: '.search-result',
-      'performance-diary-large': '.diary-view',
+      'performance-history-large': '.movie-dossier',
       'performance-large': '.movie-card',
       'poster-performance': '.library-view',
       'poster-locale': '.movie-dossier',
@@ -2176,7 +2559,8 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       settings: '.settings-view',
       'slow-catalog': '.search-result',
       statistics: '.statistics-view',
-      'statistics-lower': '.activity-panel'
+      'statistics-lower': '.activity-panel',
+      'watched-folder-flow': '.settings-view'
     }[captureRequestedView];
     const viewRendered = (await mainWindow.webContents.executeJavaScript(
       `Boolean(document.querySelector(${JSON.stringify(viewSelector)}))`
@@ -2653,6 +3037,8 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       const limit = captureRequestedView === 'log-path-match' ? 1 : 2;
       return (await historyStore.readState()).libraryItems.slice(0, limit).map((item) => item.sourcePath);
     },
+    readWatchedFolderOverride: async (): Promise<string[] | null> =>
+      watchedFolderOverride ? [watchedFolderOverride] : null,
     rendererQuery: captureRequestedView,
     transformReadState: (state: MovieLogState): MovieLogState =>
       captureRequestedView === 'empty-archive'

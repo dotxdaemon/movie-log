@@ -5,34 +5,42 @@ import { FilmPoster } from '../components/film-poster.js';
 import { MovieCard } from '../components/movie-card.js';
 import { EmptyState } from '../components/states.js';
 import {
-  buildArchiveItems,
   defaultArchiveFilters,
   filterArchiveItems,
   formatRuntime,
   readMediaTypeLabel,
-  type ArchiveFilters
+  type ArchiveFilters,
+  type ArchiveItem
 } from '../archive-model.js';
 import type { MovieLogState } from '../../shared/types.js';
+import { libraryBatchSize } from '../library-pagination.js';
 
 interface LibraryViewProps {
+  archiveItems: ArchiveItem[];
   filters: ArchiveFilters;
   onFilterChange(filters: ArchiveFilters): void;
   onOpenPath(path: string): void;
   onSelectLibraryPath(path: string | null): void;
+  onShowMore(): void;
   selectedLibraryPath: string | null;
   state: MovieLogState;
+  visibleLimit: number;
 }
 
 export function LibraryView({
+  archiveItems,
   filters,
   onFilterChange,
   onOpenPath,
   onSelectLibraryPath,
+  onShowMore,
   selectedLibraryPath,
-  state
+  state,
+  visibleLimit
 }: LibraryViewProps) {
-  const items = buildArchiveItems(state);
+  const items = archiveItems;
   const visibleItems = filterArchiveItems(items, filters);
+  const renderedItems = visibleItems.slice(0, visibleLimit);
   const selectedItem = visibleItems.find((item) => item.sourcePath === selectedLibraryPath) ?? null;
   if (items.length === 0) {
     return (
@@ -76,7 +84,7 @@ export function LibraryView({
             />
           ) : (
             <div className="movie-grid">
-              {visibleItems.map((item) => (
+              {renderedItems.map((item) => (
                 <MovieCard
                   item={item}
                   key={item.sourcePath}
@@ -87,6 +95,11 @@ export function LibraryView({
               ))}
             </div>
           )}
+          {renderedItems.length < visibleItems.length ? (
+            <button className="library-load-more" onClick={onShowMore} type="button">
+              {`Show ${Math.min(libraryBatchSize, visibleItems.length - renderedItems.length)} more · ${visibleItems.length - renderedItems.length} remaining`}
+            </button>
+          ) : null}
         </div>
         {selectedItem ? (
           <aside aria-label={`Selected title: ${selectedItem.displayTitle}`} className="library-inspector">

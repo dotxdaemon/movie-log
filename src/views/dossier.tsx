@@ -6,13 +6,14 @@ import { FilmPoster } from '../components/film-poster.js';
 import { MetaList } from '../components/meta.js';
 import { RatingMeter } from '../components/rating.js';
 import { EmptyState } from '../components/states.js';
-import { buildArchiveItems, formatRuntime, readMediaTypeLabel, type ArchiveItem } from '../archive-model.js';
+import { formatRuntime, readMediaTypeLabel, type ArchiveItem } from '../archive-model.js';
 import { readCatalogResultKey } from '../catalog-result.js';
-import type { CatalogSearchResult, LogEntryDetails, MovieLogState, WatchEntry } from '../../shared/types.js';
+import type { CatalogSearchResult, LogEntryDetails, WatchEntry } from '../../shared/types.js';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 
 interface DossierViewProps {
+  archiveItems: ArchiveItem[];
   matchError: string | null;
   matchPending: boolean;
   matchResults: CatalogSearchResult[];
@@ -27,10 +28,10 @@ interface DossierViewProps {
   onUpdateEntry(entryId: string, details: LogEntryDetails): Promise<void>;
   originLabel: string;
   selectedPath: string | null;
-  state: MovieLogState;
 }
 
 export function DossierView({
+  archiveItems,
   matchError,
   matchPending,
   matchResults,
@@ -44,10 +45,9 @@ export function DossierView({
   onSearchMatch,
   onUpdateEntry,
   originLabel,
-  selectedPath,
-  state
+  selectedPath
 }: DossierViewProps) {
-  const item = buildArchiveItems(state).find((candidate) =>
+  const item = archiveItems.find((candidate) =>
     selectedPath === null ? false : candidate.sourcePaths.includes(selectedPath)
   );
 

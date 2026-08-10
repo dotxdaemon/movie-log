@@ -7,6 +7,7 @@ import {
   buildArchiveItems,
   buildSearchResults,
   defaultArchiveFilters,
+  readArchiveCoverageForItems,
   type ArchiveItem,
   type ArchiveView,
   type SearchResultItem
@@ -21,6 +22,7 @@ import {
 import { readCatalogFailureMessage } from './catalog-search.js';
 import { focusDossierReturnTarget, focusSearchReturnTarget } from './search-focus.js';
 import { readActionFailureMessage, type ActionFailureContext } from './action-error.js';
+import { buildFilterOptions } from './filter-options.js';
 import { createArchiveLogSelection, createCatalogLogSelection } from './catalog-log-selection.js';
 import { isSearchContext, readSearchReturnView } from './navigation-state.js';
 import { updateArchiveState, useArchiveData } from './use-archive-data.js';
@@ -29,6 +31,7 @@ import { useDialogSurface } from './use-dialog-surface.js';
 import { parseFilmTitle } from '../shared/film-title.js';
 import { readVisibleHistory } from '../shared/history.js';
 import type { CatalogSearchResult, LogEntryDetails, WatchEntry } from '../shared/types.js';
+import { libraryBatchSize } from './library-pagination.js';
 
 export default function App() {
   const [activeView, setActiveView] = useState<ArchiveView>('library');
@@ -38,6 +41,7 @@ export default function App() {
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [feedback, setFeedback] = useState<WorkspaceFeedback | null>(null);
   const [filters, setFilters] = useState(defaultArchiveFilters);
+  const [libraryVisibleLimit, setLibraryVisibleLimit] = useState(libraryBatchSize);
   const [filterDraft, setFilterDraft] = useState(defaultArchiveFilters);
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [logFilmActiveIndex, setLogFilmActiveIndex] = useState(0);
@@ -78,9 +82,12 @@ export default function App() {
 
   const searchCatalog = useCatalogSearch(searchQuery, activeView === 'search');
   const logFilmSearch = useCatalogSearch(logFilmQuery, logPanelOpen && logSelectedFilm === null);
+  const archiveItems = useMemo(() => buildArchiveItems(state), [state]);
+  const archiveCoverage = useMemo(() => readArchiveCoverageForItems(archiveItems), [archiveItems]);
+  const filterOptions = useMemo(() => buildFilterOptions(archiveItems), [archiveItems]);
   const searchGroups = useMemo(
-    () => buildSearchResults(state, searchQuery, searchCatalog.results),
-    [searchCatalog.results, searchQuery, state]
+    () => buildSearchResults(state, searchQuery, searchCatalog.results, archiveItems),
+    [archiveItems, searchCatalog.results, searchQuery, state]
   );
 
   useEffect(() => guardDragNavigation(window), []);
@@ -154,6 +161,11 @@ export default function App() {
     }
 
     setFilterSheetOpen(open);
+  };
+
+  const handleFilterChange = (nextFilters: typeof defaultArchiveFilters) => {
+    setFilters(nextFilters);
+    setLibraryVisibleLimit(libraryBatchSize);
   };
 
   const handleAddWatchedFolders = () =>
@@ -523,6 +535,8 @@ export default function App() {
   return (
     <ArchiveApplication
       activeView={activeView}
+      archiveCoverage={archiveCoverage}
+      archiveItems={archiveItems}
       dataFilePath={dataFilePath}
       deleteConfirmation={deleteConfirmation}
       deleteInProgress={deleteInProgress}
@@ -540,8 +554,10 @@ export default function App() {
       filterSheetOpen={filterSheetOpen}
       filterDraft={filterDraft}
       filters={filters}
+      filterOptions={filterOptions}
       loadError={loadError}
       loading={loading}
+      libraryVisibleLimit={libraryVisibleLimit}
       logFilmActiveIndex={Math.min(logFilmActiveIndex, Math.max(0, logFilmSearch.results.length - 1))}
       logFilmPending={logFilmSearch.pending}
       logFilmError={logFilmSearch.error}
@@ -564,14 +580,15 @@ export default function App() {
       onDrop={handleDrop}
       onDropActiveChange={setDropActive}
       onFeedbackDismiss={() => setFeedback(null)}
-      onFilterChange={setFilters}
-      onApplyFilterDraft={setFilters}
+      onFilterChange={handleFilterChange}
+      onApplyFilterDraft={handleFilterChange}
       onFilterDraftChange={setFilterDraft}
       onFilterSheetOpenChange={handleFilterSheetOpenChange}
       onLogFilmActiveIndexChange={setLogFilmActiveIndex}
       onLogFilmQueryChange={handleLogFilmQueryChange}
       onLogItem={handleLogItem}
       onLogReviewChange={setLogReview}
+      onShowMoreLibraryItems={() => setLibraryVisibleLimit((limit) => limit + libraryBatchSize)}
       onMatchFilm={handleMatchFilm}
       onOpenInFinder={handleOpenInFinder}
       onOpenItem={handleOpenItem}

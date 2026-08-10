@@ -253,6 +253,7 @@ describe('capture pipeline', () => {
       'detail-imdb-match',
       'detail-missing',
       'detail-outage',
+      'drag-drop-flow',
       'log-ambiguity',
       'log-path-match',
       'log-multiple-paths',
@@ -267,13 +268,14 @@ describe('capture pipeline', () => {
       'persistence-date-edit',
       'accessibility-audit',
       'layout-stability',
-      'performance-diary-large',
+      'performance-history-large',
       'performance-large',
       'performance',
       'poster-performance',
       'poster-locale',
       'retry-backoff-verify',
       'slow-catalog',
+      'watched-folder-flow',
       'statistics-lower'
     ];
 
@@ -308,7 +310,9 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain("captureRequestedView === 'loading'");
     expect(captureProcess).toContain("captureRequestedView === 'load-error'");
     expect(captureProcess).toContain("captureRequestedView === 'layout-stability'");
-    expect(captureProcess).toContain("captureRequestedView === 'performance-diary-large'");
+    expect(captureProcess).toContain("captureRequestedView === 'performance-history-large'");
+    expect(captureProcess).toContain('Installed large-history budget failed');
+    expect(captureProcess).toContain("'performance-history-large': '.movie-dossier'");
     expect(captureProcess).toContain('launchReadyMilliseconds');
     expect(captureProcess).toContain('measurements.launchReadyMilliseconds >= 4_000');
     expect(captureProcess).toContain("captureRequestedView === 'empty-archive'");
@@ -321,7 +325,7 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain('maxNavigationMilliseconds >= 100');
     expect(captureProcess).toContain('measurements.localSearchMilliseconds >= 100');
     expect(captureProcess).toContain('installed performance:');
-    expect(captureProcess).toContain('installed large diary:');
+    expect(captureProcess).toContain('installed large history:');
     expect(captureProcess).toContain('installed layout stability:');
     expect(captureProcess).toContain('installed live catalog:');
     expect(captureProcess).toContain('installed dossier poster:');
@@ -330,6 +334,11 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain('installed mobile diary viewport:');
     expect(captureProcess).toContain('installed slow catalog:');
     expect(captureProcess).toContain('installed large library:');
+    expect(captureProcess).toContain('installed watched folder flow:');
+    expect(captureProcess).toContain('installed Finder drop:');
+    expect(captureProcess).toContain('readWatchedFolderOverride');
+    expect(captureProcess).toContain('measurements.initialCardCount > 120');
+    expect(captureProcess).toContain('measurements.maxBatchMilliseconds >= 250');
     expect(captureProcess).toContain('installed poster performance:');
     expect(captureProcess).toContain('installed poster locale:');
     expect(captureProcess).toContain('Network.setCacheDisabled');

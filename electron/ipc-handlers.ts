@@ -89,7 +89,10 @@ export function registerMovieLogIpcHandlers(options: RegisterMovieLogIpcOptions)
 
   ipcMain.handle('movie-log:add-watched-folders', async () => {
     capture.assertWritable('add watched folders');
-    const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'multiSelections'] });
+    const capturePaths = await capture.readWatchedFolderOverride();
+    const result = capturePaths
+      ? { canceled: false, filePaths: capturePaths }
+      : await dialog.showOpenDialog({ properties: ['openDirectory', 'multiSelections'] });
 
     if (result.canceled || result.filePaths.length === 0) {
       return [];

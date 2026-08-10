@@ -16,6 +16,7 @@
     "capture": "node ./scripts/capture.mjs",
     "capture:mac": "node ./scripts/capture-packaged.mjs",
     "create:stress-store": "node ./scripts/create-stress-store.mjs",
+    "create:retry-store": "node ./scripts/create-retry-store.mjs",
     "test": "vitest run",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit"

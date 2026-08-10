@@ -1,11 +1,12 @@
 // ABOUTME: Renders viewing statistics as editorial strips, thin bars, compact tables, and a yearly grid.
 // ABOUTME: Every figure derives from persisted diary entries joined with cached film metadata.
 import { EmptyState } from '../components/states.js';
-import { formatRuntime, readArchiveCoverage, readArchiveStats } from '../archive-model.js';
+import { formatRuntime, readArchiveCoverage, readArchiveStats, type ArchiveCoverage } from '../archive-model.js';
 import { createLocalCalendarDate } from '../../shared/local-calendar.js';
 import type { MovieLogState } from '../../shared/types.js';
 
 interface StatisticsViewProps {
+  coverage?: ArchiveCoverage;
   now?: Date;
   state: MovieLogState;
 }
@@ -66,9 +67,9 @@ function BarList({ maxRows = 8, rows }: { maxRows?: number; rows: Array<{ count:
   );
 }
 
-export function StatisticsView({ now, state }: StatisticsViewProps) {
+export function StatisticsView({ coverage, now, state }: StatisticsViewProps) {
   const stats = readArchiveStats(state, now);
-  const coverage = readArchiveCoverage(state);
+  const resolvedCoverage = coverage ?? readArchiveCoverage(state);
 
   if (stats.totalViewings === 0) {
     return (
@@ -92,6 +93,20 @@ export function StatisticsView({ now, state }: StatisticsViewProps) {
   const activityMonths = stats.activity.filter(
     (day, index, activity) => index === 0 || day.date.slice(0, 7) !== activity[index - 1]?.date.slice(0, 7)
   );
+  const visibleActivityMonths = activityMonths.filter((day, index, months) => {
+    const firstMonth = months[0];
+    const lastMonth = months.at(-1);
+
+    if (index === 1 && firstMonth && day.week - firstMonth.week < 5) {
+      return false;
+    }
+
+    if (index === months.length - 2 && lastMonth && lastMonth.week - day.week < 5) {
+      return false;
+    }
+
+    return true;
+  });
 
   return (
     <section className="statistics-view">
@@ -140,18 +155,18 @@ export function StatisticsView({ now, state }: StatisticsViewProps) {
       <section aria-label="Archive coverage" className="statistics-coverage">
         <div>
           <span>Catalog metadata</span>
-          <strong>{`${coverage.matched} of ${coverage.total} enriched`}</strong>
+          <strong>{`${resolvedCoverage.matched} of ${resolvedCoverage.total} enriched`}</strong>
           <small>
-            {coverage.unmatched > 0
-              ? `${coverage.unmatched} need review`
+            {resolvedCoverage.unmatched > 0
+              ? `${resolvedCoverage.unmatched} need review`
               : 'Matched details power posters and credits.'}
           </small>
         </div>
         <div>
           <span>Personal annotations</span>
-          <strong>{`${coverage.annotated} of ${coverage.total} annotated`}</strong>
+          <strong>{`${resolvedCoverage.annotated} of ${resolvedCoverage.total} annotated`}</strong>
           <small>
-            {coverage.annotated === 0
+            {resolvedCoverage.annotated === 0
               ? 'Ratings and favorites will appear after you annotate viewings.'
               : 'Ratings, reviews, favorites, tags, and viewing notes come only from logged viewings.'}
           </small>
@@ -321,9 +336,20 @@ export function StatisticsView({ now, state }: StatisticsViewProps) {
         </header>
         <div className="activity-calendar">
           <div aria-hidden="true" className="activity-months">
-            {activityMonths.map((day, index) => (
-              <span className="activity-month-label" key={day.date} style={{ gridColumn: `${day.week + 1} / span 4` }}>
-                {index === 0 || index === activityMonths.length - 1 || day.date.slice(5, 7) === '01'
+            {visibleActivityMonths.map((day, index) => (
+              <span
+                className="activity-month-label"
+                key={day.date}
+                style={{
+                  gridColumn:
+                    index === visibleActivityMonths.length - 1
+                      ? `${Math.max(1, day.week - 2)} / -1`
+                      : `${day.week + 1} / span 4`,
+                  gridRow: 1,
+                  justifySelf: index === visibleActivityMonths.length - 1 ? 'end' : undefined
+                }}
+              >
+                {index === 0 || index === visibleActivityMonths.length - 1 || day.date.slice(5, 7) === '01'
                   ? activityMonthFormatter.format(createLocalCalendarDate(day.date))
                   : activityMonthShortFormatter.format(createLocalCalendarDate(day.date))}
               </span>

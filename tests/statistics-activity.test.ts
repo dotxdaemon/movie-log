@@ -63,6 +63,12 @@ describe('yearly statistics activity', () => {
     expect(monthLabels.length).toBeGreaterThanOrEqual(11);
     expect(readText(monthLabels)).toContain('Jul 2025');
     expect(readText(monthLabels)).toContain('Jul 2026');
+    expect(readText(monthLabels)).not.toContain('Aug 2025');
+    expect(monthLabels.at(-1)?.props.style).toEqual({
+      gridColumn: '48 / -1',
+      gridRow: 1,
+      justifySelf: 'end'
+    });
     expect(weekdays.map((weekday) => weekday.text)).toEqual(['Mon', 'Wed', 'Fri']);
     expect(findByClass(tree, 'activity-grid')[0]?.props['aria-hidden']).toBe('true');
     expect(cells[0]?.props['aria-label']).toBeUndefined();

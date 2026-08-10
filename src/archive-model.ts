@@ -325,10 +325,10 @@ export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
     .sort((left, right) => right.latestViewing.watchedAt.localeCompare(left.latestViewing.watchedAt));
 }
 
-export function readArchiveCoverage(state: MovieLogState): ArchiveCoverage {
+export function readArchiveCoverageForItems(archiveItems: ArchiveItem[]): ArchiveCoverage {
   const itemsByFilm = new Map<string, ArchiveItem>();
 
-  for (const item of buildArchiveItems(state)) {
+  for (const item of archiveItems) {
     if (!itemsByFilm.has(item.filmKey)) {
       itemsByFilm.set(item.filmKey, item);
     }
@@ -365,6 +365,10 @@ export function readArchiveCoverage(state: MovieLogState): ArchiveCoverage {
     total: items.length,
     unmatched
   };
+}
+
+export function readArchiveCoverage(state: MovieLogState): ArchiveCoverage {
+  return readArchiveCoverageForItems(buildArchiveItems(state));
 }
 
 function matchesRatingFilter(rating: number | null, filter: string): boolean {
@@ -431,7 +435,8 @@ function normalizeSearchText(value: unknown): string {
 export function buildSearchResults(
   state: MovieLogState,
   query: string,
-  catalogResults: CatalogSearchResult[]
+  catalogResults: CatalogSearchResult[],
+  archiveItems = buildArchiveItems(state)
 ): SearchGroups {
   const normalizedQuery = normalizeSearchText(query);
 
@@ -440,7 +445,7 @@ export function buildSearchResults(
   }
 
   const queryTerms = normalizedQuery.split(' ');
-  const items = buildArchiveItems(state);
+  const items = archiveItems;
   const matches = (item: ArchiveItem): boolean => {
     const film = item.film;
     const viewingText = item.viewings.flatMap((entry) => [

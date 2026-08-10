@@ -574,6 +574,8 @@
 
 .movie-card {
   position: relative;
+  contain-intrinsic-block-size: auto 340px;
+  content-visibility: auto;
   align-content: start;
   gap: 7px;
   min-width: 0;

@@ -4,6 +4,7 @@ import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { ArchiveApplication, type ArchiveApplicationProps } from '../src/archive-application.js';
 import {
+  buildArchiveItems,
   buildSearchResults,
   defaultArchiveFilters,
   type ArchiveFilters,
@@ -269,6 +270,19 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'movie-card-year')).toHaveLength(2);
     expect(findByClass(tree, 'movie-card-status')).toHaveLength(2);
     expect(readText(tree)).toContain('Gints Zilbalodis');
+  });
+
+  it('bounds the initial Library DOM while retaining access to the complete filtered result set', () => {
+    const tree = renderSurface('library', {
+      archiveItems: buildArchiveItems(state),
+      libraryVisibleLimit: 1,
+      onShowMoreLibraryItems: noop
+    });
+
+    expect(findByClass(tree, 'movie-card')).toHaveLength(1);
+    expect(findByClass(tree, 'library-load-more')).toHaveLength(1);
+    expect(readText(tree)).toContain('Show 1 more · 1 remaining');
+    expect(readText(tree)).toContain('2 titles');
   });
 
   it('labels indexed-only cards without a watched date or review-pending marker', () => {

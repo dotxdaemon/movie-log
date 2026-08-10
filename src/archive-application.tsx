@@ -6,6 +6,7 @@ import { ArchiveNavigation, MobileArchiveNavigation } from './components/archive
 import { ConfirmationDialog } from './components/confirmation-dialog.js';
 import { readNavigationView } from './components/archive-navigation-data.js';
 import { FilterPanel, FilterSheet } from './components/filters.js';
+import type { FilterOptions } from './components/filters.js';
 import { PageHeader } from './components/page-header.js';
 import { ViewSkeleton, ErrorState } from './components/states.js';
 import { buildFilterOptions } from './filter-options.js';
@@ -19,8 +20,9 @@ import { StatisticsView } from './views/statistics.js';
 import {
   buildArchiveItems,
   filterArchiveItems,
-  readArchiveCoverage,
+  readArchiveCoverageForItems,
   type ArchiveFilters,
+  type ArchiveCoverage,
   type ArchiveItem,
   type ArchiveView,
   type DiaryMode,
@@ -32,6 +34,8 @@ import type { CatalogSearchResult, LogEntryDetails, MovieLogState, WatchEntry } 
 
 export interface ArchiveApplicationProps {
   activeView: ArchiveView;
+  archiveCoverage?: ArchiveCoverage;
+  archiveItems?: ArchiveItem[];
   dataFilePath: string;
   diaryMode?: DiaryMode;
   dossierMatchPending: boolean;
@@ -47,7 +51,9 @@ export interface ArchiveApplicationProps {
   filterSheetOpen: boolean;
   filterDraft: ArchiveFilters;
   filters: ArchiveFilters;
+  filterOptions?: FilterOptions;
   loadError: string | null;
+  libraryVisibleLimit?: number;
   loading: boolean;
   logFilmActiveIndex: number;
   logFilmError: string | null;
@@ -81,6 +87,7 @@ export interface ArchiveApplicationProps {
   onLogFilmQueryChange(value: string): void;
   onLogItem(item: ArchiveItem): void;
   onLogReviewChange(value: string): void;
+  onShowMoreLibraryItems?(): void;
   onMatchFilm(item: ArchiveItem, selection: CatalogSearchResult | null): void;
   onOpenInFinder(path: string): Promise<void>;
   onOpenItem(path: string): Promise<void>;
@@ -120,9 +127,9 @@ const confirmationDateFormatter = new Intl.DateTimeFormat(undefined, {
 });
 
 export function ArchiveApplication(props: ArchiveApplicationProps) {
-  const archiveItems = buildArchiveItems(props.state);
-  const coverage = readArchiveCoverage(props.state);
-  const filterOptions = buildFilterOptions(archiveItems);
+  const archiveItems = props.archiveItems ?? buildArchiveItems(props.state);
+  const coverage = props.archiveCoverage ?? readArchiveCoverageForItems(archiveItems);
+  const filterOptions = props.filterOptions ?? buildFilterOptions(archiveItems);
   const latestEntry = props.state.history[0];
   const modalOpen = props.filterSheetOpen || props.logPanelOpen || props.deleteConfirmation !== null;
   const navigationView = readNavigationView(props.activeView === 'detail' ? props.dossierOriginView : props.activeView);
@@ -163,12 +170,15 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
   } else if (props.activeView === 'library') {
     view = (
       <LibraryView
+        archiveItems={archiveItems}
         filters={props.filters}
         onFilterChange={props.onFilterChange}
         onOpenPath={props.onSelectPath}
         onSelectLibraryPath={props.onSelectLibraryPath}
+        onShowMore={props.onShowMoreLibraryItems ?? (() => {})}
         selectedLibraryPath={props.selectedLibraryPath}
         state={props.state}
+        visibleLimit={props.libraryVisibleLimit ?? Number.POSITIVE_INFINITY}
       />
     );
   } else if (props.activeView === 'search') {
@@ -186,7 +196,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
       />
     );
   } else if (props.activeView === 'statistics') {
-    view = <StatisticsView state={props.state} />;
+    view = <StatisticsView coverage={coverage} state={props.state} />;
   } else if (props.activeView === 'settings') {
     view = (
       <SettingsView
@@ -203,6 +213,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
   } else if (props.activeView === 'detail') {
     view = (
       <DossierView
+        archiveItems={archiveItems}
         matchPending={props.dossierMatchPending}
         matchError={props.dossierMatchError}
         matchResults={props.dossierMatchResults}
@@ -217,7 +228,6 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
         onSearchMatch={props.onSearchMatch}
         onUpdateEntry={props.onUpdateEntry}
         selectedPath={props.selectedPath}
-        state={props.state}
       />
     );
   }
