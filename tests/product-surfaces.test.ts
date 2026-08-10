@@ -1,5 +1,5 @@
 // ABOUTME: Verifies that the full Movie Log product brief resolves into real rendered application surfaces.
-// ABOUTME: Pins navigation, diary, library, search, statistics, dossier, logging, and designed states.
+// ABOUTME: Pins navigation, library, search, statistics, dossier, logging, and designed states.
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { ArchiveApplication, type ArchiveApplicationProps } from '../src/archive-application.js';
@@ -87,16 +87,14 @@ const noop = () => {};
 const asyncNoop = async () => {};
 
 const baseProps: ArchiveApplicationProps = {
-  activeView: 'diary',
+  activeView: 'library',
   dataFilePath: '/Data/movie-log.json',
-  diaryMode: 'timeline',
   dossierMatchPending: false,
   dossierMatchError: null,
   dossierMatchResults: [],
   dossierOriginLabel: 'Library',
   dossierOriginView: 'library',
   dropActive: false,
-  expandedDiaryEntryIds: new Set(),
   feedback: null,
   filterSheetOpen: false,
   filterDraft: defaultArchiveFilters,
@@ -123,8 +121,6 @@ const baseProps: ArchiveApplicationProps = {
   onCreateLog: asyncNoop,
   onCancelDeleteEntry: noop,
   onConfirmDeleteEntry: asyncNoop,
-  onDiaryModeChange: noop,
-  onDiaryEntryExpandedChange: noop,
   onDossierBack: noop,
   onDrop: noop,
   onDropActiveChange: noop,
@@ -198,7 +194,7 @@ describe('ArchiveApplication', () => {
   });
 
   it('keeps search and the logging action in the page header', () => {
-    const tree = renderSurface('diary');
+    const tree = renderSurface('library');
 
     expect(findByClass(tree, 'header-search')).toHaveLength(1);
     expect(findByClass(tree, 'header-log-action')).toHaveLength(1);
@@ -213,48 +209,6 @@ describe('ArchiveApplication', () => {
     expect(findByClass(header?.children ?? [], 'filter-toolbar')).toHaveLength(1);
     expect(findByClass(tree, 'filter-toolbar')).toHaveLength(1);
     expect(findByClass(tree, 'filter-sheet-trigger')).toHaveLength(1);
-  });
-
-  it('renders diary metrics with total runtime from cached film metadata', () => {
-    const tree = renderSurface('diary');
-    const text = readText(tree);
-
-    expect(findByClass(tree, 'month-summary')).toHaveLength(1);
-    expect(text).toContain('Total runtime');
-    expect(text).toContain('1h 25m');
-    expect(text).not.toContain('Total runtime —');
-  });
-
-  it('renders diary entries with clean titles, markers, catalog cast, and editable user cast notes', () => {
-    const tree = renderSurface('diary', {
-      expandedDiaryEntryIds: new Set(['2026-07-10T20:00:00.000Z:/Movies/Flow.2024.mkv'])
-    });
-    const text = readText(tree);
-
-    expect(findByClass(tree, 'diary-entry')).toHaveLength(2);
-    expect(text).toContain('Flow');
-    expect(text).not.toContain('Flow.2024.mkv');
-    expect(findByClass(tree, 'entry-year')).toHaveLength(2);
-    expect(findByClass(tree, 'entry-mark-favorite')).toHaveLength(1);
-    expect(findByClass(tree, 'entry-mark-rewatch')).toHaveLength(1);
-    expect(findByClass(tree, 'entry-excerpt')).toHaveLength(1);
-    expect(findByClass(tree, 'entry-expand')).toHaveLength(2);
-    expect(findByClass(tree, 'entry-cast')).toHaveLength(1);
-    expect(text).toContain('Cat, Capybara');
-    expect(findByClass(tree, 'entry-cast-notes')).toHaveLength(1);
-    expect(text).toContain('The silent ensemble carries the final movement.');
-    expect(text).toContain('Cast notes');
-    expect(findByClass(tree, 'entry-annotation')).toHaveLength(1);
-    expect(findByClass(tree, 'rating-meter')).not.toHaveLength(0);
-  });
-
-  it('renders real poster art in the diary poster grid', () => {
-    const tree = renderSurface('diary', { diaryMode: 'grid' });
-    const posters = findByClass(tree, 'poster-art');
-
-    expect(findByClass(tree, 'diary-poster-grid')).toHaveLength(1);
-    expect(posters.length).toBeGreaterThanOrEqual(1);
-    expect(posters[0]?.props.src).toContain('Flow_poster');
   });
 
   it('renders library cards with year, rating, watched date, markers, and an annotation layer', () => {
@@ -334,7 +288,7 @@ describe('ArchiveApplication', () => {
   });
 
   it('makes the application background inert without hiding the open log dialog', () => {
-    const tree = renderSurface('diary', { logPanelOpen: true });
+    const tree = renderSurface('library', { logPanelOpen: true });
     const background = findByClass(tree, 'archive-background')[0];
     const canvas = findByClass(tree, 'archive-canvas')[0];
 
@@ -406,15 +360,22 @@ describe('ArchiveApplication', () => {
     expect(applyCount).toBe(0);
   });
 
-  it('renders graded rating options and a real genre filter from catalog metadata', () => {
+  it('renders every requested filter and distinct recent-viewing and recently-added sorts', () => {
     const tree = renderSurface('library');
     const text = readText(tree);
 
     expect(text).toContain('4.5+');
     expect(text).toContain('Unrated');
     expect(text).toContain('Animated');
+    expect(text).toContain('Director');
+    expect(text).toContain('Gints Zilbalodis');
     expect(text).toContain('Genre');
+    expect(text).toContain('Recently added');
+    expect(text).toContain('Recent viewing');
     expect(text).toContain('Tag');
+    expect(text).toContain('Watch date');
+    expect(text).toContain('Year');
+    expect(text).toContain('2024');
   });
 
   it('groups search results into watched, library, and catalog lanes with posters and directors', () => {
@@ -444,7 +405,7 @@ describe('ArchiveApplication', () => {
     expect(findByClass(tree, 'search-result-year')).not.toHaveLength(0);
   });
 
-  it('opens Search with a restrained instructional state instead of the complete diary', () => {
+  it('opens Search with a restrained instructional state instead of the complete archive', () => {
     const tree = renderSurface('search', {
       searchGroups: buildSearchResults(state, '', []),
       searchQuery: ''
@@ -461,7 +422,7 @@ describe('ArchiveApplication', () => {
       searchCatalogError: 'The film catalog is unavailable.',
       searchQuery: 'flow'
     });
-    const logTree = renderSurface('diary', {
+    const logTree = renderSurface('library', {
       logFilmError: 'The film catalog is unavailable.',
       logFilmQuery: 'flow',
       logPanelOpen: true
@@ -740,7 +701,7 @@ describe('ArchiveApplication', () => {
   });
 
   it('renders the logging panel with film search before media choice and a visible save footer', () => {
-    const tree = renderSurface('diary', { logPanelOpen: true });
+    const tree = renderSurface('library', { logPanelOpen: true });
     const text = readText(tree);
     const logSheet = findByClass(tree, 'log-sheet');
 
@@ -762,7 +723,7 @@ describe('ArchiveApplication', () => {
   });
 
   it('exposes None and every half-step as native radio choices in the shared rating control', () => {
-    const tree = renderSurface('diary', { logPanelOpen: true });
+    const tree = renderSurface('library', { logPanelOpen: true });
     const rating = findByClass(tree, 'rating-control')[0];
     const none = findByClass(tree, 'rating-none')[0];
     const segments = findByClass(rating ? [rating] : [], 'rating-segment');
@@ -780,7 +741,7 @@ describe('ArchiveApplication', () => {
   });
 
   it('shows the selected film as a poster and metadata unit in the logging panel', () => {
-    const tree = renderSurface('diary', {
+    const tree = renderSurface('library', {
       logPanelOpen: true,
       logSelectedFilm: {
         description: '2024 animated film',
@@ -800,7 +761,7 @@ describe('ArchiveApplication', () => {
   });
 
   it('blocks an ambiguous selected film plus multiple-media draft with designed guidance', () => {
-    const tree = renderSurface('diary', {
+    const tree = renderSurface('library', {
       logPanelOpen: true,
       logSelectedFilm: {
         description: '2024 animated film',
@@ -821,21 +782,17 @@ describe('ArchiveApplication', () => {
   });
 
   it('uses per-view dimension-preserving loading surfaces instead of the empty state', () => {
-    const diaryTree = renderSurface('diary', { loading: true });
     const libraryTree = renderSurface('library', { loading: true });
     const statisticsTree = renderSurface('statistics', { loading: true });
 
-    expect(findByClass(diaryTree, 'diary-loading')).toHaveLength(1);
-    expect(findByClass(diaryTree, 'skeleton-month-metric')).toHaveLength(5);
-    expect(findByClass(diaryTree, 'skeleton-diary-entry')).toHaveLength(3);
     expect(findByClass(libraryTree, 'skeleton-card')).toHaveLength(8);
     expect(findByClass(statisticsTree, 'skeleton-chart-panel')).toHaveLength(6);
     expect(findByClass(statisticsTree, 'skeleton-activity-calendar')).toHaveLength(1);
-    expect(findByClass(diaryTree, 'blank-slate')).toHaveLength(0);
+    expect(findByClass(libraryTree, 'blank-slate')).toHaveLength(0);
   });
 
   it('renders a designed error state with a retry action when loading fails', () => {
-    const tree = renderSurface('diary', {
+    const tree = renderSurface('library', {
       loadError: 'The data file could not be read.'
     });
 
@@ -844,13 +801,13 @@ describe('ArchiveApplication', () => {
     expect(readText(tree)).toContain('Try again');
   });
 
-  it('renders designed empty diary, search, and statistics states with geometric fragments', () => {
+  it('renders designed empty library, search, and statistics states with geometric fragments', () => {
     const blankState: MovieLogState = {
       history: [],
       libraryItems: [],
       watchedFolders: []
     };
-    const diaryTree = renderSurface('diary', { state: blankState });
+    const libraryTree = renderSurface('library', { state: blankState });
     const searchTree = renderSurface('search', {
       searchGroups: buildSearchResults(blankState, 'unmatched', []),
       searchQuery: 'unmatched',
@@ -858,22 +815,22 @@ describe('ArchiveApplication', () => {
     });
     const statisticsTree = renderSurface('statistics', { state: blankState });
 
-    expect(findByClass(diaryTree, 'blank-slate')).toHaveLength(1);
-    expect(findByClass(diaryTree, 'state-fragment')).toHaveLength(1);
+    expect(findByClass(libraryTree, 'blank-slate')).toHaveLength(1);
+    expect(findByClass(libraryTree, 'state-fragment')).toHaveLength(1);
     expect(findByClass(searchTree, 'blank-slate')).toHaveLength(1);
     expect(findByClass(statisticsTree, 'blank-slate')).toHaveLength(1);
   });
 
   it('shows a drop affordance overlay only while dragging', () => {
-    expect(findByClass(renderSurface('diary', { dropActive: true }), 'drop-overlay')).toHaveLength(1);
-    expect(findByClass(renderSurface('diary'), 'drop-overlay')).toHaveLength(0);
+    expect(findByClass(renderSurface('library', { dropActive: true }), 'drop-overlay')).toHaveLength(1);
+    expect(findByClass(renderSurface('library'), 'drop-overlay')).toHaveLength(0);
   });
 
   it('shows error feedback as an alert and notices as a status banner', () => {
-    const errorTree = renderSurface('diary', {
+    const errorTree = renderSurface('library', {
       feedback: { message: 'Something failed.', tone: 'error' }
     });
-    const noticeTree = renderSurface('diary', {
+    const noticeTree = renderSurface('library', {
       feedback: { message: 'Path copied.', tone: 'notice' }
     });
     const errorBanner = findByClass(errorTree, 'status-error');
@@ -885,7 +842,7 @@ describe('ArchiveApplication', () => {
     expect(noticeBanner[0]?.props.role).toBe('status');
   });
 
-  it('hides file actions for catalog-only diary entries in the dossier', () => {
+  it('hides file actions for catalog-only viewings in the dossier', () => {
     const catalogState: MovieLogState = {
       films: {},
       history: [

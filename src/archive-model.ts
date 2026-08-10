@@ -1,5 +1,5 @@
 // ABOUTME: Builds the filterable film archive, search lanes, and viewing statistics from persisted state.
-// ABOUTME: Joins diary history and watched-folder contents with cached catalog metadata for every view.
+// ABOUTME: Joins viewing history and watched-folder contents with cached catalog metadata for every view.
 import { isFilmSourcePath, parseFilmTitle, readEpisodeCode, readFilmKey } from '../shared/film-title.js';
 import {
   createLocalCalendarDate,
@@ -12,11 +12,11 @@ import { readCatalogResultKey } from './catalog-result.js';
 import { isTrackableMediaItem } from '../shared/media-items.js';
 import type { CatalogSearchResult, FilmRecord, MovieLogState, WatchEntry } from '../shared/types.js';
 
-export type ArchiveView = 'diary' | 'library' | 'search' | 'statistics' | 'settings' | 'detail';
-export type DiaryMode = 'timeline' | 'ledger' | 'grid';
+export type ArchiveView = 'library' | 'search' | 'statistics' | 'settings' | 'detail';
 
 export interface ArchiveFilters {
   decade: string;
+  director: string;
   favorite: string;
   genre: string;
   mediaType: string;
@@ -25,9 +25,12 @@ export interface ArchiveFilters {
   sort: string;
   status: string;
   tag: string;
+  watchDate: string;
+  year: string;
 }
 
 export interface ArchiveItem {
+  addedAt: string;
   current: boolean;
   displayTitle: string;
   episodeCode: string | null;
@@ -56,7 +59,7 @@ export interface SearchResultItem {
   catalogSource?: 'imdb' | 'wikipedia';
   director: string[];
   key: string;
-  kind: 'diary' | 'library' | 'catalog';
+  kind: 'watched' | 'library' | 'catalog';
   mediaType: MediaType;
   pageId: number | null;
   posterLookupComplete?: boolean;
@@ -70,7 +73,7 @@ export interface SearchResultItem {
 
 export interface SearchGroups {
   catalog: SearchResultItem[];
-  diary: SearchResultItem[];
+  watched: SearchResultItem[];
   flat: SearchResultItem[];
   library: SearchResultItem[];
 }
@@ -118,6 +121,7 @@ export interface ArchiveCoverage {
 
 export const defaultArchiveFilters: ArchiveFilters = {
   decade: 'all',
+  director: 'all',
   favorite: 'all',
   genre: 'all',
   mediaType: 'all',
@@ -125,7 +129,9 @@ export const defaultArchiveFilters: ArchiveFilters = {
   rewatch: 'all',
   sort: 'recent',
   status: 'all',
-  tag: 'all'
+  tag: 'all',
+  watchDate: 'all',
+  year: 'all'
 };
 
 export function readEntryMediaType(entry: WatchEntry, films: MovieLogState['films']): MediaType {
@@ -209,12 +215,13 @@ function readLatestValue<T>(viewings: WatchEntry[], readValue: (entry: WatchEntr
   return undefined;
 }
 
-function isDiaryViewing(entry: WatchEntry): boolean {
+function isGenuineViewing(entry: WatchEntry): boolean {
   return !entry.id.startsWith('library:');
 }
 
 export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
   const currentPaths = new Set(state.libraryItems.map((item) => item.sourcePath));
+  const libraryItemsByPath = new Map(state.libraryItems.map((item) => [item.sourcePath, item]));
   const viewingsByPath = new Map<string, WatchEntry[]>();
 
   for (const entry of state.history) {
@@ -256,6 +263,12 @@ export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
     const filmKey = episodeCode ? `${baseFilmKey}::${episodeCode.toLowerCase()}` : baseFilmKey;
 
     return {
+      addedAt:
+        libraryItemsByPath.get(sourcePath)?.firstSeenAt ??
+        viewings.reduce(
+          (latest, entry) => (entry.watchedAt.localeCompare(latest) > 0 ? entry.watchedAt : latest),
+          viewings[0]?.watchedAt ?? latestViewing.watchedAt
+        ),
       current: currentPaths.has(sourcePath),
       film,
       filmKey,
@@ -281,7 +294,7 @@ export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
       const sourceEntries = sortedSources
         .flatMap((source) => source.viewings)
         .sort((left, right) => right.watchedAt.localeCompare(left.watchedAt));
-      const viewings = sourceEntries.filter(isDiaryViewing);
+      const viewings = sourceEntries.filter(isGenuineViewing);
       const identityEntries = viewings.length > 0 ? viewings : sourceEntries;
       const latestViewing = (viewings[0] ?? sourceEntries[0]) as WatchEntry;
       const parsed = parseFilmTitle(latestViewing.title);
@@ -299,6 +312,10 @@ export function buildArchiveItems(state: MovieLogState): ArchiveItem[] {
           : 'unknown';
 
       return {
+        addedAt: sortedSources.reduce(
+          (latest, source) => (source.addedAt.localeCompare(latest) > 0 ? source.addedAt : latest),
+          sortedSources[0]?.addedAt ?? latestViewing.watchedAt
+        ),
         current: sortedSources.some((source) => source.current),
         displayTitle: film?.status === 'matched' ? film.title : parsed.title,
         episodeCode,
@@ -384,19 +401,49 @@ function matchesRatingFilter(rating: number | null, filter: string): boolean {
   return rating !== null && rating >= threshold;
 }
 
-export function filterArchiveItems(items: ArchiveItem[], filters: ArchiveFilters): ArchiveItem[] {
+function matchesWatchDateFilter(item: ArchiveItem, filter: string, now: Date): boolean {
+  if (filter === 'all') {
+    return true;
+  }
+
+  if (filter === 'unwatched') {
+    return item.viewings.length === 0;
+  }
+
+  if (filter === 'last-30-days') {
+    const end = now.getTime();
+    const start = end - 30 * 24 * 60 * 60 * 1000;
+
+    return item.viewings.some((entry) => {
+      const watchedAt = new Date(entry.watchedAt).getTime();
+      return watchedAt >= start && watchedAt <= end;
+    });
+  }
+
+  if (filter.startsWith('year:')) {
+    const year = Number(filter.slice('year:'.length));
+    return item.viewings.some((entry) => readLocalCalendarYear(entry.watchedAt) === year);
+  }
+
+  return false;
+}
+
+export function filterArchiveItems(items: ArchiveItem[], filters: ArchiveFilters, now = new Date()): ArchiveItem[] {
   const filtered = items.filter((item) => {
     const decade = item.year === null ? null : `${Math.floor(item.year / 10) * 10}s`;
 
     return (
       (filters.decade === 'all' || decade === filters.decade) &&
+      (filters.director === 'all' || (item.film?.director ?? []).includes(filters.director)) &&
       (filters.favorite === 'all' || (filters.favorite === 'favorite') === item.favorite) &&
       (filters.genre === 'all' || (item.film?.genres ?? []).includes(filters.genre)) &&
       (filters.mediaType === 'all' || item.mediaType === filters.mediaType) &&
       matchesRatingFilter(item.rating, filters.rating) &&
       (filters.rewatch === 'all' || (filters.rewatch === 'rewatched') === item.rewatched) &&
       (filters.status === 'all' || (filters.status === 'current') === item.current) &&
-      (filters.tag === 'all' || item.tags.includes(filters.tag))
+      (filters.tag === 'all' || item.tags.includes(filters.tag)) &&
+      matchesWatchDateFilter(item, filters.watchDate, now) &&
+      (filters.year === 'all' || String(item.year) === filters.year)
     );
   });
 
@@ -411,6 +458,10 @@ export function filterArchiveItems(items: ArchiveItem[], filters: ArchiveFilters
 
     if (filters.sort === 'year') {
       return (right.year ?? -1) - (left.year ?? -1) || left.displayTitle.localeCompare(right.displayTitle);
+    }
+
+    if (filters.sort === 'added') {
+      return right.addedAt.localeCompare(left.addedAt) || left.displayTitle.localeCompare(right.displayTitle);
     }
 
     return right.latestViewing.watchedAt.localeCompare(left.latestViewing.watchedAt);
@@ -441,7 +492,7 @@ export function buildSearchResults(
   const normalizedQuery = normalizeSearchText(query);
 
   if (!normalizedQuery) {
-    return { catalog: [], diary: [], flat: [], library: [] };
+    return { catalog: [], flat: [], library: [], watched: [] };
   }
 
   const queryTerms = normalizedQuery.split(' ');
@@ -476,7 +527,7 @@ export function buildSearchResults(
 
     return queryTerms.every((term) => haystack.includes(term));
   };
-  const toResult = (item: ArchiveItem, kind: 'diary' | 'library'): SearchResultItem => ({
+  const toResult = (item: ArchiveItem, kind: 'watched' | 'library'): SearchResultItem => ({
     catalogId: item.film?.catalogId,
     catalogSource: item.film?.catalogSource,
     director: [...(item.film?.director ?? [])],
@@ -486,7 +537,7 @@ export function buildSearchResults(
     posterUrl: item.film?.posterUrl ?? null,
     sourcePath: item.sourcePath,
     status:
-      kind === 'diary'
+      kind === 'watched'
         ? `${readMediaTypeLabel(item)} · Watched ${watchedDateFormatter.format(new Date(item.latestViewing.watchedAt))}`
         : item.current
           ? `${readMediaTypeLabel(item)} · Indexed`
@@ -496,7 +547,7 @@ export function buildSearchResults(
     year: item.year
   });
 
-  const diaryItems = items.filter((item) => item.viewings.length > 0 && matches(item));
+  const watchedItems = items.filter((item) => item.viewings.length > 0 && matches(item));
   const libraryItems = items.filter((item) => item.current && item.viewings.length === 0 && matches(item));
   const localKeys = new Set(items.filter(matches).map((item) => item.filmKey));
   const catalog = catalogResults
@@ -523,14 +574,14 @@ export function buildSearchResults(
       };
     });
 
-  const diary = diaryItems.map((item) => toResult(item, 'diary'));
+  const watched = watchedItems.map((item) => toResult(item, 'watched'));
   const library = libraryItems.map((item) => toResult(item, 'library'));
 
   return {
     catalog,
-    diary,
-    flat: [...diary, ...library, ...catalog],
-    library
+    flat: [...watched, ...library, ...catalog],
+    library,
+    watched
   };
 }
 

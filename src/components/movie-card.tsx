@@ -13,8 +13,8 @@ interface MovieCardProps {
 }
 
 export function MovieCard({ item, onOpen, onSelect, selected }: MovieCardProps) {
-  const hasDiary = item.viewings.length > 0;
-  const needsReview = hasDiary && !item.reviewed;
+  const hasViewings = item.viewings.length > 0;
+  const needsReview = hasViewings && !item.reviewed;
   const markers = [
     item.favorite ? 'favorite' : null,
     item.rewatched ? 'rewatched' : null,
@@ -42,7 +42,7 @@ export function MovieCard({ item, onOpen, onSelect, selected }: MovieCardProps) 
             <span className="card-annotation-line card-annotation-mono">{readMediaTypeLabel(item)}</span>
             <span className="card-annotation-line">{item.film?.director[0] ?? 'Director —'}</span>
             <span className="card-annotation-line">{item.film?.genres.slice(0, 2).join(' · ') || 'Genre —'}</span>
-            {hasDiary ? (
+            {hasViewings ? (
               <span className="card-annotation-line card-annotation-mono">
                 {watchedFormatter.format(new Date(item.latestViewing.watchedAt))}
               </span>
@@ -53,14 +53,14 @@ export function MovieCard({ item, onOpen, onSelect, selected }: MovieCardProps) 
         <span className="movie-card-copy">
           <span className="movie-card-title">
             {item.displayTitle}
-            {needsReview ? <i aria-hidden="true" className="card-mark-unreviewed" title="Review pending" /> : null}
+            {needsReview ? <i aria-hidden="true" className="card-mark-unreviewed" /> : null}
           </span>
           <span className="media-type-label">{readMediaTypeLabel(item)}</span>
           <span className="movie-card-meta">
             <span className="movie-card-year">{item.year ?? '—'}</span>
             <span className="movie-card-rating">{item.rating === null ? 'NR' : item.rating.toFixed(1)}</span>
             <span className="movie-card-status">
-              {hasDiary
+              {hasViewings
                 ? watchedFormatter.format(new Date(item.latestViewing.watchedAt))
                 : item.current
                   ? 'Indexed'

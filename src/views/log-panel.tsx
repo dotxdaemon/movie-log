@@ -2,6 +2,7 @@
 // ABOUTME: The selected film sits as a poster unit above the form and the save action stays visible.
 import type { KeyboardEvent } from 'react';
 import { EntryForm } from '../components/entry-form.js';
+import { AccessibleTooltip } from '../components/accessible-tooltip.js';
 import { FilmPoster } from '../components/film-poster.js';
 import { SheetDialog } from '../components/sheet-dialog.js';
 import { readCatalogResultKey } from '../catalog-result.js';
@@ -212,9 +213,11 @@ export function LogPanel({
                     Clear
                   </button>
                 </header>
-                {pendingLogPaths.map((path) => (
-                  <p key={path} title={path}>
-                    {pathName(path)}
+                {pendingLogPaths.map((path, index) => (
+                  <p key={path}>
+                    <AccessibleTooltip id={`log-media-path-${index}`} text={path}>
+                      <span tabIndex={0}>{pathName(path)}</span>
+                    </AccessibleTooltip>
                   </p>
                 ))}
               </div>
@@ -239,6 +242,7 @@ export function LogPanel({
           showDate
           submitDisabled={!canSubmit || saving}
           submitLabel={saving ? 'Saving viewing…' : 'Log viewing'}
+          validationId="log-entry-validation"
         />
       </div>
     </SheetDialog>

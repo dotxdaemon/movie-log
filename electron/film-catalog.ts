@@ -115,7 +115,7 @@ const IMDB_GRAPHQL_API = 'https://api.graphql.imdb.com/';
 
 async function fetchJsonFromNetwork(url: string, options: CatalogRequestOptions = {}): Promise<unknown> {
   const response = await fetch(url, {
-    headers: { 'User-Agent': 'MovieLog/0.1 (personal desktop film diary)' },
+    headers: { 'User-Agent': 'MovieLog/0.1 (personal desktop film archive)' },
     signal: options.signal
   });
 
@@ -172,7 +172,7 @@ async function fetchImdbTitleJsonFromNetwork(
       Referer: 'https://www.imdb.com/',
       'x-imdb-user-country': 'US',
       'x-imdb-user-language': 'en-US',
-      'User-Agent': 'MovieLog/0.1 (personal desktop film diary)'
+      'User-Agent': 'MovieLog/0.1 (personal desktop film archive)'
     },
     method: 'POST',
     signal: options.signal

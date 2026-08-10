@@ -55,29 +55,27 @@ describe('styles.css', () => {
     );
   });
 
-  it('keeps the focal diary on the pale field instead of restoring the tailored dark slab', async () => {
+  it('keeps the focal Library on the pale field instead of restoring the tailored dark slab', async () => {
     const styles = await readCompleteStyles();
 
     expect(styles).toMatch(/\.archive-canvas\s*\{[^}]*background:[^}]*var\(--canvas\)/s);
-    expect(styles).toMatch(/\.entry-body\s*\{[^}]*background:[^}]*var\(--surface\)/s);
     expect(styles).not.toMatch(/\.tailored-room\s*\{/s);
     expect(styles).not.toMatch(/\.command-bar\s*\{/s);
     expect(styles).not.toMatch(/\.ledger-surface\s*\{/s);
     expect(styles).not.toMatch(/\.records-frame\s*\{[^}]*border:/s);
   });
 
-  it('gives diary titles a direct dossier action instead of a persistent action column', async () => {
+  it('gives Library titles a direct dossier action instead of a persistent action column', async () => {
     const styles = await readCompleteStyles();
 
-    expect(styles).toMatch(/\.entry-body h3 button\s*\{/);
+    expect(styles).toMatch(/\.movie-card-open-action\s*\{/);
     expect(styles).toMatch(/\.dossier-actions\s*\{/);
     expect(styles).not.toMatch(/\.record-actions\s*\{/);
   });
 
-  it('contains unbroken filename-stem titles inside the diary column', async () => {
+  it('contains unbroken filename-stem titles across Library, settings, and dossier surfaces', async () => {
     const styles = await readCompleteStyles();
 
-    expect(styles).toMatch(/\.entry-body h3 button\s*\{[^}]*max-width:\s*100%[^}]*overflow-wrap:\s*anywhere/s);
     expect(styles).toMatch(
       /\.current-contents-list button > span\s*\{[^}]*overflow:\s*hidden[^}]*overflow-wrap:\s*anywhere[^}]*-webkit-line-clamp:\s*2/s
     );
@@ -108,23 +106,6 @@ describe('styles.css', () => {
     expect(phoneStyles).toMatch(/:is\(input, select, textarea\)\s*\{[^}]*font-size:\s*16px/s);
     expect(mobileNavigationStyles).toMatch(/\.mobile-nav\s*\{[^}]*safe-area-inset-bottom/s);
     expect(mobileNavigationStyles).toMatch(/\.mobile-nav-item\s*\{[^}]*min-height:\s*64px/s);
-  });
-
-  it('gives ledger and grid diary modes distinct working geometries', async () => {
-    const styles = await readCompleteStyles();
-
-    expect(styles).toMatch(/\.diary-ledger \.diary-entry\s*\{/);
-    expect(styles).toMatch(/\.diary-grid \.diary-list\s*\{[^}]*grid-template-columns:/s);
-    expect(styles).toMatch(/\.diary-grid \.film-poster\s*\{/);
-  });
-
-  it('styles the selected diary view tab through its rendered ARIA state', async () => {
-    const styles = await readCompleteStyles();
-
-    expect(styles).toMatch(
-      /\.view-switcher button\[aria-selected=['"]true['"]\]\s*\{[^}]*background:\s*var\(--structural\)/s
-    );
-    expect(styles).not.toMatch(/\.view-switcher button\[aria-pressed="true"\]/);
   });
 
   it('uses a two-column logging workspace on desktop', async () => {
@@ -192,17 +173,13 @@ describe('styles.css', () => {
     expect(phoneStyles).toMatch(/\.dossier-identity > \.dossier-poster-col\s*\{[^}]*width:\s*min\(34vw,\s*130px\)/s);
   });
 
-  it('lets the detached diary study contract inside the 820px tablet content width', async () => {
+  it('lets viewing rows contract inside the tablet content width', async () => {
     const styles = await readCompleteStyles();
     const tabletStyles = styles.slice(
       styles.indexOf('@media (max-width: 900px)'),
       styles.indexOf('@media (max-width: 700px)')
     );
 
-    expect(tabletStyles).toMatch(/\.month-summary\s*\{[^}]*minmax\(170px,[^}]*gap:\s*var\(--space-5\)/s);
-    expect(tabletStyles).toMatch(
-      /\.month-metrics\s*\{[^}]*min-width:\s*0[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/s
-    );
     expect(tabletStyles).toMatch(
       /\.viewing-row\s*\{[^}]*grid-template-columns:[^}]*minmax\(0,\s*0\.9fr\)[^}]*minmax\(0,\s*1fr\)/s
     );
@@ -212,7 +189,6 @@ describe('styles.css', () => {
   it('keeps interactive controls at comfortable touch sizes', async () => {
     const styles = await readCompleteStyles();
 
-    expect(styles).toMatch(/\.view-switcher button\s*\{[^}]*min-height:\s*44px/s);
     expect(styles).toMatch(/\.dossier-actions button\s*\{[^}]*min-height:\s*44px/s);
     expect(styles).toMatch(/\.rating-segment\s*\{[^}]*min-height:\s*44px/s);
     expect(styles).toMatch(/\.filter-field select\s*\{[^}]*min-height:\s*44px/s);
@@ -360,15 +336,10 @@ describe('styles.css', () => {
     );
   });
 
-  it('uses one cardless archive composition instead of dashboard matrices', async () => {
+  it('uses one restrained archive composition instead of dashboard matrices', async () => {
     const styles = await readCompleteStyles();
 
     expect(styles).not.toContain('Remaining audit composition');
-    expect(styles).toMatch(
-      /\.month-metrics\s*\{[^}]*grid-template-columns:\s*repeat\(5,[^}]*background:\s*transparent/s
-    );
-    expect(styles).toMatch(/\.month-metrics\s*>\s*div\s*\{[^}]*background:\s*transparent/s);
-    expect(styles).not.toMatch(/\.month-metrics\s*>\s*div:first-child\s*\{[^}]*surface-lavender/s);
     expect(styles).toMatch(/\.filter-toolbar\s*\{[^}]*display:\s*none/s);
     expect(styles).toMatch(/\.search-groups\s*\{[^}]*display:\s*block/s);
     expect(styles).toMatch(/\.metric-strip\s*>\s*div\s*\{[^}]*background:\s*transparent/s);
@@ -379,6 +350,18 @@ describe('styles.css', () => {
       /\.activity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(53,[^}]*grid-template-rows:\s*repeat\(7,/s
     );
     expect(styles).toMatch(/@media \(min-width:\s*1180px\)\s*\{[^}]*\.library-workspace-selected/s);
+  });
+
+  it('lays out all twelve desktop filters and reveals custom tooltips on keyboard focus', async () => {
+    const styles = await readCompleteStyles();
+
+    expect(styles).toMatch(/\.filter-toolbar\s*\{[^}]*grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*1fr\)\)/s);
+    expect(styles).toMatch(/\.filter-toolbar \.filter-field:nth-child\(-n \+ 6\)\s*\{[^}]*border-bottom:/s);
+    expect(styles).toMatch(/\.accessible-tooltip-bubble\s*\{[^}]*visibility:\s*hidden/s);
+    expect(styles).toMatch(
+      /\.accessible-tooltip:focus-within \.accessible-tooltip-bubble\s*\{[^}]*visibility:\s*visible/s
+    );
+    expect(styles).not.toMatch(/\.accessible-tooltip:hover[^}]*transform:/s);
   });
 
   it('keeps the phone dossier informative and motion functional', async () => {

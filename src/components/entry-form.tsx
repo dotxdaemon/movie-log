@@ -1,7 +1,13 @@
-// ABOUTME: Renders the shared diary annotation form used by logging, dossier, and inline diary editing.
+// ABOUTME: Renders the shared viewing form used by logging and dossier editing.
 // ABOUTME: Reads ratings, reviews, cast notes, tags, formats, locations, and flags into persisted entry details.
 import type { FormEvent } from 'react';
-import { readEntryDetails, readLocalDateValue, reviewCharacterLimit } from './entry-details.js';
+import {
+  futureViewingDateError,
+  readEntryDetails,
+  readEntryValidationError,
+  readLocalDateValue,
+  reviewCharacterLimit
+} from './entry-details.js';
 import { RatingInput } from './rating.js';
 import type { LogEntryDetails } from '../../shared/types.js';
 
@@ -14,6 +20,7 @@ interface EntryFormProps {
   showDate?: boolean;
   submitDisabled?: boolean;
   submitLabel: string;
+  validationId: string;
 }
 
 export function EntryForm({
@@ -24,11 +31,41 @@ export function EntryForm({
   review,
   showDate = false,
   submitDisabled = false,
-  submitLabel
+  submitLabel,
+  validationId
 }: EntryFormProps) {
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    onSubmit(readEntryDetails(event.currentTarget));
+    const details = readEntryDetails(event.currentTarget);
+    const error = readEntryValidationError(details);
+    const dateInput = event.currentTarget.elements.namedItem('watchedAt');
+    const validation = event.currentTarget.querySelector('.entry-form-validation');
+
+    if (error) {
+      if (dateInput instanceof HTMLInputElement) {
+        dateInput.setAttribute('aria-errormessage', validationId);
+        dateInput.setAttribute('aria-invalid', 'true');
+        dateInput.focus();
+      }
+      validation?.removeAttribute('hidden');
+      return;
+    }
+
+    if (dateInput instanceof HTMLInputElement) {
+      dateInput.removeAttribute('aria-errormessage');
+      dateInput.removeAttribute('aria-invalid');
+    }
+    validation?.setAttribute('hidden', '');
+    onSubmit(details);
+  }
+
+  function clearValidation(event: FormEvent<HTMLFormElement>): void {
+    const dateInput = event.currentTarget.elements.namedItem('watchedAt');
+    if (dateInput instanceof HTMLInputElement) {
+      dateInput.removeAttribute('aria-errormessage');
+      dateInput.removeAttribute('aria-invalid');
+    }
+    event.currentTarget.querySelector('.entry-form-validation')?.setAttribute('hidden', '');
   }
 
   const controlledReview = review !== undefined;
@@ -39,7 +76,7 @@ export function EntryForm({
   );
 
   return (
-    <form className="entry-form" onSubmit={submit}>
+    <form className="entry-form" noValidate onChange={clearValidation} onSubmit={submit}>
       {showDate ? (
         <label className="field-block field-block-date">
           <span>Viewing date</span>
@@ -50,6 +87,10 @@ export function EntryForm({
           />
         </label>
       ) : null}
+      <div className="entry-form-validation" hidden id={validationId} role="alert">
+        <strong>Check the viewing date</strong>
+        <span>{futureViewingDateError}</span>
+      </div>
       <RatingInput name="rating" value={defaults.rating ?? null} />
       <label className="field-block">
         <span className="field-label-row">

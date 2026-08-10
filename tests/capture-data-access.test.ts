@@ -1,5 +1,5 @@
 // ABOUTME: Locks installed capture runs to explicit data modes and a real-data write barrier.
-// ABOUTME: Prevents visual acceptance tooling from changing the production diary or metadata cache.
+// ABOUTME: Prevents visual acceptance tooling from changing production viewing history or the metadata cache.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

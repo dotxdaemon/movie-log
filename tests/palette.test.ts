@@ -63,7 +63,7 @@ describe('renderer palette', () => {
     expect(stylesheet).toMatch(
       /\.filter-toolbar \.filter-field select\s*\{[^}]*border-top:\s*1px solid var\(--border-strong\)/s
     );
-    expect(stylesheet).toMatch(/\.month-metrics\s*\{[^}]*border-top:\s*1px solid var\(--border\)/s);
+    expect(stylesheet).toMatch(/\.entry-form-footer\s*\{[^}]*border-top:\s*1px solid var\(--border\)/s);
   });
 
   it('does not paint a decorative X across the framed wall panel', () => {

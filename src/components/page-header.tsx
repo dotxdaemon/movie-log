@@ -9,7 +9,7 @@ interface PageHeaderProps {
   activeView: ArchiveView;
   archiveCount: number;
   coverage: ArchiveCoverage;
-  diaryCount: number;
+  viewingCount: number;
   libraryTools?: ReactNode;
   loading: boolean;
   navigationView: NavigationView;
@@ -25,7 +25,7 @@ export function PageHeader({
   activeView,
   archiveCount,
   coverage,
-  diaryCount,
+  viewingCount,
   libraryTools,
   loading,
   navigationView,
@@ -47,7 +47,7 @@ export function PageHeader({
         </p>
         <h1>{readViewTitle(activeView)}</h1>
         <p className="header-count-line">
-          <span>{diaryCount} viewings</span>
+          <span>{viewingCount} viewings</span>
           {' · '}
           <span>{archiveCount} titles</span>
         </p>
@@ -61,7 +61,7 @@ export function PageHeader({
           coverage={coverage}
           loading={loading}
           onRetry={onRetryMetadata}
-          viewingCount={diaryCount}
+          viewingCount={viewingCount}
         />
         <span aria-hidden="true" className="header-rule" />
       </div>
@@ -74,23 +74,26 @@ export function PageHeader({
               <path d="m9.4 9.4 3.1 3.1" stroke="currentColor" strokeLinecap="square" strokeWidth="1.4" />
             </svg>
             <input
+              aria-describedby="archive-search-shortcut"
               aria-keyshortcuts="Meta+K Control+K"
               onChange={(event) => {
                 onSearchQueryChange(event.target.value);
                 onViewChange('search');
               }}
               placeholder="Search archive"
-              title="Search archive (Command or Control K)"
               type="search"
               value={searchQuery}
             />
+            <span className="visually-hidden" id="archive-search-shortcut">
+              Keyboard shortcut: Command or Control K
+            </span>
           </label>
         )}
         <button
+          aria-label="Log a film. Keyboard shortcut: Command or Control N"
           aria-keyshortcuts="Meta+N Control+N"
           className="log-action header-log-action"
           onClick={onOpenLogPanel}
-          title="Log a film (Command or Control N)"
           type="button"
         >
           <span aria-hidden="true" className="log-action-plus">

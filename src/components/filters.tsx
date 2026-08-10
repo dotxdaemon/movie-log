@@ -5,8 +5,11 @@ import { SheetDialog } from './sheet-dialog.js';
 
 export interface FilterOptions {
   decades: string[];
+  directors: string[];
   genres: string[];
   tags: string[];
+  watchedYears: number[];
+  years: number[];
 }
 
 interface FilterControlsProps {
@@ -17,6 +20,7 @@ interface FilterControlsProps {
 
 const filterLabels: Record<keyof ArchiveFilters, string> = {
   decade: 'Decade',
+  director: 'Director',
   favorite: 'Favorite',
   genre: 'Genre',
   mediaType: 'Type',
@@ -24,8 +28,20 @@ const filterLabels: Record<keyof ArchiveFilters, string> = {
   rewatch: 'Rewatch',
   sort: 'Sort',
   status: 'Status',
-  tag: 'Tag'
+  tag: 'Tag',
+  watchDate: 'Watch date',
+  year: 'Year'
 };
+
+function readFilterValueLabel(key: keyof ArchiveFilters, value: string): string {
+  if (key === 'watchDate') {
+    if (value === 'last-30-days') return 'Last 30 days';
+    if (value === 'unwatched') return 'Not watched';
+    if (value.startsWith('year:')) return value.slice('year:'.length);
+  }
+
+  return value;
+}
 
 function FilterControls({ filters, onFilterChange, options }: FilterControlsProps) {
   const change = (key: keyof ArchiveFilters, value: string) => onFilterChange({ ...filters, [key]: value });
@@ -35,10 +51,20 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
       <label className="filter-field">
         <span>{filterLabels.sort}</span>
         <select name="sort" onChange={(event) => change('sort', event.target.value)} value={filters.sort}>
-          <option value="recent">Recent</option>
+          <option value="recent">Recent viewing</option>
+          <option value="added">Recently added</option>
           <option value="title">Title</option>
           <option value="rating">Rating</option>
           <option value="year">Release year</option>
+        </select>
+      </label>
+      <label className="filter-field">
+        <span>{filterLabels.director}</span>
+        <select name="director" onChange={(event) => change('director', event.target.value)} value={filters.director}>
+          <option value="all">All</option>
+          {options.directors.map((director) => (
+            <option key={director}>{director}</option>
+          ))}
         </select>
       </label>
       <label className="filter-field">
@@ -47,6 +73,17 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
           <option value="all">All</option>
           {options.genres.map((genre) => (
             <option key={genre}>{genre}</option>
+          ))}
+        </select>
+      </label>
+      <label className="filter-field">
+        <span>{filterLabels.year}</span>
+        <select name="year" onChange={(event) => change('year', event.target.value)} value={filters.year}>
+          <option value="all">All</option>
+          {options.years.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
           ))}
         </select>
       </label>
@@ -104,6 +141,23 @@ function FilterControls({ filters, onFilterChange, options }: FilterControlsProp
           <option value="all">All</option>
           <option value="rewatched">Rewatched</option>
           <option value="first">First viewings</option>
+        </select>
+      </label>
+      <label className="filter-field">
+        <span>{filterLabels.watchDate}</span>
+        <select
+          name="watchDate"
+          onChange={(event) => change('watchDate', event.target.value)}
+          value={filters.watchDate}
+        >
+          <option value="all">Any date</option>
+          <option value="last-30-days">Last 30 days</option>
+          <option value="unwatched">Not watched</option>
+          {options.watchedYears.map((year) => (
+            <option key={year} value={`year:${year}`}>
+              {year}
+            </option>
+          ))}
         </select>
       </label>
       <label className="filter-field">
@@ -208,7 +262,7 @@ export function ActiveFilterChips({
           type="button"
         >
           <span className="filter-chip-key">{filterLabels[key]}</span>
-          <span>{value}</span>
+          <span>{readFilterValueLabel(key, value)}</span>
           <span aria-hidden="true" className="filter-chip-x">
             ×
           </span>

@@ -239,10 +239,10 @@ describe('capture pipeline', () => {
 
     const profiles = [
       'aggregation-verify',
-      'diary-ledger',
-      'diary-grid',
       'empty-archive',
+      'keyboard-tooltip',
       'library-filtered',
+      'library-criteria',
       'library-empty',
       'library-selected',
       'search-results',
@@ -255,6 +255,7 @@ describe('capture pipeline', () => {
       'detail-outage',
       'drag-drop-flow',
       'log-ambiguity',
+      'log-validation',
       'log-path-match',
       'log-multiple-paths',
       'log-rating-none',
@@ -283,8 +284,6 @@ describe('capture pipeline', () => {
       expect(captureProcess).toContain(`'${profile}'`);
     }
 
-    expect(captureProcess).toContain("document.querySelector('#diary-tab-timeline')?.focus()");
-    expect(captureProcess).toContain("keyCode: 'Right'");
     expect(captureProcess).toContain("document.querySelector('.filter-sheet-trigger')?.click()");
     expect(captureProcess).toContain('filterSurface + \' select[name="genre"]\'');
     expect(captureProcess).toContain('filterSurface + \' select[name="mediaType"]\'');
@@ -298,6 +297,13 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain("captureRequestedView === 'detail-imdb-match'");
     expect(captureProcess).toContain('installed IMDb dossier match:');
     expect(captureProcess).toContain("captureRequestedView === 'log-ambiguity'");
+    expect(captureProcess).toContain("captureRequestedView === 'log-validation'");
+    expect(captureProcess).toContain('installed Log validation:');
+    expect(captureProcess).toContain("'.entry-form-validation'");
+    expect(captureProcess).toContain("captureRequestedView === 'keyboard-tooltip'");
+    expect(captureProcess).toContain('installed keyboard tooltip:');
+    expect(captureProcess).toContain("captureRequestedView === 'library-criteria'");
+    expect(captureProcess).toContain('installed Library criteria:');
     expect(captureProcess).toContain("captureRequestedView === 'log-path-match'");
     expect(captureProcess).toContain("captureRequestedView === 'log-multiple-paths'");
     expect(captureProcess).toContain('Installed persistence proof');
@@ -331,7 +337,6 @@ describe('capture pipeline', () => {
     expect(captureProcess).toContain('installed dossier poster:');
     expect(captureProcess).toContain('installed dossier fallback:');
     expect(captureProcess).toContain('installed log action flow:');
-    expect(captureProcess).toContain('installed mobile diary viewport:');
     expect(captureProcess).toContain('installed slow catalog:');
     expect(captureProcess).toContain('installed large library:');
     expect(captureProcess).toContain('installed watched folder flow:');

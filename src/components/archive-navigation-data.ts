@@ -2,7 +2,7 @@
 // ABOUTME: Supplies one stable view model to the desktop rail, mobile bar, and shared page header.
 import type { ArchiveView } from '../archive-model.js';
 
-export type NavigationView = Exclude<ArchiveView, 'detail' | 'diary'>;
+export type NavigationView = Exclude<ArchiveView, 'detail'>;
 export type NavIconName = 'library' | 'search' | 'statistics' | 'settings';
 
 export const navigationItems: Array<{
@@ -19,7 +19,7 @@ export const navigationItems: Array<{
 ];
 
 export function readNavigationView(view: ArchiveView): NavigationView {
-  return view === 'detail' || view === 'diary' ? 'library' : view;
+  return view === 'detail' ? 'library' : view;
 }
 
 export function readViewTitle(view: ArchiveView): string {

@@ -10,7 +10,7 @@ describe('App shell', () => {
     const tree = renderTree(
       createElement(AppShell, {
         mobileNavigation: createElement('button', { type: 'button' }, 'Add Folder'),
-        navigationRail: createElement('span', null, 'Diary'),
+        navigationRail: createElement('span', null, 'Library'),
         workspaceStage: createElement('div', { className: 'dossier-canvas' }, 'History')
       })
     );
@@ -24,7 +24,7 @@ describe('App shell', () => {
     expect(findByClass(tree, 'workspace-grid')).toHaveLength(0);
     expect(findByClass(tree, 'routes-panel')).toHaveLength(0);
     expect(readText(tree)).toContain('History');
-    expect(readText(tree)).toContain('Diary');
+    expect(readText(tree)).toContain('Library');
     expect(readText(tree)).toContain('Add Folder');
   });
 
@@ -33,7 +33,7 @@ describe('App shell', () => {
       createElement(AppShell, {
         mobileNavigation: createElement('button', { type: 'button' }, 'Add Folder'),
         modalOpen: true,
-        navigationRail: createElement('span', null, 'Diary'),
+        navigationRail: createElement('span', null, 'Library'),
         workspaceStage: createElement('div', { className: 'dossier-canvas' }, 'History')
       })
     );

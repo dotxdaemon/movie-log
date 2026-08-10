@@ -1,12 +1,21 @@
-// ABOUTME: Reads diary entry details out of a submitted annotation form.
+// ABOUTME: Reads viewing details out of a submitted annotation form.
 // ABOUTME: Keeps rating, review, cast note, tag, format, location, and date parsing shared across every form.
 import type { LogEntryDetails } from '../../shared/types.js';
 import { readLocalCalendarDateKey } from '../../shared/local-calendar.js';
 
 export const reviewCharacterLimit = 2000;
+export const futureViewingDateError = 'Choose today or an earlier viewing date.';
 
 export function readLocalDateValue(date = new Date()): string {
   return readLocalCalendarDateKey(date);
+}
+
+export function readEntryValidationError(details: LogEntryDetails, today = new Date()): string | null {
+  if (details.watchedAt && readLocalCalendarDateKey(details.watchedAt) > readLocalCalendarDateKey(today)) {
+    return futureViewingDateError;
+  }
+
+  return null;
 }
 
 export function readEntryDetails(form: HTMLFormElement): LogEntryDetails {

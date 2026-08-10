@@ -109,11 +109,7 @@ const statisticPanelClasses = [
   'year-chart'
 ];
 
-export function ViewSkeleton({
-  view
-}: {
-  view: 'diary' | 'library' | 'search' | 'statistics' | 'settings' | 'detail';
-}) {
+export function ViewSkeleton({ view }: { view: 'library' | 'search' | 'statistics' | 'settings' | 'detail' }) {
   if (view === 'library') {
     return (
       <div aria-label="Loading library" className="screen-loading library-loading" role="status">
@@ -196,58 +192,6 @@ export function ViewSkeleton({
           </header>
           <SkeletonBlock className="skeleton-activity-calendar" />
         </section>
-      </div>
-    );
-  }
-
-  if (view === 'diary') {
-    return (
-      <div aria-label="Loading diary" className="screen-loading diary-loading" role="status">
-        <header className="month-summary skeleton-month-summary">
-          <div className="month-summary-title">
-            <SkeletonBlock className="skeleton-line skeleton-line-short" />
-            <SkeletonBlock className="skeleton-month-title" />
-          </div>
-          <dl className="month-metrics skeleton-month-metrics">
-            {repeatBlocks(5, (index) => (
-              <div className={index === 4 ? 'skeleton-month-metric summary-wide' : 'skeleton-month-metric'} key={index}>
-                <dt>
-                  <SkeletonBlock className="skeleton-line skeleton-line-short" />
-                </dt>
-                <dd>
-                  <SkeletonBlock className="skeleton-month-value" />
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </header>
-        <div aria-hidden="true" className="view-switcher skeleton-view-switcher">
-          {repeatBlocks(3, (index) => (
-            <SkeletonBlock className="skeleton-tab" key={index} />
-          ))}
-        </div>
-        <div className="diary-list skeleton-diary-list">
-          {repeatBlocks(3, (index) => (
-            <article className="diary-entry skeleton-diary-entry" key={index}>
-              <span className="entry-date skeleton-entry-date">
-                <SkeletonBlock className="skeleton-date-day" />
-                <small>
-                  <SkeletonBlock className="skeleton-line" />
-                </small>
-              </span>
-              <div className="entry-body skeleton-entry-body">
-                <SkeletonBlock className="film-poster film-poster-entry skeleton-entry-poster" />
-                <div className="entry-copy skeleton-entry-copy">
-                  <SkeletonBlock className="skeleton-line skeleton-line-short" />
-                  <SkeletonBlock className="skeleton-entry-title" />
-                  <SkeletonBlock className="skeleton-line" />
-                  <SkeletonBlock className="skeleton-entry-marks" />
-                  <SkeletonBlock className="skeleton-entry-action" />
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
       </div>
     );
   }

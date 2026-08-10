@@ -1,6 +1,7 @@
 // ABOUTME: Renders watched-folder sources, current index contents, and durable data files as studies.
 // ABOUTME: Every control maps to a real folder, scan, open, or remove action on the local machine.
 import { EmptyState } from '../components/states.js';
+import { AccessibleTooltip } from '../components/accessible-tooltip.js';
 import type { MovieLogState } from '../../shared/types.js';
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
@@ -42,7 +43,11 @@ export function SettingsView(props: SettingsViewProps) {
               <article className="watched-folder-row" key={folder.id}>
                 <div className="watched-folder-copy">
                   <h3>{folder.name}</h3>
-                  <p title={folder.path}>{folder.path}</p>
+                  <p>
+                    <AccessibleTooltip id={`watched-folder-${folder.id}-path`} text={folder.path}>
+                      <span tabIndex={0}>{folder.path}</span>
+                    </AccessibleTooltip>
+                  </p>
                   <small>
                     {folder.lastScannedAt
                       ? `Scanned ${dateFormatter.format(new Date(folder.lastScannedAt))}`
@@ -83,10 +88,21 @@ export function SettingsView(props: SettingsViewProps) {
             <p className="settings-empty">No current items from watched folders.</p>
           ) : (
             props.state.libraryItems.map((item) => (
-              <button key={item.id} onClick={() => void props.onOpenItem(item.sourcePath)} type="button">
-                <span title={item.title}>{item.title}</span>
-                <small title={item.sourcePath}>{item.sourcePath}</small>
-              </button>
+              <AccessibleTooltip
+                className="accessible-tooltip-fill"
+                id={`current-item-${item.id}-path`}
+                key={item.id}
+                text={item.sourcePath}
+              >
+                <button
+                  aria-label={`Open ${item.title} at ${item.sourcePath}`}
+                  onClick={() => void props.onOpenItem(item.sourcePath)}
+                  type="button"
+                >
+                  <span>{item.title}</span>
+                  <small>{item.sourcePath}</small>
+                </button>
+              </AccessibleTooltip>
             ))
           )}
         </div>

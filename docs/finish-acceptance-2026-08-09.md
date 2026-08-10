@@ -15,7 +15,7 @@ The durable capture root is `/Users/seankim/.codex-artifacts`. The broad install
 
 | Requirement area | Pre-correction classification | Final evidence |
 | --- | --- | --- |
-| Existing functional, visual, accessibility, persistence, lifecycle, and security acceptance | Implemented and directly confirmed by the installed `a36d011` acceptance run | Preserved; full sequential gates, packaging, installed comparison, and release verification are repeated for the final commit. |
+| Existing functional, visual, accessibility, persistence, lifecycle, and security acceptance | Implemented and directly confirmed by the installed `a36d011` acceptance run | **Closed at `bf42d27`.** The August 9 follow-up repeated the sequential gates, packaging, installed acceptance, stress profiles, and production-data checks recorded in `journal.md`. |
 | 1,000-title Library | Implemented and directly confirmed, but rendering all cards remained unnecessarily costly | **Installed.** Library now reveals 120-card bounded batches; all 1,000 titles remain loadable and searchable. Final-package worst batch `24.1ms`, worst sampled frame `23.7ms`, and full scripted load `178.8ms`. `performance-library-large-final.png`. |
 | 1,000-viewing history | Implemented but the only retained installed stress artifact belonged to the removed Diary surface | **Installed.** A current 1,000-history run covered Library, Dossier, Search, and Statistics. Final-package transitions were Statistics `26.9ms`, Search `13.8ms`, and Library `27.1ms`; local Search was `20ms`; ready was `626.2ms`. `performance-history-large-final.png`. |
 | Large-history derived-data work | Broken against the 100ms transition budget: Statistics `106.2ms`, Library `465.4ms` | Corrected by sharing memoized archive items, coverage, filter options, and search inputs instead of rebuilding them per view. |
@@ -24,7 +24,7 @@ The durable capture root is `/Users/seankim/.codex-artifacts`. The broad install
 | Watched-folder operations | Implemented/test-confirmed; direct installed acceptance did not cover the full mutation sequence | **Installed.** Add, Scan Now, current contents, hidden/unsupported exclusion, settled arrivals, copy/reveal/open, disappearance, remount, remove, and history preservation ran against an isolated real folder. `watched-folder-flow.png`. |
 | Finder drag and drop | Synthetic drop coverage only | **Installed.** Finder supplied one MKV and one JPEG through a native macOS pointer drag. The installed sheet received real `File` objects, logged the MKV, skipped the JPEG, and displayed exact feedback. `finder-drag-drop.png`. |
 | Cross-display and cross-Space reopen | Unverified | **Conditional.** Current hardware exposes one online `3440×1440` display and the current monitor has one active desktop Space. The existing installed lifecycle proof covers cold launch, Command-W, menu reopen, Dock/second instance, focus, one process, and `1 -> 0 -> 1` windows on that display/Space; migration between displays/Spaces cannot be exercised in this environment. |
-| Downloaded rolling-release ZIP | Remote workflow/release metadata confirmed, but asset not independently unpacked | The final release procedure downloads the published ZIP into an isolated directory, verifies its digest/signature/root plist, and compares its app resources with the committed package before closeout. |
+| Downloaded rolling-release ZIP | Remote workflow/release metadata confirmed, but asset not independently unpacked | **Unverified in the retained August 9 evidence.** This historical ledger does not count the proposed procedure as a pass. Current release evidence belongs in `first-prompt-acceptance-2026-08-10.md`. |
 
 ## Product, domain, and navigation
 
@@ -73,7 +73,7 @@ The durable capture root is `/Users/seankim/.codex-artifacts`. The broad install
 | Append/readable-note protection and rollback-safe paired writes | **Tested.** Store transaction regressions inject second-file failure and restore both artifacts. |
 | Deletion snapshots and removes only the logical viewing plus hidden watcher duplicates | **Installed/Tested.** Confirmation/delete/relaunch proof and mutation tests. |
 | Folder removal preserves history and unrelated inventory | **Installed.** Native watched-folder profile. |
-| All three canonical files remain byte-identical | Final closeout rechecks exact SHA-256, byte size, and mtime after the last installed replay. No cache-policy migration is part of this correction. |
+| All three canonical files remain byte-identical | **Installed at `bf42d27`.** The final August 9 journal entry records unchanged hashes, byte sizes, mtimes, and counts after every installed replay. |
 
 ## Visual contract and surfaces
 
@@ -122,9 +122,9 @@ The durable capture root is `/Users/seankim/.codex-artifacts`. The broad install
 | Narrow preload; validated IPC identifiers, paths, details, catalog/search inputs; no renderer Node access or remote execution | **Tested/Installed boundary.** IPC/preload/security tests and packaged bundle inspection. Capture-only folder override is accepted only for the isolated `watched-folder-flow` profile. |
 | Existing Electron/React/TypeScript/Vite/Vitest stack; no dependency/schema/storage rewrite | **Unchanged.** No dependency or lockfile change; persisted data remains backward compatible. |
 | Focused regressions for changed behavior | **Tested.** Archive derivation/search inputs, bounded Library batches, statistics label, retry-store generator, watched/drop capture contracts. |
-| Sequential test/lint/type/format/diff/build/package gates | Final closeout records the exact command result after this ledger and all code are final. |
-| Installed app matches build and passes strict signature | Final closeout performs resource comparison and strict signing verification. |
-| Commit/push/workflow/tag/asset | Final closeout commits only scoped files to `main`, pushes, waits for `Release Main Build`, confirms its head SHA, validates `main-build`, then downloads and independently inspects the macOS ZIP. |
+| Sequential test/lint/type/format/diff/build/package gates | **Tested at `bf42d27`.** A fresh correction baseline rerun passed 61 test files / 379 tests, lint, both TypeScript checks, changed-file formatting, diff validation, build, and packaging. |
+| Installed app matches build and passes strict signature | **Installed at `bf42d27`.** The August 9 package and installed-app acceptance completed; current correction evidence is separated into the August 10 ledger. |
+| Commit/push/workflow/tag/asset | **Partial in this historical ledger.** `bf42d27` is present on `origin/main`; no retained independent ZIP-unpack result was found, so that narrower claim remains unverified here rather than being expressed as future work. |
 
 ## Deliberately unchanged or conditional
 

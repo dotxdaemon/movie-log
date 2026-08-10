@@ -192,7 +192,7 @@ describe('archive model', () => {
     ]);
     expect(flow?.localSourcePaths).toEqual(['/Downloads/Flow.2024.mp4', '/Movies/Flow.2024.mkv']);
     expect(groupedState.history).toHaveLength(5);
-    expect(buildSearchResults(groupedState, 'flow', []).diary).toHaveLength(1);
+    expect(buildSearchResults(groupedState, 'flow', []).watched).toHaveLength(1);
   });
 
   it('keeps same-title films from different years separate and merges missing-year identities together', () => {
@@ -279,6 +279,55 @@ describe('archive model', () => {
     ).toEqual(['Heat']);
   });
 
+  it('filters by director, exact release year, and viewing date', () => {
+    const items = buildArchiveItems(state);
+
+    expect(
+      filterArchiveItems(items, {
+        ...defaultArchiveFilters,
+        director: 'Michael Mann'
+      }).map((item) => item.displayTitle)
+    ).toEqual(['Heat']);
+    expect(
+      filterArchiveItems(items, {
+        ...defaultArchiveFilters,
+        year: '2024'
+      }).map((item) => item.displayTitle)
+    ).toEqual(['Flow']);
+    expect(
+      filterArchiveItems(items, {
+        ...defaultArchiveFilters,
+        watchDate: 'year:2025'
+      })
+    ).toEqual([]);
+  });
+
+  it('sorts recently added independently from the latest viewing date', () => {
+    const addedState: MovieLogState = {
+      ...state,
+      libraryItems: [
+        {
+          ...state.libraryItems[0]!,
+          firstSeenAt: '2026-06-01T20:00:00.000Z'
+        },
+        {
+          firstSeenAt: '2026-07-11T20:00:00.000Z',
+          folderId: 'movies',
+          folderPath: '/Movies',
+          id: 'dev:2',
+          lastSeenAt: '2026-07-11T20:00:00.000Z',
+          sourceKind: 'file',
+          sourcePath: '/Movies/Heat.1995.mkv',
+          title: 'Heat.1995'
+        }
+      ]
+    };
+    const items = buildArchiveItems(addedState);
+
+    expect(filterArchiveItems(items, { ...defaultArchiveFilters, sort: 'recent' })[0]?.displayTitle).toBe('Flow');
+    expect(filterArchiveItems(items, { ...defaultArchiveFilters, sort: 'added' })[0]?.displayTitle).toBe('Heat');
+  });
+
   it('models films, series episodes, and unknown media without rewriting stored titles', () => {
     const mediaState: MovieLogState = {
       films: { 'flow::2024': { ...flowFilm, mediaType: 'film' } },
@@ -361,7 +410,7 @@ describe('archive model', () => {
     expect(sumRuntime([], state.films)).toEqual({ knownCount: 0, minutes: 0 });
   });
 
-  it('gives diary records precedence over indexed-only and catalog search results', () => {
+  it('gives watched records precedence over indexed-only and catalog search results', () => {
     const groups = buildSearchResults(state, 'flow', [
       {
         description: '2024 animated film',
@@ -379,10 +428,10 @@ describe('archive model', () => {
       }
     ]);
 
-    expect(groups.diary.map((result) => result.title)).toEqual(['Flow']);
-    expect(groups.diary[0]?.director).toEqual(['Gints Zilbalodis']);
-    expect(groups.diary[0]?.year).toBe(2024);
-    expect(groups.diary[0]?.posterUrl).toContain('Flow_poster');
+    expect(groups.watched.map((result) => result.title)).toEqual(['Flow']);
+    expect(groups.watched[0]?.director).toEqual(['Gints Zilbalodis']);
+    expect(groups.watched[0]?.year).toBe(2024);
+    expect(groups.watched[0]?.posterUrl).toContain('Flow_poster');
     expect(groups.library).toEqual([]);
     expect(groups.catalog.map((result) => result.pageId)).toEqual([999]);
     expect(groups.flat).toHaveLength(2);
@@ -390,9 +439,11 @@ describe('archive model', () => {
   });
 
   it('matches local records across credits, metadata, reviews, punctuation, and multiple query terms', () => {
-    expect(buildSearchResults(state, 'gints adventure', []).diary.map((result) => result.title)).toEqual(['Flow']);
-    expect(buildSearchResults(state, 'unexpectedly, moving', []).diary.map((result) => result.title)).toEqual(['Flow']);
-    expect(buildSearchResults(state, 'a bird animation', []).diary.map((result) => result.title)).toEqual(['Flow']);
+    expect(buildSearchResults(state, 'gints adventure', []).watched.map((result) => result.title)).toEqual(['Flow']);
+    expect(buildSearchResults(state, 'unexpectedly, moving', []).watched.map((result) => result.title)).toEqual([
+      'Flow'
+    ]);
+    expect(buildSearchResults(state, 'a bird animation', []).watched.map((result) => result.title)).toEqual(['Flow']);
   });
 
   it('does not count an indexed copy as a second viewing or a Library search result', () => {
@@ -418,14 +469,14 @@ describe('archive model', () => {
     expect(flow?.viewings).toHaveLength(1);
     expect(flow?.rewatched).toBe(false);
     expect(flow?.localSourcePaths).toEqual(['/Archive/Flow.2024.mkv', '/Movies/Flow.2024.mkv']);
-    expect(groups.diary).toHaveLength(1);
+    expect(groups.watched).toHaveLength(1);
     expect(groups.library).toHaveLength(0);
   });
 
   it('does not materialize the complete archive before Search has a query', () => {
     const groups = buildSearchResults(state, '', []);
 
-    expect(groups).toEqual({ catalog: [], diary: [], flat: [], library: [] });
+    expect(groups).toEqual({ catalog: [], flat: [], library: [], watched: [] });
   });
 
   it('filters by real metadata and sorts without mutating the source state', () => {

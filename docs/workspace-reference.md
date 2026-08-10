@@ -26,16 +26,16 @@ Movie Log translates those exact traits into a predominantly pale working field,
 - icy lavender: secondary surfaces use controlled lavender-gray layers that give the pale field depth without gradients
 - graphite structural spine: the narrow desktop action edge and compact working bands translate the reference's dark garment structure
 - rare burgundy seam: the only attention color appears as narrow active, focus, drop, and selected-state cuts
-- tall diary focal body: the chronological arrival ledger is the largest continuous form and the emotional center of the first viewport
+- poster-led Library focal body: the indexed archive is the largest continuous form and the emotional center of the first viewport
 - asymmetrical annotation studies: watched folders, current contents, and note access sit as smaller unboxed studies in the surrounding negative space
 - exposed seam lines: partial rules, dark leading edges, and row cuts organize content without enclosing every region
-- narrow silhouettes: the action spine, diary body, folder rows, and controls stay vertically disciplined and angular
+- narrow silhouettes: the action spine, Library body, folder rows, and controls stay vertically disciplined and angular
 - modular panels: metadata extensions attach to their related working surface instead of becoming floating dashboard cards
-- disciplined negative space: the canvas keeps quiet open space around the diary and context studies
+- disciplined negative space: the canvas keeps quiet open space around the Library and context studies
 - working-surface-first mapping: title band, search, folder actions, date groups, rows, menus, feedback, loading, empty, and drop states all carry the system directly
 - one authored top band: title, search, and primary actions share one hierarchy instead of reading as adjacent tool cards
-- readable diary rhythm: filename-stem titles stay scannable, dates retain day grouping, and metadata remains visually secondary
-- responsive control migration: the graphite action spine becomes a real bottom action bar at narrow widths while the diary remains first
+- readable archive rhythm: filename-stem titles stay scannable, dates remain visible, and metadata remains visually secondary
+- responsive control migration: the graphite action spine becomes a real bottom action bar at narrow widths while the Library remains first
 - real behavior only: every visible action maps to the existing note, folder, scan, search, drop, Finder, file-open, copy, or remove behavior
 
 ## Working Surface Map
@@ -43,9 +43,9 @@ Movie Log translates those exact traits into a predominantly pale working field,
 - Title band: compact off-axis name, monospaced section index, graphite leading seam
 - Search: full-width pale seam with a dark structural edge and burgundy focus cut
 - Primary action: graphite Add Folder block with a narrow red seam
-- Diary: continuous cool-gray focal body with a graphite shoulder and day-group rhythm
+- Library: poster-led cool-gray focal body with graphite structure and a compact title rhythm
 - Rows: filename stem, technical metadata, partial dividers, burgundy hover/focus cut, compact action dossier
-- Folder context: detached route and inventory studies that remain subordinate to the diary
+- Folder context: detached route and inventory studies that remain subordinate to the Library
 - Feedback and states: dimensional skeletons, designed empty state, and pale full-canvas drop target
 
 ## Disallowed Markers

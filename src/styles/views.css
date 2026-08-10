@@ -1,52 +1,5 @@
 /* ABOUTME: Composes the archive views as restrained editorial studies without dashboard-card framing. */
-/* ABOUTME: Owns Diary, Library, Search, Statistics, dossier, and sheet composition above the shared foundation. */
-
-.month-summary {
-  position: relative;
-  display: grid;
-  max-width: 1100px;
-  border-top: 1px solid var(--structural);
-  border-bottom: 1px solid var(--border);
-  grid-template-columns: minmax(180px, 0.58fr) minmax(0, 2fr);
-  align-items: center;
-  gap: clamp(24px, 4vw, 56px);
-  padding: 20px 0;
-  background: transparent;
-}
-
-.month-summary-title {
-  padding-left: var(--space-4);
-  border-left: 4px solid var(--structural);
-}
-
-.view-switcher {
-  display: flex;
-  gap: 0;
-  width: max-content;
-  margin: var(--space-5) 0 var(--space-6);
-  border-bottom: 1px solid var(--border);
-}
-
-.view-switcher button {
-  min-width: 84px;
-  min-height: 44px;
-  padding: 0 14px;
-  color: var(--ink-muted);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border: 0;
-  border-left: 1px solid var(--border);
-}
-
-.view-switcher button:last-child {
-  border-right: 1px solid var(--border);
-}
-
-.diary-tab-panel:focus-visible {
-  outline-offset: 8px;
-}
+/* ABOUTME: Owns Library, Search, Statistics, dossier, and sheet composition above the shared foundation. */
 
 .filter-panel {
   max-width: 1180px;
@@ -57,9 +10,7 @@
   max-width: 1180px;
   border-top: 0;
   border-bottom: 1px solid var(--border);
-  grid-template-columns:
-    minmax(86px, 1.1fr) repeat(3, minmax(76px, 1fr)) minmax(104px, 1.18fr)
-    repeat(4, minmax(76px, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   display: grid;
 }
 
@@ -71,8 +22,12 @@
   background: transparent;
 }
 
-.filter-toolbar .filter-field:nth-child(4n) {
-  border-right: 1px solid var(--border);
+.filter-toolbar .filter-field:nth-child(-n + 6) {
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-toolbar .filter-field:nth-child(6n) {
+  border-right: 0;
 }
 
 .filter-toolbar .filter-field:last-child {
@@ -602,10 +557,6 @@
   gap: 52px clamp(40px, 6vw, 88px);
   max-width: 1160px;
   animation: dossier-arrive 180ms ease-out both;
-}
-
-.dossier-from-diary {
-  --dossier-entry-x: -4px;
 }
 
 .dossier-from-library {

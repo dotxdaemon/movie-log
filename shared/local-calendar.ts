@@ -1,5 +1,5 @@
 // ABOUTME: Converts stored timestamps into the local calendar parts shown throughout Movie Log.
-// ABOUTME: Keeps diary headings and statistics buckets aligned without rewriting persisted ISO timestamps.
+// ABOUTME: Keeps viewing dates and statistics buckets aligned without rewriting persisted ISO timestamps.
 
 export interface LocalCalendarParts {
   dateKey: string;

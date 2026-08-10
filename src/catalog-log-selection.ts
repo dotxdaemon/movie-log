@@ -1,5 +1,5 @@
 // ABOUTME: Converts global catalog search rows into the richer logging-sheet selection contract.
-// ABOUTME: Preserves provider identity, credits, and poster-quality metadata for catalog-only diary entries.
+// ABOUTME: Preserves provider identity, credits, and poster-quality metadata for catalog-only viewings.
 import type { CatalogSearchResult } from '../shared/types.js';
 import type { ArchiveItem, SearchResultItem } from './archive-model.js';
 

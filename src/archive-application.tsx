@@ -10,7 +10,6 @@ import type { FilterOptions } from './components/filters.js';
 import { PageHeader } from './components/page-header.js';
 import { ViewSkeleton, ErrorState } from './components/states.js';
 import { buildFilterOptions } from './filter-options.js';
-import { DiaryView } from './views/diary.js';
 import { DossierView } from './views/dossier.js';
 import { LibraryView } from './views/library.js';
 import { LogPanel } from './views/log-panel.js';
@@ -25,7 +24,6 @@ import {
   type ArchiveCoverage,
   type ArchiveItem,
   type ArchiveView,
-  type DiaryMode,
   type SearchGroups,
   type SearchResultItem
 } from './archive-model.js';
@@ -37,7 +35,6 @@ export interface ArchiveApplicationProps {
   archiveCoverage?: ArchiveCoverage;
   archiveItems?: ArchiveItem[];
   dataFilePath: string;
-  diaryMode?: DiaryMode;
   dossierMatchPending: boolean;
   dossierMatchError: string | null;
   dossierMatchResults: CatalogSearchResult[];
@@ -46,7 +43,6 @@ export interface ArchiveApplicationProps {
   deleteConfirmation: WatchEntry | null;
   deleteInProgress: boolean;
   dropActive: boolean;
-  expandedDiaryEntryIds?: ReadonlySet<string>;
   feedback: WorkspaceFeedback | null;
   filterSheetOpen: boolean;
   filterDraft: ArchiveFilters;
@@ -73,8 +69,6 @@ export interface ArchiveApplicationProps {
   onCreateLog(details: LogEntryDetails): Promise<void>;
   onCancelDeleteEntry(): void;
   onConfirmDeleteEntry(): Promise<void>;
-  onDiaryModeChange?(mode: DiaryMode): void;
-  onDiaryEntryExpandedChange?(entryId: string, expanded: boolean): void;
   onDossierBack(): void;
   onDrop(event: DragEvent<HTMLElement>): Promise<void> | void;
   onDropActiveChange(active: boolean): void;
@@ -151,15 +145,16 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
   );
 
   let view = (
-    <DiaryView
-      diaryMode={props.diaryMode ?? 'timeline'}
-      expandedEntryIds={props.expandedDiaryEntryIds ?? new Set()}
-      onDiaryEntryExpandedChange={props.onDiaryEntryExpandedChange}
-      onDiaryModeChange={props.onDiaryModeChange ?? (() => {})}
-      onOpenLogPanel={props.onOpenLogPanel}
-      onSelectPath={props.onSelectPath}
-      onUpdateEntry={props.onUpdateEntry}
+    <LibraryView
+      archiveItems={archiveItems}
+      filters={props.filters}
+      onFilterChange={props.onFilterChange}
+      onOpenPath={props.onSelectPath}
+      onSelectLibraryPath={props.onSelectLibraryPath}
+      onShowMore={props.onShowMoreLibraryItems ?? (() => {})}
+      selectedLibraryPath={props.selectedLibraryPath}
       state={props.state}
+      visibleLimit={props.libraryVisibleLimit ?? Number.POSITIVE_INFINITY}
     />
   );
 
@@ -167,20 +162,6 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
     view = <ErrorState message={props.loadError} onRetry={props.onRetryLoad} />;
   } else if (props.loading) {
     view = <ViewSkeleton view={props.activeView === 'detail' ? 'detail' : props.activeView} />;
-  } else if (props.activeView === 'library') {
-    view = (
-      <LibraryView
-        archiveItems={archiveItems}
-        filters={props.filters}
-        onFilterChange={props.onFilterChange}
-        onOpenPath={props.onSelectPath}
-        onSelectLibraryPath={props.onSelectLibraryPath}
-        onShowMore={props.onShowMoreLibraryItems ?? (() => {})}
-        selectedLibraryPath={props.selectedLibraryPath}
-        state={props.state}
-        visibleLimit={props.libraryVisibleLimit ?? Number.POSITIVE_INFINITY}
-      />
-    );
   } else if (props.activeView === 'search') {
     view = (
       <SearchView
@@ -266,7 +247,7 @@ export function ArchiveApplication(props: ArchiveApplicationProps) {
           activeView={props.activeView}
           archiveCount={archiveItems.length}
           coverage={coverage}
-          diaryCount={props.state.history.length}
+          viewingCount={props.state.history.length}
           loading={props.loading}
           libraryTools={
             props.activeView === 'library' && !props.loadError && (props.loading || archiveItems.length > 0) ? (

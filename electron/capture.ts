@@ -151,11 +151,10 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
   } as const;
   const captureViews = new Set([
     'aggregation-verify',
-    'diary',
-    'diary-ledger',
-    'diary-grid',
     'empty-archive',
+    'keyboard-tooltip',
     'library',
+    'library-criteria',
     'library-filtered',
     'library-empty',
     'library-selected',
@@ -177,6 +176,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     'drag-drop-flow',
     'log',
     'log-selected',
+    'log-validation',
     'log-ambiguity',
     'log-path-match',
     'log-multiple-paths',
@@ -401,6 +401,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         if (
           requestedView === 'log' ||
           requestedView === 'log-selected' ||
+          requestedView === 'log-validation' ||
           requestedView === 'log-ambiguity' ||
           requestedView === 'log-path-match' ||
           requestedView === 'log-multiple-paths' ||
@@ -447,14 +448,12 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
           return true;
         }
 
-        if (!requestedView.startsWith('diary')) {
-          const navigationView = requestedView.startsWith('statistics')
-            ? 'statistics'
-            : requestedView === 'watched-folder-flow'
-              ? 'settings'
-              : requestedView;
-          navigationItems.find((item) => readLabel(item).includes(navigationView))?.click();
-        }
+        const navigationView = requestedView.startsWith('statistics')
+          ? 'statistics'
+          : requestedView === 'watched-folder-flow' || requestedView === 'keyboard-tooltip'
+            ? 'settings'
+            : requestedView;
+        navigationItems.find((item) => readLabel(item).includes(navigationView))?.click();
 
         return true;
       })()
@@ -465,6 +464,58 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     }
 
     await new Promise((resolve) => setTimeout(resolve, 180));
+
+    if (captureRequestedView === 'keyboard-tooltip') {
+      await waitForCaptureSelector('.settings-view .accessible-tooltip-target');
+      const tooltip = (await mainWindow.webContents.executeJavaScript(`
+        (async () => {
+          const target = document.querySelector('.settings-view .accessible-tooltip-target');
+          target?.focus();
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          await new Promise((resolve) => setTimeout(resolve, 220));
+          const describedBy = target?.getAttribute('aria-describedby') ?? '';
+          const bubble = describedBy ? document.getElementById(describedBy.split(/\\s+/)[0]) : null;
+          const bounds = bubble?.getBoundingClientRect();
+          return {
+            bounds: bounds
+              ? { bottom: bounds.bottom, height: bounds.height, left: bounds.left, right: bounds.right, top: bounds.top, width: bounds.width }
+              : null,
+            describedBy,
+            focused: document.activeElement === target,
+            opacity: bubble ? getComputedStyle(bubble).opacity : '',
+            role: bubble?.getAttribute('role') ?? '',
+            text: bubble?.textContent?.trim() ?? '',
+            visibility: bubble ? getComputedStyle(bubble).visibility : ''
+          };
+        })()
+      `)) as {
+        bounds: { bottom: number; height: number; left: number; right: number; top: number; width: number } | null;
+        describedBy: string;
+        focused: boolean;
+        opacity: string;
+        role: string;
+        text: string;
+        visibility: string;
+      };
+
+      if (
+        !tooltip.describedBy ||
+        !tooltip.bounds ||
+        tooltip.bounds.left < 0 ||
+        tooltip.bounds.right > captureWidth ||
+        tooltip.bounds.top < 0 ||
+        tooltip.bounds.bottom > captureHeight ||
+        !tooltip.focused ||
+        tooltip.opacity !== '1' ||
+        tooltip.role !== 'tooltip' ||
+        !tooltip.text ||
+        tooltip.visibility !== 'visible'
+      ) {
+        throw new Error(`Installed keyboard tooltip proof failed: ${JSON.stringify(tooltip)}`);
+      }
+
+      process.stdout.write(`installed keyboard tooltip: ${JSON.stringify(tooltip)}\n`);
+    }
 
     if (captureRequestedView === 'performance') {
       const measurements = (await mainWindow.webContents.executeJavaScript(`
@@ -958,27 +1009,6 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       );
     }
 
-    if (captureRequestedView === 'diary' && captureWidth <= captureMobileNavigationBreakpoint) {
-      const viewport = (await mainWindow.webContents.executeJavaScript(`
-        (() => {
-          const firstEntry = document.querySelector('.diary-entry');
-          const navigation = document.querySelector('.mobile-nav');
-          const switcher = document.querySelector('.view-switcher');
-          return {
-            firstEntryTop: firstEntry?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY,
-            navigationTop: navigation?.getBoundingClientRect().top ?? 0,
-            switcherBottom: switcher?.getBoundingClientRect().bottom ?? Number.POSITIVE_INFINITY
-          };
-        })()
-      `)) as { firstEntryTop: number; navigationTop: number; switcherBottom: number };
-
-      if (viewport.firstEntryTop >= viewport.navigationTop || viewport.switcherBottom >= viewport.navigationTop) {
-        throw new Error(`Installed mobile Diary first-viewport proof failed: ${JSON.stringify(viewport)}`);
-      }
-
-      process.stdout.write(`installed mobile diary viewport: ${JSON.stringify(viewport)}\n`);
-    }
-
     if (captureRequestedView === 'poster-performance') {
       await new Promise((resolve) => setTimeout(resolve, 1_200));
       const throttledPosterResource = await measureThrottledPosterResource();
@@ -1279,30 +1309,6 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       process.stdout.write(`installed accessibility: ${JSON.stringify(audit)}\n`);
     }
 
-    if (captureRequestedView === 'diary-ledger' || captureRequestedView === 'diary-grid') {
-      const requestedMode = captureRequestedView === 'diary-ledger' ? 'ledger' : 'grid';
-      await mainWindow.webContents.executeJavaScript(`document.querySelector('#diary-tab-timeline')?.focus()`);
-      const arrowCount = requestedMode === 'ledger' ? 1 : 2;
-
-      for (let index = 0; index < arrowCount; index += 1) {
-        mainWindow.webContents.sendInputEvent({ keyCode: 'Right', type: 'keyDown' });
-        mainWindow.webContents.sendInputEvent({ keyCode: 'Right', type: 'keyUp' });
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-
-      await waitForCaptureSelector(`#diary-panel-${requestedMode}`);
-      const keyboardTabSelected = (await mainWindow.webContents.executeJavaScript(`
-        (() => {
-          const tab = document.querySelector(${JSON.stringify(`#diary-tab-${requestedMode}`)});
-          return tab?.getAttribute('aria-selected') === 'true' && document.activeElement === tab;
-        })()
-      `)) as boolean;
-
-      if (!keyboardTabSelected) {
-        throw new Error(`Diary keyboard navigation did not select and focus the ${requestedMode} tab.`);
-      }
-    }
-
     if (captureRequestedView === 'library-filtered' || captureRequestedView === 'library-empty') {
       const filterSurface = captureWidth <= captureCompactFilterBreakpoint ? '.filter-sheet' : '.filter-toolbar';
 
@@ -1366,6 +1372,79 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
         `);
         await waitForCaptureSelector('.filter-chip');
       }
+    }
+
+    if (captureRequestedView === 'library-criteria') {
+      if (captureWidth <= captureCompactFilterBreakpoint) {
+        throw new Error('The installed Library criteria profile requires the visible desktop filter toolbar.');
+      }
+
+      await waitForCaptureSelector('.filter-toolbar');
+      const criteria = (await mainWindow.webContents.executeJavaScript(`
+        (async () => {
+          const settlePaint = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          const setSelect = (name, value) => {
+            const select = document.querySelector('.filter-toolbar select[name="' + name + '"]');
+            const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set;
+            setter?.call(select, value);
+            select?.dispatchEvent(new Event('change', { bubbles: true }));
+            return select;
+          };
+          const definitions = [
+            { label: 'Director', name: 'director' },
+            { label: 'Year', name: 'year' },
+            { label: 'Watch date', name: 'watchDate', value: 'last-30-days' }
+          ];
+          const checks = [];
+
+          for (const definition of definitions) {
+            const select = document.querySelector('.filter-toolbar select[name="' + definition.name + '"]');
+            const value = definition.value ?? [...(select?.options ?? [])].find((option) => option.value !== 'all')?.value ?? '';
+            setSelect(definition.name, value);
+            await settlePaint();
+            const chip = [...document.querySelectorAll('.filter-chip:not(.filter-chip-clear)')]
+              .find((candidate) => candidate.textContent?.includes(definition.label));
+            checks.push({
+              chipText: chip?.textContent?.trim() ?? '',
+              name: definition.name,
+              selectedValue: select?.value ?? '',
+              value
+            });
+            setSelect(definition.name, 'all');
+            await settlePaint();
+          }
+
+          const sort = setSelect('sort', 'added');
+          const director = document.querySelector('.filter-toolbar select[name="director"]');
+          const finalDirector = [...(director?.options ?? [])].find((option) => option.value !== 'all')?.value ?? '';
+          setSelect('director', finalDirector);
+          await settlePaint();
+
+          return {
+            checks,
+            finalDirector,
+            finalResultCount: document.querySelectorAll('.movie-card').length,
+            sortValue: sort?.value ?? ''
+          };
+        })()
+      `)) as {
+        checks: Array<{ chipText: string; name: string; selectedValue: string; value: string }>;
+        finalDirector: string;
+        finalResultCount: number;
+        sortValue: string;
+      };
+
+      if (
+        criteria.checks.length !== 3 ||
+        criteria.checks.some((check) => !check.value || check.selectedValue !== check.value || !check.chipText) ||
+        !criteria.finalDirector ||
+        criteria.finalResultCount < 1 ||
+        criteria.sortValue !== 'added'
+      ) {
+        throw new Error(`Installed Library criteria proof failed: ${JSON.stringify(criteria)}`);
+      }
+
+      process.stdout.write(`installed Library criteria: ${JSON.stringify(criteria)}\n`);
     }
 
     if (captureRequestedView === 'search-long') {
@@ -1474,6 +1553,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     if (
       captureRequestedView === 'log' ||
       captureRequestedView === 'log-selected' ||
+      captureRequestedView === 'log-validation' ||
       captureRequestedView === 'log-ambiguity' ||
       captureRequestedView === 'log-path-match' ||
       captureRequestedView === 'log-multiple-paths' ||
@@ -1604,6 +1684,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
 
     if (
       captureRequestedView === 'log-selected' ||
+      captureRequestedView === 'log-validation' ||
       captureRequestedView === 'log-ambiguity' ||
       captureRequestedView === 'log-path-match' ||
       captureRequestedView === 'persistence-save'
@@ -1622,6 +1703,64 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       await waitForCaptureSelector('.film-search-results button');
       await mainWindow.webContents.executeJavaScript(`document.querySelector('.film-search-results button')?.click()`);
       await waitForCaptureSelector('.selected-film .poster-art');
+    }
+
+    if (captureRequestedView === 'log-validation') {
+      const validation = (await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          const form = document.querySelector('.log-sheet .entry-form');
+          const input = form?.querySelector('input[name="watchedAt"]');
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const futureDate = [
+            tomorrow.getFullYear(),
+            String(tomorrow.getMonth() + 1).padStart(2, '0'),
+            String(tomorrow.getDate()).padStart(2, '0')
+          ].join('-');
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+          setter?.call(input, futureDate);
+          input?.dispatchEvent(new Event('input', { bubbles: true }));
+          form?.requestSubmit();
+          return { futureDate, formFound: Boolean(form), inputFound: Boolean(input) };
+        })()
+      `)) as { formFound: boolean; futureDate: string; inputFound: boolean };
+
+      if (!validation.formFound || !validation.inputFound) {
+        throw new Error(`Installed Log validation setup failed: ${JSON.stringify(validation)}`);
+      }
+
+      await waitForCaptureSelector('.entry-form-validation');
+      const validationState = (await mainWindow.webContents.executeJavaScript(`
+        (() => {
+          const alert = document.querySelector('.entry-form-validation');
+          const input = document.querySelector('.log-sheet input[name="watchedAt"]');
+          return {
+            alertRole: alert?.getAttribute('role') ?? '',
+            alertText: alert?.textContent?.trim() ?? '',
+            ariaInvalid: input?.getAttribute('aria-invalid') ?? '',
+            selectedFilmVisible: Boolean(document.querySelector('.selected-film')),
+            value: input?.value ?? ''
+          };
+        })()
+      `)) as {
+        alertRole: string;
+        alertText: string;
+        ariaInvalid: string;
+        selectedFilmVisible: boolean;
+        value: string;
+      };
+
+      if (
+        validationState.alertRole !== 'alert' ||
+        !validationState.alertText.includes('Choose today or an earlier viewing date.') ||
+        validationState.ariaInvalid !== 'true' ||
+        !validationState.selectedFilmVisible ||
+        validationState.value !== validation.futureDate
+      ) {
+        throw new Error(`Installed Log validation state failed: ${JSON.stringify(validationState)}`);
+      }
+
+      process.stdout.write(`installed Log validation: ${JSON.stringify(validationState)}\n`);
     }
 
     if (captureRequestedView === 'log-ambiguity') {
@@ -2435,7 +2574,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       const editSurvivedRelaunch = entryMatchesPersistenceEditProof(editedEntry);
 
       if (!editSurvivedRelaunch) {
-        throw new Error('The edited diary entry did not survive the installed-app relaunch.');
+        throw new Error('The edited viewing did not survive the installed-app relaunch.');
       }
     }
 
@@ -2521,17 +2660,17 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       'detail-missing': '.movie-dossier',
       'detail-outage': '.dossier-match-error',
       'drag-drop-flow': '.status-banner',
-      diary: '.diary-view',
-      'diary-grid': '#diary-panel-grid',
-      'diary-ledger': '#diary-panel-ledger',
       'empty-archive': '.blank-slate',
       filters: '.filter-sheet',
+      'keyboard-tooltip': '.accessible-tooltip-bubble',
       library: '.library-view',
+      'library-criteria': '.filter-chip',
       'library-empty': '.library-film-field .blank-slate',
       'library-filtered': '.library-view',
       'library-selected': '.library-inspector',
       log: '.log-sheet',
       'log-selected': '.selected-film',
+      'log-validation': '.entry-form-validation',
       'log-ambiguity': '.log-ambiguity-error',
       'log-path-match': '.library-view',
       'log-multiple-paths': '.library-view',

@@ -2,6 +2,7 @@
 // ABOUTME: The poster anchors the asymmetric layout and the user's rating carries the strongest priority.
 import type { FormEvent } from 'react';
 import { EntryForm } from '../components/entry-form.js';
+import { AccessibleTooltip } from '../components/accessible-tooltip.js';
 import { FilmPoster } from '../components/film-poster.js';
 import { MetaList } from '../components/meta.js';
 import { RatingMeter } from '../components/rating.js';
@@ -60,7 +61,7 @@ export function DossierView({
           </button>
         }
         fragment="panel"
-        hint="The underlying file or diary record may have been removed."
+        hint="The underlying file or viewing record may have been removed."
         title="This archive item is unavailable."
       />
     );
@@ -134,9 +135,11 @@ export function DossierView({
 
           <div className="dossier-actions">
             {fileBacked ? (
-              item.localSourcePaths.map((sourcePath) => (
+              item.localSourcePaths.map((sourcePath, sourceIndex) => (
                 <div className="dossier-source-actions" key={sourcePath}>
-                  <span title={sourcePath}>{sourcePath.split('/').at(-1) ?? sourcePath}</span>
+                  <AccessibleTooltip id={`dossier-source-${sourceIndex}`} text={sourcePath}>
+                    <span tabIndex={0}>{sourcePath.split('/').at(-1) ?? sourcePath}</span>
+                  </AccessibleTooltip>
                   <button onClick={() => void onOpenItem(sourcePath)} type="button">
                     Open
                   </button>
@@ -217,7 +220,7 @@ export function DossierView({
             <h3>Viewing history</h3>
           </header>
           <ol className="viewing-ledger">
-            {item.viewings.map((entry) => (
+            {item.viewings.map((entry, entryIndex) => (
               <li className="viewing-row" data-entry-id={entry.id} key={entry.id}>
                 <time className="viewing-date" dateTime={entry.watchedAt}>
                   {dateFormatter.format(new Date(entry.watchedAt))}
@@ -237,6 +240,7 @@ export function DossierView({
                       onSubmit={(details) => void onUpdateEntry(entry.id, details)}
                       showDate
                       submitLabel="Save viewing"
+                      validationId={`viewing-validation-${entryIndex}`}
                     />
                     <div className="viewing-danger-zone">
                       <p>Remove this viewing, its rating, notes, and tags from your journal.</p>

@@ -60,21 +60,6 @@
     display: flex;
   }
 
-  .month-summary {
-    grid-template-columns: minmax(170px, 0.62fr) minmax(0, 1.9fr);
-    gap: var(--space-5);
-  }
-
-  .month-metrics {
-    min-width: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0;
-  }
-
-  .month-metrics > div {
-    min-width: 0;
-  }
-
   .viewing-row {
     grid-template-columns: 84px 34px 64px minmax(0, 0.9fr) minmax(0, 1fr);
     gap: var(--space-2);
@@ -199,73 +184,6 @@
     margin: 0 18px 18px;
   }
 
-  .view-switcher button {
-    min-width: 0;
-    flex: 1;
-  }
-
-  .diary-list::before {
-    left: 37px;
-  }
-
-  .diary-entry {
-    grid-template-columns: 38px minmax(0, 1fr);
-    min-height: 170px;
-  }
-
-  .diary-entry::before {
-    top: 30px;
-    left: 34px;
-  }
-
-  .entry-date {
-    padding: 21px 0 0;
-  }
-
-  .entry-date > span {
-    font-size: 1.35rem;
-  }
-
-  .entry-date small {
-    display: none;
-  }
-
-  .entry-body h3 {
-    font-size: 1.35rem;
-  }
-
-  .diary-ledger .diary-entry {
-    grid-template-columns: 38px minmax(0, 1fr);
-  }
-
-  .diary-ledger .entry-date {
-    padding-top: 17px;
-  }
-
-  .diary-ledger .entry-body {
-    display: block;
-    min-height: 72px;
-    margin-left: 15px;
-  }
-
-  .diary-grid .diary-entry {
-    display: block;
-  }
-
-  .diary-grid .entry-date {
-    display: flex;
-    padding-bottom: 7px;
-  }
-
-  .diary-grid .entry-body {
-    padding: 0 0 12px;
-    margin: 0;
-  }
-
-  .diary-grid .entry-body h3 {
-    font-size: 0.92rem;
-  }
-
   .movie-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 28px 14px;
@@ -351,20 +269,6 @@
     font-size: 1rem;
   }
 
-  .film-poster-entry {
-    position: relative;
-    top: auto;
-    left: auto;
-    width: 68px;
-    margin-bottom: var(--space-3);
-  }
-
-  .entry-body {
-    margin: 0 0 22px 15px;
-    background: var(--surface);
-    padding: var(--space-4);
-  }
-
   .rating-input {
     grid-template-columns: 1fr;
   }
@@ -375,20 +279,6 @@
 
   .rating-none {
     width: 100%;
-  }
-
-  .diary-grid .diary-list {
-    gap: 24px 12px;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .diary-ledger-row > button {
-    grid-template-columns: 58px minmax(0, 1fr) 32px;
-  }
-
-  .ledger-year,
-  .ledger-marks {
-    display: none;
   }
 
   .filter-toolbar {
@@ -650,44 +540,6 @@
   .archive-content {
     padding: 0 18px 40px;
     min-height: calc(100dvh - 92px - var(--mobile-nav-height));
-  }
-
-  .month-summary {
-    grid-template-columns: 1fr;
-    gap: var(--space-2);
-    padding: 12px 0 10px;
-  }
-
-  .month-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .month-metrics > div:first-child {
-    grid-row: auto;
-    grid-column: auto;
-  }
-
-  .month-metrics > .summary-wide {
-    grid-column: 1 / -1;
-  }
-
-  .month-metrics > div {
-    min-height: 42px;
-    padding: 5px var(--space-2);
-  }
-
-  .month-metrics dd,
-  .month-metrics > div:first-child dd {
-    margin-top: 2px;
-    font-size: 1.15rem;
-  }
-
-  .month-metrics .summary-wide dd {
-    font-size: 0.88rem;
-  }
-
-  .view-switcher {
-    margin: var(--space-2) 0 var(--space-3);
   }
 
   .search-group {

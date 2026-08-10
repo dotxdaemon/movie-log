@@ -1,6 +1,5 @@
-// ABOUTME: Verifies every diary and statistics bucket uses the same local calendar shown to the user.
+// ABOUTME: Verifies every viewing and statistics bucket uses the same local calendar shown to the user.
 // ABOUTME: Pins Denver month, year, daylight-saving, and noon-based manual-entry boundaries.
-import { createElement } from 'react';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readArchiveStats } from '../src/archive-model.js';
 import {
@@ -9,7 +8,6 @@ import {
   readLocalCalendarYear
 } from '../shared/local-calendar.js';
 import type { MovieLogState, WatchEntry } from '../shared/types.js';
-import { findByClass, readText, renderTree } from './render-tree.js';
 
 const originalTimeZone = process.env.TZ;
 
@@ -76,31 +74,5 @@ describe('local calendar', () => {
     ]);
     expect(stats.activity.find((day) => day.date === '2026-12-31')?.count).toBe(1);
     expect(stats.activity.find((day) => day.date === '2027-01-01')?.count).toBe(1);
-  });
-
-  it('selects and labels the Diary active month from local calendar parts', async () => {
-    const { DiaryView } = await import('../src/views/diary.js');
-    const state: MovieLogState = {
-      films: {},
-      history: [
-        entry('local-december', '2027-01-01T06:30:00.000Z'),
-        entry('earlier-december', '2026-12-15T19:00:00.000Z')
-      ],
-      libraryItems: [],
-      watchedFolders: []
-    };
-    const tree = renderTree(
-      createElement(DiaryView, {
-        diaryMode: 'timeline',
-        onDiaryModeChange: () => {},
-        onOpenLogPanel: () => {},
-        onSelectPath: () => {},
-        onUpdateEntry: async () => {},
-        state
-      })
-    );
-
-    expect(readText(findByClass(tree, 'month-summary-title'))).toContain('December 2026');
-    expect(readText(findByClass(tree, 'month-metrics'))).toContain('Viewings2');
   });
 });

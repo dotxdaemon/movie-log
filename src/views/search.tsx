@@ -1,4 +1,4 @@
-// ABOUTME: Renders archive search with diary, library, and catalog lanes behind one pale framed field.
+// ABOUTME: Renders archive search with watched, library, and catalog lanes behind one pale framed field.
 // ABOUTME: Arrow keys move an active result, Enter opens it, and Escape dismisses the search surface.
 import type { KeyboardEvent } from 'react';
 import { FilmPoster } from '../components/film-poster.js';
@@ -52,7 +52,6 @@ function SearchLane({
           onClick={() => onOpenResult(result)}
           role="option"
           tabIndex={-1}
-          title={result.title}
           type="button"
         >
           <FilmPoster
@@ -179,7 +178,7 @@ export function SearchView({
             emptyLabel={query ? 'No watched films match.' : null}
             index="A"
             onOpenResult={onOpenResult}
-            results={groups.diary}
+            results={groups.watched}
             startIndex={0}
             title="Watched"
           />
@@ -189,7 +188,7 @@ export function SearchView({
             index="B"
             onOpenResult={onOpenResult}
             results={groups.library}
-            startIndex={groups.diary.length}
+            startIndex={groups.watched.length}
             title="Library"
           />
           <section className="search-group search-group-catalog">
@@ -210,12 +209,11 @@ export function SearchView({
                 aria-selected={activeKey === result.key}
                 className={activeKey === result.key ? 'search-result search-result-active' : 'search-result'}
                 data-path={result.sourcePath ?? undefined}
-                id={`search-option-${groups.diary.length + groups.library.length + offset}`}
+                id={`search-option-${groups.watched.length + groups.library.length + offset}`}
                 key={result.key}
                 onClick={() => onOpenResult(result)}
                 role="option"
                 tabIndex={-1}
-                title={result.title}
                 type="button"
               >
                 <FilmPoster

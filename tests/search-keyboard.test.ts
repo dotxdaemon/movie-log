@@ -11,8 +11,8 @@ const noop = () => {};
 function makeResult(index: number): SearchResultItem {
   return {
     director: [`Director ${index}`],
-    key: `diary:/Movies/Film-${index}.mkv`,
-    kind: 'diary',
+    key: `watched:/Movies/Film-${index}.mkv`,
+    kind: 'watched',
     mediaType: 'film',
     pageId: index,
     posterUrl: null,
@@ -29,12 +29,12 @@ afterEach(() => {
 
 describe('Search keyboard navigation', () => {
   it('scrolls an off-screen Arrow destination into view and keeps combobox state synchronized', () => {
-    const diary = Array.from({ length: 24 }, (_value, index) => makeResult(index));
+    const watched = Array.from({ length: 24 }, (_value, index) => makeResult(index));
     const groups: SearchGroups = {
       catalog: [],
-      diary,
-      flat: diary,
-      library: []
+      flat: watched,
+      library: [],
+      watched
     };
     const activeChanges: number[] = [];
     const opened: SearchResultItem[] = [];
@@ -75,6 +75,6 @@ describe('Search keyboard navigation', () => {
       key: 'Enter',
       preventDefault: noop
     });
-    expect(opened).toEqual([diary[17]]);
+    expect(opened).toEqual([watched[17]]);
   });
 });

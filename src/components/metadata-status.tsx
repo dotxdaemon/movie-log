@@ -70,7 +70,7 @@ export function MobileArchiveStatus({
 
   return (
     <details className="mobile-archive-status">
-      <summary aria-label={summary} aria-live="polite" title={summary}>
+      <summary aria-label={summary} aria-live="polite">
         {summary}
       </summary>
       <MetadataStatusDetails coverage={coverage} onRetry={onRetry} />

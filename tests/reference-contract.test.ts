@@ -17,7 +17,7 @@ describe('workspace reference contract', () => {
     expect(requiredMarkers).toContain('icy lavender');
     expect(requiredMarkers).toContain('graphite structural spine');
     expect(requiredMarkers).toContain('rare burgundy seam');
-    expect(requiredMarkers).toContain('tall diary focal body');
+    expect(requiredMarkers).toContain('poster-led Library focal body');
     expect(requiredMarkers).toContain('asymmetrical annotation studies');
     expect(requiredMarkers).toContain('exposed seam lines');
     expect(requiredMarkers).toContain('narrow silhouettes');

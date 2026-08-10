@@ -5,20 +5,20 @@ import { isSearchContext, readSearchReturnView } from '../src/navigation-state.j
 
 describe('navigation state', () => {
   it('uses the dossier origin when Search opens from a dossier', () => {
-    expect(readSearchReturnView('detail', 'diary')).toBe('library');
+    expect(readSearchReturnView('detail', 'library')).toBe('library');
     expect(readSearchReturnView('detail', 'statistics')).toBe('statistics');
     expect(readSearchReturnView('detail', 'settings')).toBe('settings');
   });
 
   it('uses the current top-level view outside a dossier', () => {
-    expect(readSearchReturnView('library', 'diary')).toBe('library');
+    expect(readSearchReturnView('library', 'settings')).toBe('library');
     expect(readSearchReturnView('statistics', 'library')).toBe('statistics');
   });
 
   it('treats a dossier opened from Search as part of the active Search context', () => {
-    expect(isSearchContext('search', 'diary')).toBe(true);
+    expect(isSearchContext('search', 'library')).toBe(true);
     expect(isSearchContext('detail', 'search')).toBe(true);
-    expect(isSearchContext('detail', 'diary')).toBe(false);
+    expect(isSearchContext('detail', 'library')).toBe(false);
     expect(isSearchContext('library', 'search')).toBe(false);
   });
 });

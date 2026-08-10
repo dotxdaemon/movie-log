@@ -71,7 +71,7 @@ describe('createHistoryStore', () => {
     expect(state.watchedFolders[0]?.path).toBe('/Users/seankim/Media Inbox');
   });
 
-  it('persists diary annotations without reducing append-only history or note rows', async () => {
+  it('persists viewing annotations without reducing append-only history or note rows', async () => {
     const store = createHistoryStore(dataDirectory);
     const entry = createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'drop', '2026-03-12T08:00:00.000Z');
     await store.addHistoryEntry(entry);

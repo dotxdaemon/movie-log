@@ -1,5 +1,5 @@
 // ABOUTME: Renders viewing statistics as editorial strips, thin bars, compact tables, and a yearly grid.
-// ABOUTME: Every figure derives from persisted diary entries joined with cached film metadata.
+// ABOUTME: Every figure derives from persisted viewing entries joined with cached film metadata.
 import { EmptyState } from '../components/states.js';
 import { formatRuntime, readArchiveCoverage, readArchiveStats, type ArchiveCoverage } from '../archive-model.js';
 import { createLocalCalendarDate } from '../../shared/local-calendar.js';
@@ -75,7 +75,7 @@ export function StatisticsView({ coverage, now, state }: StatisticsViewProps) {
     return (
       <EmptyState
         fragment="seam"
-        hint="Statistics assemble themselves from your diary as you log viewings."
+        hint="Statistics assemble themselves from your journal as you log viewings."
         title="Nothing to measure yet."
       />
     );
@@ -372,7 +372,6 @@ export function StatisticsView({ coverage, now, state }: StatisticsViewProps) {
                 className={`activity-cell activity-level-${Math.min(3, day.count)}`}
                 key={day.date}
                 style={{ gridColumn: day.week + 1, gridRow: day.weekday + 1 }}
-                title={`${day.date} · ${day.count}`}
               />
             ))}
           </div>

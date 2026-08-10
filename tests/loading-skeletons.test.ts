@@ -1,5 +1,5 @@
 // ABOUTME: Verifies loading placeholders reuse the structural geometry of their finished views.
-// ABOUTME: Pins Diary month, mode, and entry anatomy plus the full Statistics composition.
+// ABOUTME: Pins the Library card anatomy and the full Statistics composition.
 import { createElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import { ViewSkeleton } from '../src/components/states.js';
@@ -14,28 +14,6 @@ describe('view loading geometry', () => {
     expect(findByClass(tree, 'skeleton-card-title')).toHaveLength(8);
     expect(findByClass(tree, 'skeleton-card-media')).toHaveLength(8);
     expect(findByClass(tree, 'skeleton-card-meta')).toHaveLength(8);
-  });
-
-  it('mirrors the Diary month summary, layout switcher, and timeline entry anatomy', () => {
-    const tree = renderTree(createElement(ViewSkeleton, { view: 'diary' }));
-
-    expect(findByClass(tree, 'diary-loading')[0]?.props).toMatchObject({
-      'aria-label': 'Loading diary',
-      role: 'status'
-    });
-    expect(findByClass(tree, 'month-summary')).toHaveLength(1);
-    expect(findByClass(tree, 'month-summary-title')).toHaveLength(1);
-    expect(findByClass(tree, 'month-metrics')).toHaveLength(1);
-    expect(findByClass(tree, 'skeleton-month-metric')).toHaveLength(5);
-    expect(findByClass(tree, 'summary-wide')).toHaveLength(1);
-    expect(findByClass(tree, 'view-switcher')).toHaveLength(1);
-    expect(findByClass(tree, 'skeleton-tab')).toHaveLength(3);
-    expect(findByClass(tree, 'diary-list')).toHaveLength(1);
-    expect(findByClass(tree, 'diary-entry')).toHaveLength(3);
-    expect(findByClass(tree, 'entry-date')).toHaveLength(3);
-    expect(findByClass(tree, 'entry-body')).toHaveLength(3);
-    expect(findByClass(tree, 'film-poster-entry')).toHaveLength(3);
-    expect(findByClass(tree, 'skeleton-strip')).toHaveLength(0);
   });
 
   it('mirrors the Statistics metrics, coverage, unequal panels, and yearly activity region', () => {

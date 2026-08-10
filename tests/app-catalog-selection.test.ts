@@ -1,5 +1,5 @@
 // ABOUTME: Verifies that global catalog search keeps metadata when opening the logging sheet.
-// ABOUTME: Prevents catalog-only diary entries from losing media type, co-directors, or poster quality.
+// ABOUTME: Prevents catalog-only viewing entries from losing media type, co-directors, or poster quality.
 import { describe, expect, it } from 'vitest';
 import { buildSearchResults, type SearchResultItem } from '../src/archive-model.js';
 import { createArchiveLogSelection, createCatalogLogSelection } from '../src/catalog-log-selection.js';

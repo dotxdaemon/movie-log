@@ -82,10 +82,10 @@ export function ArchiveNavigation({ activeView, onOpenLogPanel, onViewChange }: 
         ))}
       </nav>
       <button
+        aria-label="Log a film. Keyboard shortcut: Command or Control N"
         aria-keyshortcuts="Meta+N Control+N"
         className="log-action"
         onClick={onOpenLogPanel}
-        title="Log a film (Command or Control N)"
         type="button"
       >
         <span aria-hidden="true" className="log-action-plus">
