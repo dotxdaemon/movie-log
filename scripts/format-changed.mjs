@@ -1,7 +1,10 @@
 // ABOUTME: Formats or checks only supported project files changed in the current working tree.
 // ABOUTME: Keeps formatter enforcement focused without rewriting unrelated history or artifacts.
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import process from 'node:process';
+
+const require = createRequire(import.meta.url);
 
 const mode = process.argv[2];
 
@@ -23,7 +26,8 @@ const supportedPath =
 const paths = [...new Set([...changedPaths, ...untrackedPaths])].filter((filePath) => supportedPath.test(filePath));
 
 if (paths.length > 0) {
-  execFileSync('npm', ['exec', '--', 'prettier', mode, ...paths], {
+  const prettierPath = require.resolve('prettier/bin/prettier.cjs');
+  execFileSync(process.execPath, [prettierPath, mode, ...paths], {
     stdio: 'inherit'
   });
 } else {

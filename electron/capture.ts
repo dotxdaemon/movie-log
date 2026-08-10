@@ -397,6 +397,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
           requestedView.startsWith('library') ||
           requestedView === 'performance-large' ||
           requestedView === 'poster-performance' ||
+          requestedView === 'persistence-edit' ||
           requestedView === 'persistence-delete' ||
           requestedView === 'persistence-date-edit' ||
           requestedView === 'aggregation-verify'
@@ -1457,15 +1458,26 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       captureRequestedView === 'detail-imdb-match' ||
       captureRequestedView === 'detail-missing' ||
       captureRequestedView === 'detail-outage' ||
+      captureRequestedView === 'persistence-edit' ||
       captureRequestedView === 'persistence-delete' ||
       captureRequestedView === 'persistence-date-edit'
     ) {
+      const persistenceSourcePath =
+        captureRequestedView === 'persistence-edit'
+          ? (await historyStore.readState()).history.find((entry) => entry.review === persistenceProof.review)
+              ?.sourcePath
+          : undefined;
       const selectedMovie = (await mainWindow.webContents.executeJavaScript(`
         (async () => {
           const requestedView = ${JSON.stringify(captureRequestedView)};
+          const persistenceSourcePath = ${JSON.stringify(persistenceSourcePath)};
           let face;
 
-          if (requestedView === 'detail-missing') {
+          if (requestedView === 'persistence-edit') {
+            face = [...document.querySelectorAll('.movie-card')]
+              .find((card) => card.getAttribute('data-path') === persistenceSourcePath)
+              ?.querySelector('.movie-card-face');
+          } else if (requestedView === 'detail-missing') {
             face = [...document.querySelectorAll('.movie-card:not(:has(.poster-art)) .movie-card-face')]
               .sort((left, right) => (right.textContent?.length ?? 0) - (left.textContent?.length ?? 0))[0];
           } else if (
@@ -1579,6 +1591,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       if (
         captureRequestedView === 'detail-editor' ||
         captureRequestedView === 'detail-delete-confirmation' ||
+        captureRequestedView === 'persistence-edit' ||
         captureRequestedView === 'persistence-delete' ||
         captureRequestedView === 'persistence-date-edit'
       ) {
@@ -1980,28 +1993,10 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
     }
 
     if (captureRequestedView === 'persistence-edit') {
-      const editingOpened = (await mainWindow.webContents.executeJavaScript(`
-        (() => {
-          const proofReview = ${JSON.stringify(persistenceProof.review)};
-          const article = [...document.querySelectorAll('.diary-entry')]
-            .find((candidate) => candidate.textContent?.includes(proofReview));
-          article?.querySelector('.entry-expand summary')?.click();
-          return Boolean(article);
-        })()
-      `)) as boolean;
-
-      if (!editingOpened) {
-        throw new Error('The saved persistence entry was not available for installed-app editing.');
-      }
-
-      await waitForCaptureSelector('.entry-expand[open] .entry-form');
       const editAccepted = (await mainWindow.webContents.executeJavaScript(`
         (() => {
-          const originalReview = ${JSON.stringify(persistenceProof.review)};
           const edit = ${JSON.stringify(persistenceEditProof)};
-          const article = [...document.querySelectorAll('.diary-entry')]
-            .find((candidate) => candidate.textContent?.includes(originalReview));
-          const form = article?.querySelector('.entry-form');
+          const form = document.querySelector('.viewing-editor[open] .entry-form');
           const setValue = (selector, value) => {
             const control = form?.querySelector(selector);
             const prototype = control instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
@@ -2025,7 +2020,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       `)) as boolean;
 
       if (!editAccepted) {
-        throw new Error('The installed diary edit form did not accept the persistence proof update.');
+        throw new Error('The installed Dossier edit form did not accept the persistence proof update.');
       }
 
       let editedEntry: WatchEntry | undefined;
@@ -2043,7 +2038,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       }
 
       if (!entryMatchesPersistenceEditProof(editedEntry)) {
-        throw new Error('The installed diary edit did not persist every changed field exactly.');
+        throw new Error('The installed Dossier edit did not persist every changed field exactly.');
       }
 
       if (persistenceProofPath) {
@@ -2165,7 +2160,7 @@ export function createCaptureController({ dataDirectory, historyStore, quitApp, 
       'load-error': '.error-state',
       'persistence-save': '.library-view',
       'persistence-verify': '.library-view',
-      'persistence-edit': '.library-view',
+      'persistence-edit': '.movie-dossier',
       'persistence-edit-verify': '.library-view',
       'persistence-delete': '.status-banner',
       'persistence-date-edit': '.status-banner',

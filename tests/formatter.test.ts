@@ -14,5 +14,8 @@ describe('project formatter', () => {
     expect(packageJson.dependencies.prettier).toBeUndefined();
     expect(formatterScript).toContain("readGitPaths(['diff', '--name-only', '--diff-filter=ACMR', 'HEAD'])");
     expect(formatterScript).toContain("readGitPaths(['ls-files', '--others', '--exclude-standard'])");
+    expect(formatterScript).toContain("resolve('prettier/bin/prettier.cjs')");
+    expect(formatterScript).toContain('execFileSync(process.execPath');
+    expect(formatterScript).not.toContain("execFileSync('npm'");
   });
 });

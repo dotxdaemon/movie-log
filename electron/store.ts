@@ -1,6 +1,6 @@
 // ABOUTME: Persists watch history and watched folders as local JSON in the desktop app data directory.
 // ABOUTME: Provides the minimal read and write operations needed by the Electron process and tests.
-import { access, copyFile, mkdir, open, readFile, rename, stat } from 'node:fs/promises';
+import { access, copyFile, mkdir, open, readFile, rename, rm, stat } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { scanFolderContents, type ScannedFolderItem } from './folder-scan.js';
 import {
@@ -27,6 +27,30 @@ const EMPTY_STATE: PersistedState = {
   seenKeysByFolder: {},
   watchedFolders: []
 };
+
+interface HistoryStoreOptions {
+  writeFile?(filePath: string, contents: string): Promise<void>;
+}
+
+export async function atomicWriteFile(filePath: string, contents: string): Promise<void> {
+  const temporaryPath = `${filePath}.tmp-${process.pid}-${Date.now()}`;
+
+  try {
+    const fileHandle = await open(temporaryPath, 'w');
+
+    try {
+      await fileHandle.writeFile(contents, 'utf8');
+      await fileHandle.sync();
+    } finally {
+      await fileHandle.close();
+    }
+
+    await rename(temporaryPath, filePath);
+  } catch (error) {
+    await rm(temporaryPath, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
 
 function mergeHistoryEntries(existingEntries: WatchEntry[], incomingEntries: WatchEntry[]): WatchEntry[] {
   const knownEntryIds = new Set(existingEntries.map((entry) => entry.id));
@@ -373,9 +397,10 @@ function applyWatchedFolderSync(
   };
 }
 
-export function createHistoryStore(dataDirectory: string) {
+export function createHistoryStore(dataDirectory: string, options: HistoryStoreOptions = {}) {
   const dataFilePath = join(dataDirectory, 'movie-log.json');
   const noteFilePath = join(dataDirectory, 'movie-log-note.md');
+  const writeFile = options.writeFile ?? atomicWriteFile;
   let stateQueue = Promise.resolve();
 
   function renderNote(state: PersistedState): string {
@@ -464,20 +489,6 @@ export function createHistoryStore(dataDirectory: string) {
       libraryItems,
       watchedFolders
     };
-  }
-
-  async function writeFileAtomically(filePath: string, contents: string): Promise<void> {
-    const temporaryPath = `${filePath}.tmp-${process.pid}-${Date.now()}`;
-    const fileHandle = await open(temporaryPath, 'w');
-
-    try {
-      await fileHandle.writeFile(contents, 'utf8');
-      await fileHandle.sync();
-    } finally {
-      await fileHandle.close();
-    }
-
-    await rename(temporaryPath, filePath);
   }
 
   async function preserveUnreadableDataFile(): Promise<void> {
@@ -598,7 +609,7 @@ export function createHistoryStore(dataDirectory: string) {
       const code = (error as NodeJS.ErrnoException).code;
 
       if (code === 'ENOENT') {
-        await writeFileAtomically(noteFilePath, renderNote(state));
+        await writeFile(noteFilePath, renderNote(state));
         return;
       }
 
@@ -692,9 +703,51 @@ export function createHistoryStore(dataDirectory: string) {
     if (!options.allowExplicitHistoryReduction) {
       await protectNoteForWrite(normalizedState);
     }
+    const previousFiles = await Promise.all(
+      [dataFilePath, noteFilePath].map(async (filePath) => {
+        try {
+          return await readFile(filePath, 'utf8');
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            return null;
+          }
+
+          throw error;
+        }
+      })
+    );
     await snapshotExistingFiles();
-    await writeFileAtomically(dataFilePath, `${JSON.stringify(normalizedState, null, 2)}\n`);
-    await writeFileAtomically(noteFilePath, renderNote(normalizedState));
+
+    try {
+      await writeFile(dataFilePath, `${JSON.stringify(normalizedState, null, 2)}\n`);
+      await writeFile(noteFilePath, renderNote(normalizedState));
+    } catch (commitError) {
+      const rollbackErrors: unknown[] = [];
+
+      for (const [index, filePath] of [dataFilePath, noteFilePath].entries()) {
+        try {
+          const previousContents = previousFiles[index];
+          if (previousContents === null) {
+            await rm(filePath, { force: true });
+          } else {
+            await writeFile(filePath, previousContents);
+          }
+        } catch (rollbackError) {
+          rollbackErrors.push(rollbackError);
+        }
+      }
+
+      if (rollbackErrors.length > 0) {
+        throw new AggregateError(
+          [commitError, ...rollbackErrors],
+          'Movie Log could not commit or fully restore its paired history files.',
+          { cause: commitError }
+        );
+      }
+
+      throw commitError;
+    }
+
     return normalizedState;
   }
 

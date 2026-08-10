@@ -350,6 +350,8 @@ describe('capture pipeline', () => {
 
   it('audits installed accessibility names, alternatives, focus visibility, and mobile target sizes', () => {
     expect(captureProcess).toContain("captureRequestedView === 'accessibility-audit'");
+    expect(captureProcess).toContain("document.querySelector('.viewing-editor[open] .entry-form')");
+    expect(captureProcess).toContain("'persistence-edit': '.movie-dossier'");
     expect(captureProcess).toContain('imagesMissingAlternatives');
     expect(captureProcess).toContain('missingNames');
     expect(captureProcess).toContain('modalBackgroundIssues');

@@ -37,6 +37,38 @@ interface LogCatalogFilmOptions {
   reportError?(error: unknown, phase: 'broadcast' | 'metadata' | 'persistence'): void;
 }
 
+function normalizeCatalogSearchText(value: string): string {
+  return value
+    .replace(/\s+(?:film|TV series)\s*$/i, '')
+    .normalize('NFKD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+export function rankCatalogSearchResults(query: string, results: CatalogSearchResult[]): CatalogSearchResult[] {
+  const normalizedQuery = normalizeCatalogSearchText(query);
+
+  if (!normalizedQuery) {
+    return [...results];
+  }
+
+  const score = (title: string): number => {
+    const normalizedTitle = normalizeCatalogSearchText(title);
+
+    if (normalizedTitle === normalizedQuery) return 0;
+    if (normalizedTitle.startsWith(`${normalizedQuery} `)) return 1;
+    if (normalizedTitle.includes(normalizedQuery)) return 2;
+    return 3;
+  };
+
+  return results
+    .map((result, index) => ({ index, result, score: score(result.title) }))
+    .sort((left, right) => left.score - right.score || left.index - right.index)
+    .map(({ result }) => result);
+}
+
 export function createAttachedCatalogSelection(film: LogFilmRequest): CatalogSearchResult {
   return {
     catalogId: film.catalogId,
@@ -219,15 +251,15 @@ export async function searchCatalogWithFallback(
     ]);
 
     if (liveFilms.length > 0) {
-      return liveFilms;
+      return rankCatalogSearchResults(query, liveFilms);
     }
 
-    return options.searchCachedFilms(query);
+    return rankCatalogSearchResults(query, await options.searchCachedFilms(query));
   } catch (error) {
     const cachedFilms = await options.searchCachedFilms(query);
 
     if (cachedFilms.length > 0) {
-      return cachedFilms;
+      return rankCatalogSearchResults(query, cachedFilms);
     }
 
     throw error;

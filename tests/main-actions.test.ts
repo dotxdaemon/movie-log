@@ -428,4 +428,28 @@ describe('main actions', () => {
       })
     ).resolves.toEqual([cachedFilm]);
   });
+
+  it('ranks an exact catalog title ahead of broader title matches', async () => {
+    const broadMatch = {
+      description: 'Fantasy film',
+      pageId: -120737,
+      posterUrl: null,
+      title: 'The Lord of the Rings: The Fellowship of the Ring',
+      year: 2001
+    };
+    const exactMatch = {
+      description: 'Horror film',
+      pageId: -298130,
+      posterUrl: null,
+      title: 'The Ring',
+      year: 2002
+    };
+
+    await expect(
+      searchCatalogWithFallback('The Ring film', {
+        searchCachedFilms: async () => [],
+        searchLiveFilms: async () => [broadMatch, exactMatch]
+      })
+    ).resolves.toEqual([exactMatch, broadMatch]);
+  });
 });

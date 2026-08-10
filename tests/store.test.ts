@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { scanFolderContents } from '../electron/folder-scan.js';
-import { createHistoryStore } from '../electron/store.js';
+import { atomicWriteFile, createHistoryStore } from '../electron/store.js';
 import { createEntryFromPath } from '../shared/history.js';
 
 function scannedItem(sourcePath: string, itemKey: string, sourceKind: 'file' | 'directory' = 'file', addedAt?: string) {
@@ -157,6 +157,38 @@ describe('createHistoryStore', () => {
     expect(note).toContain('Heat.mkv');
     expect(snapshot.history.map((entry) => entry.id)).toEqual(expect.arrayContaining([flow.id, heat.id]));
     expect(await store.deleteHistoryEntry(flow.id)).toBeNull();
+  });
+
+  it('rolls back both history files when deletion cannot commit the paired note', async () => {
+    const store = createHistoryStore(dataDirectory);
+    const flow = createEntryFromPath('/Users/seankim/Movies/Flow.mkv', 'drop', '2026-03-12T08:00:00.000Z');
+    const heat = createEntryFromPath('/Users/seankim/Movies/Heat.mkv', 'drop', '2026-03-11T08:00:00.000Z');
+    await store.addHistoryEntries([flow, heat]);
+
+    const dataPath = join(dataDirectory, 'movie-log.json');
+    const notePath = join(dataDirectory, 'movie-log-note.md');
+    const dataBefore = await readFile(dataPath, 'utf8');
+    const noteBefore = await readFile(notePath, 'utf8');
+    let rejectNextNoteWrite = true;
+    const failingStore = createHistoryStore(dataDirectory, {
+      writeFile: async (filePath, contents) => {
+        if (filePath === notePath && rejectNextNoteWrite) {
+          rejectNextNoteWrite = false;
+          throw new Error('Injected note commit failure.');
+        }
+
+        await atomicWriteFile(filePath, contents);
+      }
+    });
+
+    await expect(failingStore.deleteHistoryEntry(flow.id)).rejects.toThrow('Injected note commit failure.');
+
+    expect(await readFile(dataPath, 'utf8')).toBe(dataBefore);
+    expect(await readFile(notePath, 'utf8')).toBe(noteBefore);
+    expect((await createHistoryStore(dataDirectory).readState()).history.map((entry) => entry.id)).toEqual([
+      flow.id,
+      heat.id
+    ]);
   });
 
   it('does not reveal an older hidden watcher duplicate after its visible viewing is deleted', async () => {
